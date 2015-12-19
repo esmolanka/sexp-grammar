@@ -10,8 +10,8 @@ main = do
   args <- getArgs
   msexps <-
     case args of
-      []     -> parseSexpsFrom "<stdin>" <$> getContents
-      (fn:_) -> parseSexpsFrom fn <$> readFile fn
+      []     -> parseSexps "<stdin>" <$> getContents
+      (fn:_) -> parseSexps fn <$> readFile fn
 
   case msexps of
     Left err -> putStrLn err

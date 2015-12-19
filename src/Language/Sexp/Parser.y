@@ -7,7 +7,10 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds        #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches      #-}
 
-module Language.Sexp.Parser (parseSexp, parseProgram) where
+module Language.Sexp.Parser
+  ( parseSexps
+  , parseSexp
+  ) where
 
 import Data.Functor.Foldable (Fix (..))
 import Data.Text (Text)
@@ -18,34 +21,35 @@ import qualified Data.Text.Lazy as Lazy
 
 import Text.PrettyPrint.Leijen.Text
 
+import Language.Sexp.Token
 import Language.Sexp.Lexer
 import Language.Sexp.Types
 }
 
-%name parseSexp Sexp
-%name parseProgram Program
+%name parseSexp_ Sexp
+%name parseSexps_ Sexps
 %error { parseError }
 %tokentype { LocatedBy Position Token }
 %monad { Either String }
 
 %token
-  '('            { L _ TokLParen   }
-  ')'            { L _ TokRParen   }
-  '['            { L _ TokLBracket }
-  ']'            { L _ TokRBracket }
-  '.'            { L _ TokDot      }
-  "'"            { L _ TokQuote    }
-  '#'            { L _ TokHash     }
-  Symbol         { L _ (TokSymbol _) }
+  '('            { L _ TokLParen      }
+  ')'            { L _ TokRParen      }
+  '['            { L _ TokLBracket    }
+  ']'            { L _ TokRBracket    }
+  '.'            { L _ TokDot         }
+  "'"            { L _ TokQuote       }
+  '#'            { L _ TokHash        }
+  Symbol         { L _ (TokSymbol  _) }
   Keyword        { L _ (TokKeyword _) }
-  Integer        { L _ (TokInt _) }
-  Real           { L _ (TokReal _) }
-  String         { L _ (TokStr _) }
-  Bool           { L _ (TokBool _) }
+  Integer        { L _ (TokInt     _) }
+  Real           { L _ (TokReal    _) }
+  String         { L _ (TokStr     _) }
+  Bool           { L _ (TokBool    _) }
 
 %%
 
-Program :: { [Sexp] }
+Sexps :: { [Sexp] }
   : list(Sexp)   { $1 }
 
 Sexp :: { Sexp }
@@ -82,15 +86,24 @@ list1(p)
   : p              { [$1] }
   | p list1(p)     { $1 : $2 }
 
-
 {
+parseSexp :: FilePath -> String -> Either String Sexp
+parseSexp fn inp =
+  case parseSexp_ (lexSexp fn inp) of
+    Left err -> Left $ fn ++ ":" ++ err
+    Right a  -> Right a
+
+parseSexps :: FilePath -> String -> Either String [Sexp]
+parseSexps fn inp =
+  case parseSexps_ (lexSexp fn inp) of
+    Left err -> Left $ fn ++ ":" ++ err
+    Right a  -> Right a
 
 parseError :: [LocatedBy Position Token] -> Either String b
 parseError toks = case toks of
   [] ->
-    Left "Unexpected EOF"
+    Left "EOF: Unexpected end of file"
   (L pos tok : _) ->
     Left $ Lazy.unpack . displayT . renderPretty 0.8 80 $
       pretty pos <> colon <+> "Unexpected token:" <+> pretty tok
-
 }

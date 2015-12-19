@@ -27,11 +27,9 @@ data Token
   | TokUnknown {getUnknown  :: Char }        -- for unknown lexemes
     deriving (Show, Eq)
 
-data Position = Position
-  { posFileName :: String
-  , posLine     :: Int
-  , posCol      :: Int
-  } deriving (Show, Ord, Eq)
+data Position =
+  Position !Int !Int
+  deriving (Show, Ord, Eq)
 
 data LocatedBy p a = L !p !a
   deriving (Show, Eq, Functor)
@@ -60,9 +58,4 @@ instance Pretty Token where
   pretty (TokUnknown u) = "unknown lexeme" <+> text (pack (show u))
 
 instance Pretty Position where
-  pretty Position{..} =
-    hcat $ punctuate colon
-      [ text (pack posFileName)
-      , int posLine
-      , int posCol
-      ]
+  pretty (Position line col) = int line <> colon <> int col

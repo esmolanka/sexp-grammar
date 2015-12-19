@@ -9,7 +9,6 @@
 
 module Language.Sexp.Lexer
   ( lexSexp
-  , module Language.Sexp.Token
   ) where
 
 import qualified Data.Text as T
@@ -69,6 +68,6 @@ via ftok f pos str = L pos (ftok (f str))
 lexSexp :: FilePath -> String -> [LocatedBy Position Token]
 lexSexp f = map (mapPosition fixPos) . alexScanTokens
   where
-    fixPos (AlexPn _ l c) = Position f l c
+    fixPos (AlexPn _ l c) = Position l c
 
 }
