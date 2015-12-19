@@ -1,0 +1,5 @@
+resolver: lts-7.18
+packages:
+- '.'
+extra-deps:
+- prettyprinter-1.0.1
