@@ -9,14 +9,17 @@
 
 module Language.Sexp.Parser (parseSexp, parseProgram) where
 
-import Data.List
+import Data.Functor.Foldable (Fix (..))
 import Data.Text (Text)
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Scientific
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as Lazy
+
+import Text.PrettyPrint.Leijen.Text
 
 import Language.Sexp.Lexer
 import Language.Sexp.Types
-
 }
 
 %name parseSexp Sexp
@@ -46,26 +49,27 @@ Program :: { [Sexp] }
   : list(Sexp)   { $1 }
 
 Sexp :: { Sexp }
-  : Atom                             { Fix $ Atom   $1 }
-  | bracketed('(', List, ')')        { Fix $ List   $1 }
-  | bracketed('[', Vector, ']')      { Fix $ Vector $1 }
-  | '#' bracketed('(', Vector, ')')  { Fix $ Vector $2 }
-  | "'" Sexp                         { Fix $ List (Fix (Atom (AtomSymbol "quote")) : asList $2) }
+  : Atom                                  { Fix $ Atom $1 }
+  | bracketed('(', ListBody, ')')         { $1 }
+  | bracketed('[', VectorBody, ']')       { $1 }
+  | '#' bracketed('(', VectorBody, ')')   { $2 }
+  | "'" Sexp                              { Fix $ Quoted $2 }
 
 Atom :: { Atom }
-  : Bool         { AtomBool (getBool (extract $1))    }
-  | Integer      { AtomInt  (getInt  (extract $1)) }
-  | Real         { AtomReal (getReal (extract $1)) }
-  | String       { AtomString (getString (extract $1)) }
-  | Symbol       { AtomSymbol (getSymbol (extract $1)) }
+  : Bool         { AtomBool    (getBool    (extract $1)) }
+  | Integer      { AtomInt     (getInt     (extract $1)) }
+  | Real         { AtomReal    (getReal    (extract $1)) }
+  | String       { AtomString  (getString  (extract $1)) }
+  | Symbol       { AtomSymbol  (getSymbol  (extract $1)) }
   | Keyword      { AtomKeyword (getKeyword (extract $1)) }
 
-List :: { [Sexp] }
-  : list(Sexp) '.' Sexp   { $1 ++ [$3] }
-  | list(Sexp)            { $1 ++ [Fix Nil] }
+ListBody :: { Sexp }
+  : list1(Sexp) '.' Sexp   { Fix $ List (NE.fromList $1) $3        }
+  | list1(Sexp)            { Fix $ List (NE.fromList $1) (Fix Nil) }
+  | {-empty-}              { Fix $ Nil                             }
 
-Vector :: { [Sexp] }
-  : list(Sexp)        { $1 }
+VectorBody :: { Sexp }
+  : list(Sexp)             { Fix $ Vector $1         }
 
 bracketed(o, p, c)
   : o p c          { $2 }
@@ -74,16 +78,19 @@ list(p)
   : {- empty -}    { [] }
   | p list(p)      { $1 : $2 }
 
-{
+list1(p)
+  : p              { [$1] }
+  | p list1(p)     { $1 : $2 }
 
-asList :: Sexp -> [Sexp]
-asList a@(Fix (Atom _))  = [a, Fix Nil]
-asList (Fix (List ls))   = ls
-asList (Fix (Vector ls)) = ls ++ [Fix Nil]
+
+{
 
 parseError :: [LocatedBy Position Token] -> Either String b
 parseError toks = case toks of
-  []    -> Left "Unexpected EOF"
-  t : _ -> Left $ "Unexpected token: " ++ show t
+  [] ->
+    Left "Unexpected EOF"
+  (L pos tok : _) ->
+    Left $ Lazy.unpack . displayT . renderPretty 0.8 80 $
+      pretty pos <> colon <+> "Unexpected token:" <+> pretty tok
 
 }

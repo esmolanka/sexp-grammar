@@ -3,13 +3,7 @@ import System.Environment
 
 import qualified Data.Text.Lazy.IO as T
 
-import Language.Sexp.Types
-import Language.Sexp.Lexer
-import Language.Sexp.Parser
-import Language.Sexp.Pretty
-
-parseSexpsFrom :: FilePath -> String -> Either String [Sexp]
-parseSexpsFrom fn = parseProgram . lexSexp fn
+import Language.Sexp
 
 main :: IO ()
 main = do
@@ -21,4 +15,4 @@ main = do
 
   case msexps of
     Left err -> putStrLn err
-    Right sexps -> mapM_ (T.putStrLn . printSexp) sexps
+    Right sexps -> T.putStrLn (printSexps sexps)

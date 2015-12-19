@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Sexp.Pretty
-  ( printSexpCompact
-  , printSexp
+  ( printSexp
+  , printSexps
   ) where
 
+import Data.Functor.Foldable (Fix (..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 import Data.Text (Text)
@@ -25,33 +27,16 @@ ppAtom (AtomString a)  = pretty (show a)
 ppAtom (AtomSymbol a)  = text' a
 ppAtom (AtomKeyword a) = text' a
 
-ppList :: (Sexp -> Doc) -> [Sexp] -> [Doc]
-ppList _ [] = ["#empty"]
-ppList f (x:[]) =
-  case x of
-    Fix Nil -> []
-    _       -> ["#unit", f x]
-ppList f (x:y:[]) =
-  case y of
-    Fix Nil -> [f x]
-    _       -> [f x, dot, f y]
-ppList f (x:xs)   = f x : ppList f xs
-
-
-ppSexpCompact :: Sexp -> Doc
-ppSexpCompact (Fix (Atom a))    = ppAtom a
-ppSexpCompact (Fix (Vector ss)) = brackets (hsep (map ppSexpCompact ss))
-ppSexpCompact (Fix (List ss))   = parens   (hsep (ppList ppSexpCompact ss))
-ppSexpCompact (Fix Nil)         = "nil"
-
-printSexpCompact :: Sexp -> Lazy.Text
-printSexpCompact = displayT . renderPretty 0.5 75 . ppSexpCompact
-
 ppSexp :: Sexp -> Doc
-ppSexp (Fix (Atom a))    = ppAtom a
-ppSexp (Fix (Vector ss)) = brackets (align $ sep (map ppSexp ss))
-ppSexp (Fix (List ss))   = parens   (align $ sep (ppList ppSexp ss))
-ppSexp (Fix Nil)         = "nil"
+ppSexp (Fix (Atom a))            = ppAtom a
+ppSexp (Fix (Vector ss))         = brackets (align $ sep (map ppSexp ss))
+ppSexp (Fix (Quoted a))          = squote <> ppSexp a
+ppSexp (Fix (List ss (Fix Nil))) = parens (align $ sep (map ppSexp (NE.toList ss)))
+ppSexp (Fix (List ss other))     = parens (align $ sep (map ppSexp (NE.toList ss)) <+> dot <+> ppSexp other)
+ppSexp (Fix Nil)                 = parens empty
 
 printSexp :: Sexp -> Lazy.Text
 printSexp = displayT . renderPretty 0.5 75 . ppSexp
+
+printSexps :: [Sexp] -> Lazy.Text
+printSexps = displayT . renderPretty 0.5 75 . vsep . map ppSexp

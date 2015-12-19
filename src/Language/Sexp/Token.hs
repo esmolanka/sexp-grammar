@@ -1,9 +1,14 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 module Language.Sexp.Token where
 
 import Data.Text (Text)
+import Data.Text.Lazy (pack, fromStrict)
 import Data.Scientific
+
+import Text.PrettyPrint.Leijen.Text
 
 data Token
   = TokLParen          -- (
@@ -37,3 +42,27 @@ mapPosition f (L p a) = L (f p) a
 
 extract :: LocatedBy p a -> a
 extract (L _ a) = a
+
+instance Pretty Token where
+  pretty TokLParen      = "left paren '('"
+  pretty TokRParen      = "right paren ')'"
+  pretty TokLBracket    = "left bracket '['"
+  pretty TokRBracket    = "right bracket '['"
+  pretty TokDot         = "dot '.'"
+  pretty TokQuote       = "quote \"'\""
+  pretty TokHash        = "hash '#'"
+  pretty (TokSymbol s)  = "symbol" <+> dquote <> text (fromStrict s) <> dquote
+  pretty (TokKeyword k) = "keyword" <+> dquote <> text (fromStrict k) <> dquote
+  pretty (TokInt     n) = "integer" <+> integer n
+  pretty (TokReal    n) = "real number" <+> text (pack (show n))
+  pretty (TokStr     s) = "string" <+> text (pack (show s))
+  pretty (TokBool    b) = "boolean" <+> if b then "#t" else "#f"
+  pretty (TokUnknown u) = "unknown lexeme" <+> text (pack (show u))
+
+instance Pretty Position where
+  pretty Position{..} =
+    hcat $ punctuate colon
+      [ text (pack posFileName)
+      , int posLine
+      , int posCol
+      ]
