@@ -75,16 +75,22 @@ ListBody :: { Sexp }
 VectorBody :: { Sexp }
   : list(Sexp)             { Fix $ Vector $1         }
 
-bracketed(o, p, c)
-  : o p c          { $2 }
 
-list(p)
-  : {- empty -}    { [] }
-  | p list(p)      { $1 : $2 }
+-- Utils
+
+bracketed(o, p, c)
+  : o p c                  { $2 }
+
+rev_list1(p)
+  : p                      { [$1]    }
+  | rev_list1(p) p         { $2 : $1 }
 
 list1(p)
-  : p              { [$1] }
-  | p list1(p)     { $1 : $2 }
+  : rev_list1(p)           { reverse $1 }
+
+list(p)
+  : {- empty -}            { [] }
+  | list1(p)               { $1 }
 
 {
 parseSexp :: FilePath -> String -> Either String Sexp
