@@ -21,6 +21,7 @@ library
   ghc-options:         -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
     Language.Sexp
+    Language.SexpGrammar
 
   other-modules:
     Language.Sexp.Token
@@ -28,6 +29,8 @@ library
     Language.Sexp.Types
     Language.Sexp.Parser
     Language.Sexp.Pretty
+
+    Language.SexpGrammar.Grammar
 
   -- other-extensions:
   build-depends: array
