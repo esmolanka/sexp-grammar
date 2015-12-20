@@ -1,5 +1,7 @@
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveFunctor #-}
 
 module Language.Sexp.Types where
 
@@ -23,7 +25,7 @@ data SexpF r
   | Vector [r]
   | List (NE.NonEmpty r) r
   | Nil
-    deriving (Functor)
+    deriving (Functor, Foldable, Traversable)
 
 type Sexp = Fix SexpF
 

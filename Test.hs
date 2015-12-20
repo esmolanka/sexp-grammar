@@ -1,8 +1,8 @@
 
+module Main where
+
 import System.Environment
-
 import qualified Data.Text.Lazy.IO as T
-
 import Language.Sexp
 
 main :: IO ()

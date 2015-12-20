@@ -18,13 +18,13 @@ data Token
   | TokDot             -- e.g. (foo . bar)
   | TokQuote           -- e.g. '(foo bar)
   | TokHash            -- e.g. #(foo bar)
-  | TokSymbol  { getSymbol  :: Text }        -- foo, bar
-  | TokKeyword { getKeyword :: Text }        -- :foo, :bar
-  | TokInt     { getInt     :: Integer }     -- 42, -1, +100500
-  | TokReal    { getReal    :: Scientific }  -- 42.0, -1.0, 3.14, -1e10
-  | TokStr     { getString  :: Text }        -- "foo", "", "hello world"
-  | TokBool    { getBool    :: Bool }        -- #f, #t
-  | TokUnknown {getUnknown  :: Char }        -- for unknown lexemes
+  | TokSymbol  { getSymbol  :: !Text }        -- foo, bar
+  | TokKeyword { getKeyword :: !Text }        -- :foo, :bar
+  | TokInt     { getInt     :: !Integer }     -- 42, -1, +100500
+  | TokReal    { getReal    :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
+  | TokStr     { getString  :: !Text }        -- "foo", "", "hello world"
+  | TokBool    { getBool    :: !Bool }        -- #f, #t
+  | TokUnknown { getUnknown :: !Char }        -- for unknown lexemes
     deriving (Show, Eq)
 
 data Position =
