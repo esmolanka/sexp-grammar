@@ -4,6 +4,7 @@ module Language.Sexp
   , parseSexp
   , printSexps
   , printSexp
+  , Sexp
   , SexpF (..)
   , Atom (..)
   ) where

@@ -1,6 +1,6 @@
 
 module Language.SexpGrammar
-  ( module Language.SexpGrammar.Grammar
+  ( module Language.SexpGrammar.Base
   ) where
 
-import Language.SexpGrammar.Grammar
+import Language.SexpGrammar.Base

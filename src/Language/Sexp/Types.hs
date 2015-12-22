@@ -17,7 +17,7 @@ data Atom
   | AtomString Text
   | AtomSymbol Text
   | AtomKeyword Text
-    deriving (Show)
+    deriving (Show, Eq, Ord)
 
 data SexpF r
   = Atom Atom
@@ -25,14 +25,14 @@ data SexpF r
   | Vector [r]
   | List (NE.NonEmpty r) r
   | Nil
-    deriving (Functor, Foldable, Traversable)
+    deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 type Sexp = Fix SexpF
 
 instance (Show f) => Show (SexpF f) where
-  show (Atom a) = show a
-  show (List ls other)     = "List " ++ show ls ++ " " ++ show other
-  show Nil = "Nil"
-  show (Vector ls) = "Vector " ++ show ls
-  show (Quoted a) = "Quoted (" ++ show a ++ ")"
+  show (Atom a)        = show a
+  show (List ls other) = "List " ++ show ls ++ " " ++ show other
+  show Nil             = "Nil"
+  show (Vector ls)     = "Vector " ++ show ls
+  show (Quoted a)      = "Quoted (" ++ show a ++ ")"
 
