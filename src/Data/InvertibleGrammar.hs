@@ -28,7 +28,7 @@ data Grammar g t t' where
   -- grammar must always parse from left to right.
   LiftRevPrism :: StackPrism b a -> Grammar g a b
   Id     :: Grammar g t t
-  (:.:)  :: Grammar g t1 t'' -> Grammar g t t1 -> Grammar g t t''
+  (:.:)  :: Grammar g t' t'' -> Grammar g t t' -> Grammar g t t''
   -- Empty  :: Grammar g t t'
   (:<>:) :: Grammar g t t' -> Grammar g t t' -> Grammar g t t'
   -- Many   :: Gramar g (a :- t) (b :- t) -> Grammar g ([a] :- t) ([b] :- t)
