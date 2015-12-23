@@ -20,7 +20,6 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
-    Data.PartialIso
     Language.Sexp
     Language.SexpGrammar
 
@@ -33,13 +32,30 @@ library
     Language.Sexp.Pretty
 
     Language.SexpGrammar.Base
+    Language.SexpGrammar.Combinators
 
-  -- other-extensions:
-  build-depends: array
-               , base >=4.8 && <4.9
-               , recursion-schemes
-               , scientific
-               , semigroups
-               , text
-               , wl-pprint-text
-               , mtl
+  build-depends:
+      array
+    , base >=4.8
+    , mtl
+    , recursion-schemes
+    , scientific
+    , semigroups
+    , stack-prism
+    , text
+    , wl-pprint-text
+
+test-suite sexp-grammar-test
+  type:              exitcode-stdio-1.0
+  build-depends:
+      base
+    , recursion-schemes
+    , sexp-grammar
+    , stack-prism
+    , tasty
+    , tasty-hunit
+    , QuickCheck
+    , tasty-quickcheck
+  main-is:           Main.hs
+  hs-source-dirs:    test
+  default-language:  Haskell2010

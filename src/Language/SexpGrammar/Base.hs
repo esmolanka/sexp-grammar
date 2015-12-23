@@ -9,16 +9,17 @@
 
 module Language.SexpGrammar.Base where
 
-import Prelude hiding ((.), id)
 import Control.Category
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Functor.Foldable (Fix (..))
 import qualified Data.List.NonEmpty as NE
+import Data.StackPrism
+import Data.StackPrism.Generic
+import Prelude hiding ((.), id)
 import Text.Printf
 
 import Data.InvertibleGrammar
-import Data.PartialIso
 
 import Language.Sexp.Types
 
@@ -51,13 +52,13 @@ mkListCtx properList x =
 data SexpGrammar a b where
   -- Dispatch single Sexp, which must match literal atom
   LitAtom     :: Atom -> SexpGrammar (Sexp :- t) t
-  -- Transform Sexp into t'
+  -- | Transform Sexp into t'
   DescendList :: Grammar ListGrammar t t' -> SexpGrammar (Sexp :- t) t'
 
 data ListGrammar a b where
-  -- Dispatch single sexp with grammar
-  Head :: String -- ^ Rule name.
-       -- | Grammar to parse list element at current position with.
+  -- | Dispatch single list element with a grammar
+  Head :: String -- ^ Rule name
+       -- | Grammar to parse list element at current position with
        -> Grammar SexpGrammar (Sexp :- t) t'
        -> ListGrammar t t'
 
@@ -67,13 +68,11 @@ instance
   ) => InvertibleGrammar m SexpGrammar where
   parseWithGrammar (LitAtom a) (s :- t) =
     case s of
-      Fix (Atom a') | a == a' -> do
-        return t
+      Fix (Atom a') | a == a' -> return t
       _ -> throwError $ "Expected literal atom " ++ show a ++ " but found " ++ show s
   parseWithGrammar (DescendList g) (s :- t) = do
     ctx <- mkListCtx True s
     evalStateT (parseWithGrammar g t) ctx
-
 
 instance
   ( MonadPlus m
@@ -83,16 +82,30 @@ instance
   parseWithGrammar (Head ruleName gram) t = do
     xs <- gets lcItems
     case xs of
-      []    ->
+      []      ->
         throwError $
         printf "Failed to parse \"%s\": expected one more list element" ruleName
-      x:xs' -> do
+      x : xs' -> do
         modify $ \s -> s { lcItems = xs' }
         parseWithGrammar gram (x :- t)
 
 class FromSexp a where
-  -- Convert Sexp into a
+  -- | Convert Sexp into a
   sexpGrammar :: Grammar SexpGrammar (Sexp :- t) (a :- t)
+
+stackPrismFirst :: StackPrism a b -> StackPrism (a :- t) (b :- t)
+stackPrismFirst prism = stackPrism f g
+  where
+    f (a :- t) = forward prism a :- t
+    g (b :- t) = (:- t) <$> backward prism b
+
+instance FromSexp Bool where
+  sexpGrammar = fromRevStackPrism $ stackPrismFirst p
+    where
+      p :: StackPrism Bool Sexp
+      p = stackPrism (Fix . Atom . AtomBool) g
+      g (Fix (Atom (AtomBool b))) = Just b
+      g _                         = Nothing
 
 instance (FromSexp a) => FromSexp [a] where
   sexpGrammar :: Grammar SexpGrammar (Sexp :- t) ([a] :- t)
@@ -101,4 +114,21 @@ instance (FromSexp a) => FromSexp [a] where
     multiple $ Gram $ Head "sexpGrammar for [a]" sexpGrammar
 
 multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
-multiple gram = isoToGrammar isoNil >>> Many (gram >>> isoToGrammar isoCons)
+multiple gram =
+      fromStackPrism nil
+  >>> Many (gram >>> fromStackPrism cons)
+  >>> fromStackPrism (stackPrismFirst rev)
+  where
+    nil  :: StackPrism u ([a] :- u)
+    cons :: StackPrism (a :- [a] :- u) ([a] :- u)
+    PrismList (P nil :& P cons) = mkPrismList :: StackPrisms [b]
+    rev :: StackPrism [a] [a]
+    rev = stackPrism reverse (Just . reverse)
+
+parse
+  :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  => Grammar g (Sexp :- ()) (a :- ())
+  -> Sexp
+  -> m a
+parse gram input =
+  (\(x :- _) -> x) <$> parseWithGrammar gram (input :- ())
