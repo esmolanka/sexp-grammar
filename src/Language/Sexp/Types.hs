@@ -6,7 +6,6 @@
 module Language.Sexp.Types where
 
 import Data.Functor.Foldable (Fix (..))
-import qualified Data.List.NonEmpty as NE
 import Data.Scientific
 import Data.Text (Text)
 
@@ -23,16 +22,14 @@ data SexpF r
   = Atom Atom
   | Quoted r
   | Vector [r]
-  | List (NE.NonEmpty r) r
-  | Nil
+  | List [r]
     deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 type Sexp = Fix SexpF
 
 instance (Show f) => Show (SexpF f) where
-  show (Atom a)        = show a
-  show (List ls other) = "List " ++ show ls ++ " " ++ show other
-  show Nil             = "Nil"
-  show (Vector ls)     = "Vector " ++ show ls
-  show (Quoted a)      = "Quoted (" ++ show a ++ ")"
+  show (Atom a) = show a
+  show (List ls) = "List " ++ show ls
+  show (Vector ls) = "Vector " ++ show ls
+  show (Quoted a) = "Quoted (" ++ show a ++ ")"
 

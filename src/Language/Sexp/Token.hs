@@ -15,7 +15,6 @@ data Token
   | TokRParen          -- )
   | TokLBracket        -- [
   | TokRBracket        -- ]
-  | TokDot             -- e.g. (foo . bar)
   | TokQuote           -- e.g. '(foo bar)
   | TokHash            -- e.g. #(foo bar)
   | TokSymbol  { getSymbol  :: !Text }        -- foo, bar
@@ -46,7 +45,6 @@ instance Pretty Token where
   pretty TokRParen      = "right paren ')'"
   pretty TokLBracket    = "left bracket '['"
   pretty TokRBracket    = "right bracket '['"
-  pretty TokDot         = "dot '.'"
   pretty TokQuote       = "quote \"'\""
   pretty TokHash        = "hash '#'"
   pretty (TokSymbol s)  = "symbol" <+> dquote <> text (fromStrict s) <> dquote

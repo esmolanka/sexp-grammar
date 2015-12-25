@@ -19,8 +19,7 @@ import Test.Tasty.HUnit
 import Language.Sexp
 import Language.SexpGrammar
 
-pattern Nil'      = Fix Nil
-pattern List' xs  = Fix (List xs Nil')
+pattern List' xs  = Fix (List xs)
 pattern Symbol' x = Fix (Atom (AtomSymbol x))
 pattern Bool' x   = Fix (Atom (AtomBool x))
 
@@ -41,7 +40,7 @@ instance (FromSexp a, FromSexp b) => FromSexp (Pair a b) where
 grammarTests :: TestTree
 grammarTests = testGroup "grammar tests"
   [ testCase "empty list of bools" $
-    parse (list (multiple bool)) Nil' @?= Right []
+    parse (list (multiple bool)) (List' []) @?= Right []
   , testCase "list of bools" $
     Right [True, False, False] @=?
     parse (list (multiple bool)) (List' [Bool' True, Bool' False, Bool' False])

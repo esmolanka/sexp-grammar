@@ -37,7 +37,6 @@ import Language.Sexp.Types
   ')'            { L _ TokRParen      }
   '['            { L _ TokLBracket    }
   ']'            { L _ TokRBracket    }
-  '.'            { L _ TokDot         }
   "'"            { L _ TokQuote       }
   '#'            { L _ TokHash        }
   Symbol         { L _ (TokSymbol  _) }
@@ -68,12 +67,10 @@ Atom :: { Atom }
   | Keyword      { AtomKeyword (getKeyword (extract $1)) }
 
 ListBody :: { Sexp }
-  : list1(Sexp) '.' Sexp   { Fix $ List (NE.fromList $1) $3        }
-  | list1(Sexp)            { Fix $ List (NE.fromList $1) (Fix Nil) }
-  | {-empty-}              { Fix $ Nil                             }
+  : list(Sexp)   { Fix $ List $1 }
 
 VectorBody :: { Sexp }
-  : list(Sexp)             { Fix $ Vector $1         }
+  : list(Sexp)   { Fix $ Vector $1 }
 
 
 -- Utils

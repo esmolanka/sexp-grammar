@@ -45,7 +45,6 @@ $whitechar+        ;
 ")"                { just TokRParen                }
 "["                { just TokLBracket              }
 "]"                { just TokRBracket              }
-"."                { just TokDot                   }
 "'" / $graphic     { just TokQuote                 }
 "#t"               { just (TokBool True)           }
 "#f"               { just (TokBool False)          }

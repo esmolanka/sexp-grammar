@@ -44,15 +44,8 @@ instance Category (Grammar c) where
 instance Semigroup (Grammar c t1 t2) where
   (<>) = (:<>:)
 
--- instance Monoid (Grammar c t1 t2) where
---   mempty = Empty
---   mappend Empty y     = y
---   mappend x     Empty = x
---   mappend x     y     = x :<>: y
-
 class InvertibleGrammar m g where
   parseWithGrammar :: g a b -> a -> m b
-  -- printWithGrammar :: g a b -> b -> m a
 
 instance
   ( Monad m
@@ -64,11 +57,8 @@ instance
   parseWithGrammar (LiftRevPrism prism) = maybe err return . backward prism
     where
       err = throwError "revesre prism failed"
-  -- parseWithGrammar (LMap prism g) = parseWithGrammar g <<< forward prism
-  -- parseWithGrammar (RMap prism g) = fmap (forward prism) . parseWithGrammar g
   parseWithGrammar Id           = return
   parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
-  -- applyForward Empty        = applyForward g <=< applyForward f
   parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
   parseWithGrammar (Many g)     = go
     where
@@ -76,7 +66,7 @@ instance
   parseWithGrammar (Gram g)     = parseWithGrammar g
 
 fromStackPrism :: StackPrism a b -> Grammar g a b
-fromStackPrism = LiftPrism -- (`RMap` id)
+fromStackPrism = LiftPrism
 
 fromRevStackPrism :: StackPrism b a -> Grammar g a b
 fromRevStackPrism = LiftRevPrism
