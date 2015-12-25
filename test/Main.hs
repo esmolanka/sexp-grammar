@@ -32,7 +32,7 @@ data Pair a b = Pair a b
   deriving (Show, Eq, Ord, Generic)
 
 instance (FromSexp a, FromSexp b) => FromSexp (Pair a b) where
-  sexpGrammar = fromStackPrism pairPrism . list (fromSexp >>> fromSexp)
+  sexpGrammar = fromStackPrism pairPrism . list (el sexpGrammar >>> el sexpGrammar)
     where
       pairPrism :: StackPrism (a :- b :- t) (Pair a b :- t)
       PrismList (P pairPrism) = mkPrismList :: StackPrisms (Pair a' b')

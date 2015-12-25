@@ -33,6 +33,7 @@ library
     Language.Sexp.Pretty
 
     Language.SexpGrammar.Base
+    Language.SexpGrammar.Class
     Language.SexpGrammar.Combinators
 
   build-depends:

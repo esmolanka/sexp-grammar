@@ -33,7 +33,7 @@ data Grammar g t t' where
   (:<>:) :: Grammar g t t' -> Grammar g t t' -> Grammar g t t'
   -- Many   :: Gramar g (a :- t) (b :- t) -> Grammar g ([a] :- t) ([b] :- t)
   Many   :: Grammar g t t -> Grammar g t t
-  Gram   :: g a b -> Grammar g a b
+  Inject :: g a b -> Grammar g a b
 
 instance Category (Grammar c) where
   id = Id
@@ -63,7 +63,7 @@ instance
   parseWithGrammar (Many g)     = go
     where
       go x = (parseWithGrammar g x >>= go) `mplus` return x
-  parseWithGrammar (Gram g)     = parseWithGrammar g
+  parseWithGrammar (Inject g)     = parseWithGrammar g
 
 fromStackPrism :: StackPrism a b -> Grammar g a b
 fromStackPrism = LiftPrism

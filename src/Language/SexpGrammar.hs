@@ -13,3 +13,4 @@ module Language.SexpGrammar
 import Data.InvertibleGrammar
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
+import Language.SexpGrammar.Class
