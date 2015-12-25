@@ -1,15 +1,16 @@
 
 module Language.SexpGrammar
-  ( InvertibleGrammar(..)
-  , Grammar
-  , fromStackPrism
-  , SexpGrammar
+  ( Grammar
   , ListGrammar
-  , FromSexp(..)
+  , SexpGrammar
+  , StackPrism
   , parse
+  , (:-) (..)
   , module Language.SexpGrammar.Combinators
+  , module Language.SexpGrammar.Class
   ) where
 
+import Data.StackPrism
 import Data.InvertibleGrammar
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators

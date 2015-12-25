@@ -3,7 +3,7 @@
 module Language.SexpGrammar.Class where
 
 import Data.Functor.Foldable (Fix (..))
-import Data.StackPrism
+import Data.StackPrism.Extra
 
 import Data.InvertibleGrammar
 import Language.Sexp.Types
@@ -15,7 +15,7 @@ class FromSexp a where
   sexpGrammar :: Grammar SexpGrammar (Sexp :- t) (a :- t)
 
 instance FromSexp Bool where
-  sexpGrammar = fromRevStackPrism $ stackPrismFirst p
+  sexpGrammar = RPrism $ inStack p
     where
       p :: StackPrism Bool Sexp
       p = stackPrism (Fix . Atom . AtomBool) g

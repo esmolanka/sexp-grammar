@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -16,7 +15,7 @@ import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Functor.Foldable (Fix (..))
-import Data.StackPrism
+import Data.StackPrism.Extra
 import Data.StackPrism.Generic
 import Text.Printf
 
@@ -25,7 +24,7 @@ import Language.Sexp.Types
 
 data SexpGrammar a b where
   -- | Dispatch single Sexp, which must match literal atom
-  GAtom     :: Atom -> SexpGrammar (Sexp :- t) t
+  GAtom :: Atom -> SexpGrammar (Sexp :- t) t
 
   -- | Transform Sexp into t'
   GList :: Grammar ListGrammar t t' -> SexpGrammar (Sexp :- t) t'
@@ -46,7 +45,6 @@ nilCtx = ListCtx []
 mkListCtx :: (MonadError String m) => Sexp -> m ListCtx
 mkListCtx (Fix (List xs)) = return $ ListCtx xs
 mkListCtx x = throwError $ "Expected list but found: " ++ show x
-
 
 instance
   ( MonadPlus m
@@ -75,17 +73,10 @@ instance
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar gram (x :- t)
 
-stackPrismFirst :: StackPrism a b -> StackPrism (a :- t) (b :- t)
-stackPrismFirst prism = stackPrism f g
-  where
-    f (a :- t) = forward prism a :- t
-    g (b :- t) = (:- t) <$> backward prism b
-
 multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
-multiple gram =
-      fromStackPrism nil
-  >>> Many (gram >>> fromStackPrism cons)
-  >>> fromStackPrism (stackPrismFirst rev)
+multiple gram = FPrism nil
+            >>> Many (gram >>> FPrism cons)
+            >>> FPrism (inStack rev)
   where
     nil  :: StackPrism u ([a] :- u)
     cons :: StackPrism (a :- [a] :- u) ([a] :- u)
