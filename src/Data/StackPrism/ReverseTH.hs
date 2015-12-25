@@ -2,6 +2,8 @@
 
 {-# LANGUAGE TemplateHaskell #-}
 
+{-# OPTIONS_GHC -Wwarn #-}
+
 module Data.StackPrism.ReverseTH where
 
 import Control.Applicative
