@@ -3,6 +3,7 @@
 
 module Data.StackPrism.Extra
   ( inStack
+  , iso
   , module Data.StackPrism
   ) where
 
@@ -13,3 +14,6 @@ inStack prism = stackPrism f g
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
+
+iso :: (a -> b) -> (b -> a) -> StackPrism a b
+iso fw bw = stackPrism fw (Just . bw)

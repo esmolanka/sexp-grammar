@@ -40,10 +40,10 @@ data Pair a b = Pair a b
 grammarTests :: TestTree
 grammarTests = testGroup "grammar tests"
   [ testCase "empty list of bools" $
-    parse (list (multiple bool)) (List' []) @?= Right []
+    parse (list (multiple (el bool))) (List' []) @?= Right []
   , testCase "list of bools" $
     Right [True, False, False] @=?
-    parse (list (multiple bool)) (List' [Bool' True, Bool' False, Bool' False])
+    parse (list (multiple (el bool))) (List' [Bool' True, Bool' False, Bool' False])
   -- , testCase "pair of two bools" $
   --   Right (Pair False True) @=?
   --   parse sexpGrammar (List' [Bool' False, Bool' True])
