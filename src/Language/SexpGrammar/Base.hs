@@ -29,23 +29,6 @@ data SexpGrammar a b where
   -- | Transform Sexp into t'
   GList :: Grammar ListGrammar t t' -> SexpGrammar (Sexp :- t) t'
 
-data ListGrammar a b where
-  -- | Dispatch single list element with a grammar
-  GElem :: String
-       -- ^ Rule name
-       -> Grammar SexpGrammar (Sexp :- t) t'
-       -- ^ Grammar to parse list element at current position with
-       -> ListGrammar t t'
-
-data ListCtx = ListCtx { getItems :: [Sexp] }
-
-nilCtx :: ListCtx
-nilCtx = ListCtx []
-
-mkListCtx :: (MonadError String m) => Sexp -> m ListCtx
-mkListCtx (Fix (List xs)) = return $ ListCtx xs
-mkListCtx x = throwError $ "Expected list but found: " ++ show x
-
 instance
   ( MonadPlus m
   , MonadError String m
@@ -55,8 +38,21 @@ instance
       Fix (Atom a') | a == a' -> return t
       _ -> throwError $ "Expected literal atom " ++ show a ++ " but found " ++ show s
   parseWithGrammar (GList g) (s :- t) = do
-    ctx <- mkListCtx s
-    evalStateT (parseWithGrammar g t) ctx
+    case s of
+      Fix (List xs) -> evalStateT (parseWithGrammar g t) (ListCtx xs)
+      _ -> throwError $ "Expected list but found: " ++ show s
+
+
+
+data ListGrammar a b where
+  -- | Dispatch single list element with a grammar
+  GElem :: String
+        -- ^ Rule name
+        -> Grammar SexpGrammar (Sexp :- t) t'
+        -- ^ Grammar to parse list element at current position with
+        -> ListGrammar t t'
+
+newtype ListCtx = ListCtx { getItems :: [Sexp] }
 
 instance
   ( MonadPlus m
@@ -72,6 +68,7 @@ instance
       x : xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar gram (x :- t)
+
 
 multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
 multiple gram = FPrism nil
