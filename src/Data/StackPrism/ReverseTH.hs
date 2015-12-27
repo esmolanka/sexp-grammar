@@ -6,6 +6,7 @@ module Data.StackPrism.ReverseTH
   ( deriveRevStackPrism
   ) where
 
+import Data.Maybe (catMaybes)
 import Data.StackPrism
 import Language.Haskell.TH
 
@@ -29,7 +30,11 @@ deriveRevStackPrism constructorName = do
   DataConI realConstructorName _typ parentName _fixity <- reify constructorName
   TyConI dataDef <- reify parentName
 
-  Just constructorInfo <- return $ findConstructor realConstructorName =<< constructors dataDef
+  let Just (single, constructorInfo) = do
+        (single, allConstr) <- constructors dataDef
+        constr <- findConstructor realConstructorName allConstr
+        return (single, constr)
+
   let ts = fieldTypes constructorInfo
   vs <- mapM (const $ newName "x") ts
   t <- newName "t"
@@ -44,16 +49,18 @@ deriveRevStackPrism constructorName = do
   let matchConsructor = conP realConstructorName (map varP (reverse vs))
       gPat  = [p| $matchConsructor :- $(varP t) |]
       gBody = foldr (\v acc -> [e| $(varE v) :- $acc |]) (varE t) vs
-      gFunc = lamCaseE [ match gPat (normalB [e| Just $ $gBody |]) []
-                       , match wildP (normalB [e| Nothing |]) []
-                       ]
+      gFunc = lamCaseE $ catMaybes [ Just $ match gPat (normalB [e| Just $ $gBody |]) []
+                                   , if single
+                                     then Nothing
+                                     else Just $ match wildP (normalB [e| Nothing |]) []
+                                   ]
 
   [e| stackPrism $fFunc $gFunc|]
 
-constructors :: Dec -> Maybe [Con]
-constructors (DataD _ _ _ cs _)   = Just cs
-constructors (NewtypeD _ _ _ c _) = Just [c]
-constructors _ = error "Data type declaration expected"
+constructors :: Dec -> Maybe (Bool, [Con])
+constructors (DataD _ _ _ cs _)   = Just (length cs == 1, cs)
+constructors (NewtypeD _ _ _ c _) = Just (True, [c])
+constructors _                    = Nothing
 
 findConstructor :: Name -> [Con] -> Maybe Con
 findConstructor _ [] = Nothing

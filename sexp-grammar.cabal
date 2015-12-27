@@ -55,6 +55,7 @@ test-suite sexp-grammar-test
   build-depends:
       base
     , recursion-schemes
+    , semigroups
     , sexp-grammar
     , stack-prism
     , tasty

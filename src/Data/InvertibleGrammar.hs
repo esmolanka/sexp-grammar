@@ -52,7 +52,7 @@ instance
   parseWithGrammar (FPrism prism) = return . forward prism
   parseWithGrammar (RPrism prism) = maybe err return . backward prism
     where
-      err = throwError "revesre prism failed"
+      err = throwError "reverse prism failed"
   parseWithGrammar Id           = return
   parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
   parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
