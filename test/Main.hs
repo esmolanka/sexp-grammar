@@ -101,7 +101,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
     Right (Bar True (42 :: Int)) @=?
     parse sexpIso (List' [Symbol' "bar", Bool' True, Int' 42])
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    Right (Baz True False) @=?
+    (Left "Expected bool, got something else" :: Either String (Foo Bool Bool)) @=?
     parse sexpIso (List' [Symbol' "baz", Bool' False, Int' 10])
   ]
 

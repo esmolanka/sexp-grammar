@@ -1,6 +1,7 @@
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE OverloadedLists      #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import Prelude hiding ((.), id)
 import Control.Category
@@ -26,6 +27,8 @@ data Expr
   | IfZero Expr Expr Expr
     deriving (Show)
 
+data Pair a b = Pair a b
+
 return []
 
 instance SexpIso a => SexpIso (Maybe a) where
@@ -33,6 +36,15 @@ instance SexpIso a => SexpIso (Maybe a) where
     [ $(grammarFor 'Nothing) . sym "nil"
     , $(grammarFor 'Just) . list (el (sym "just") >>> el sexpIso)
     ]
+
+instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
+  sexpIso =
+    list (              -- begin list
+      el sexpIso >>>    -- consume and push first element to stack:  (a :- t)
+      el sexpIso        -- consume and push second element to stack: (b :- a :- t)
+    ) >>>
+    $(grammarFor 'Pair) -- pop b, pop a, apply a to Pair,
+                        -- apply b to (Pair a):                      (Pair a b :- t)
 
 instance SexpIso Ident where
   sexpIso = $(grammarFor 'Ident) . symbol'
