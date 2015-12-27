@@ -21,15 +21,13 @@ import qualified Data.Text.Lazy as Lazy
 import Data.Functor.Foldable (Fix (..))
 import Data.StackPrism.Extra
 import Data.StackPrism.Generic
-import Text.Printf
 
 import Data.InvertibleGrammar
 import Language.Sexp
 
 data SexpGrammar a b where
   GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
-
-  GList :: Grammar ListGrammar t t' -> SexpGrammar (Sexp :- t) t'
+  GList :: Grammar ListGrammar t           t' -> SexpGrammar (Sexp :- t) t'
 
 instance
   ( MonadPlus m
@@ -39,15 +37,21 @@ instance
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
       Fix (Atom a) -> parseWithGrammar g (a :- t)
-      other        -> throwError $ "Expected atom but found: " ++ Lazy.unpack (printSexp other)
+      _ ->
+        throwError $ "Expected atom but found: " ++ Lazy.unpack (printSexp s)
 
   parseWithGrammar (GList g) (s :- t) = do
     case s of
       Fix (List xs) -> evalStateT (parseWithGrammar g t) (ListCtx xs)
-      _             -> throwError $ "Expected list but found: " ++ show s
+      _ ->
+        throwError $ "Expected list but found: " ++ Lazy.unpack (printSexp s)
 
-  genWithGrammar = undefined
-
+  genWithGrammar (GAtom g) t = do
+    (a :- t') <- genWithGrammar g t
+    return (Fix (Atom a) :- t')
+  genWithGrammar (GList g) t = do
+    (t', ListCtx xs) <- runStateT (genWithGrammar g t) (ListCtx [])
+    return (Fix (List xs) :- t')
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
@@ -104,14 +108,19 @@ instance
       AtomKeyword a -> return $ a :- t
       _             -> throwError "Expected keyword, got something else"
 
-  genWithGrammar = undefined
+  genWithGrammar (GSym sym) t = return (AtomKeyword sym :- t)
+  genWithGrammar (GKw kw) t = return (AtomKeyword kw :- t)
+  genWithGrammar GBool (a :- t) = return (AtomBool a :- t)
+  genWithGrammar GInt (a :- t) = return (AtomInt a :- t)
+  genWithGrammar GReal (a :- t) = return (AtomReal a :- t)
+  genWithGrammar GString (a :- t) = return (AtomString a :- t)
+  genWithGrammar GSymbol (a :- t) = return (AtomSymbol a :- t)
+  genWithGrammar GKeyword (a :- t) = return (AtomKeyword a :- t)
 
 
 data ListGrammar a b where
   -- | Dispatch single list element with a grammar
-  GElem :: String
-        -- ^ Rule name
-        -> Grammar SexpGrammar (Sexp :- t) t'
+  GElem :: Grammar SexpGrammar (Sexp :- t) t'
         -- ^ Grammar to parse list element at current position with
         -> ListGrammar t t'
 
@@ -122,22 +131,23 @@ instance
   , MonadState ListCtx m
   , MonadError String m
   ) => InvertibleGrammar m ListGrammar where
-  parseWithGrammar (GElem ruleName gram) t = do
+  parseWithGrammar (GElem g) t = do
     xs <- gets getItems
     case xs of
-      []      ->
-        throwError $
-        printf "Failed to parse \"%s\": expected one more list element" ruleName
-      x : xs' -> do
+      [] -> throwError $ "Unexpected end of list"
+      x:xs' -> do
         modify $ \s -> s { getItems = xs' }
-        parseWithGrammar gram (x :- t)
+        parseWithGrammar g (x :- t)
 
-  genWithGrammar (GElem _ _g) _a = throwError "???"
+  genWithGrammar (GElem g) t = do
+    (x :- t') <- genWithGrammar g t
+    modify $ \s -> s { getItems = x : getItems s }
+    return t'
 
 multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
 multiple gram = GenPrism nil
             >>> Many (gram >>> GenPrism cons)
-            >>> GenPrism (inStack rev)
+            >>> embedPrism rev
   where
     nil  :: StackPrism u ([a] :- u)
     cons :: StackPrism (a :- [a] :- u) ([a] :- u)
@@ -152,3 +162,12 @@ parse
   -> m a
 parse gram input =
   (\(x :- _) -> x) <$> parseWithGrammar gram (input :- ())
+
+
+gen
+  :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  => Grammar g (Sexp :- ()) (a :- ())
+  -> a
+  -> m Sexp
+gen gram input =
+  (\(x :- _) -> x) <$> genWithGrammar gram (input :- ())

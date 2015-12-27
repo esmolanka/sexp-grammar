@@ -6,6 +6,7 @@ module Language.SexpGrammar
   , SexpGrammar
   , StackPrism
   , parse
+  , gen
   , (:-) (..)
   , module Language.SexpGrammar.Combinators
   , module Language.SexpGrammar.Class

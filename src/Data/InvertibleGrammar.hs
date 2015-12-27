@@ -9,6 +9,8 @@
 
 module Data.InvertibleGrammar
   ( Grammar (..)
+  , iso
+  , embedPrism
   , InvertibleGrammar(..)
   ) where
 
@@ -20,11 +22,10 @@ import Data.Semigroup
 import Data.StackPrism
 
 data Grammar g t t' where
-  -- | Embed a prism which can fail during parsing
-  ParsePrism :: StackPrism b a -> Grammar g a b
-
   -- | Embed a prism which can fail during generation
   GenPrism :: StackPrism a b -> Grammar g a b
+
+  Iso :: (a -> b) -> (b -> a) -> Grammar g a b
 
   -- | Identity grammar
   Id :: Grammar g t t
@@ -40,6 +41,18 @@ data Grammar g t t' where
 
   -- | Embed a subgrammar
   Inject :: g a b -> Grammar g a b
+
+iso :: (a -> b) -> (b -> a) -> Grammar g (a :- t) (b :- t)
+iso f' g' = Iso f g
+  where
+    f (a :- t) = f' a :- t
+    g (b :- t) = g' b :- t
+
+embedPrism :: StackPrism a b -> Grammar g (a :- t) (b :- t)
+embedPrism prism = GenPrism (stackPrism f g)
+  where
+    f (a :- t) = forward prism a :- t
+    g (b :- t) = (:- t) <$> backward prism b
 
 instance Category (Grammar c) where
   id = Id
@@ -60,11 +73,8 @@ instance
   , MonadError String m
   , InvertibleGrammar m g
   ) => InvertibleGrammar m (Grammar g) where
-  parseWithGrammar (ParsePrism prism) = \a ->
-    case backward prism a of
-      Nothing -> throwError "ParsePrism: unexpected input"
-      Just a -> return a
-  parseWithGrammar (GenPrism prism) = return . forward prism
+  parseWithGrammar (Iso f _)    = return . f
+  parseWithGrammar (GenPrism p) = return . forward p
   parseWithGrammar Id           = return
   parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
   parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
@@ -73,8 +83,8 @@ instance
       go x = (parseWithGrammar g x >>= go) `mplus` return x
   parseWithGrammar (Inject g)     = parseWithGrammar g
 
-  genWithGrammar (ParsePrism p) = return . forward p
-  genWithGrammar (GenPrism p)   = maybe (error "cannot generate") return . backward p
+  genWithGrammar (Iso _ g)      = return . g
+  genWithGrammar (GenPrism p)   = maybe (throwError "Cannot generate") return . backward p
   genWithGrammar Id             = return
   genWithGrammar (g :.: f)      = genWithGrammar g >=> genWithGrammar f
   genWithGrammar (f :<>: g)     = \x -> genWithGrammar f x `mplus` genWithGrammar g x
