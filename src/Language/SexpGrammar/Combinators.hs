@@ -20,6 +20,10 @@ module Language.SexpGrammar.Combinators
   )
 where
 
+import Prelude hiding ((.), id)
+
+import Control.Category
+
 import Data.StackPrism.Extra
 import Data.Text (Text, pack, unpack)
 import Data.Scientific
@@ -35,41 +39,40 @@ el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar ListGrammar a b
 el = Inject . GElem "fromSexp"
 
 bool :: Grammar SexpGrammar (Sexp :- t) (Bool :- t)
-bool = ParsePrism boolSexpP
+bool = Inject . GAtom . Inject $ GBool
 
 integer :: Grammar SexpGrammar (Sexp :- t) (Integer :- t)
-integer = ParsePrism $ intSexpP
+integer = Inject . GAtom . Inject $ GInt
 
 int :: Grammar SexpGrammar (Sexp :- t) (Int :- t)
-int = ParsePrism $ intSexpP . inStack (iso fromIntegral fromIntegral)
+int = ParsePrism (inStack (iso fromIntegral fromIntegral)) . integer
 
 real :: Grammar SexpGrammar (Sexp :- t) (Scientific :- t)
-real = ParsePrism realSexpP
+real = Inject . GAtom . Inject $ GReal
 
 double :: Grammar SexpGrammar (Sexp :- t) (Double :- t)
-double = ParsePrism $ realSexpP . inStack (iso fromFloatDigits toRealFloat)
+double = ParsePrism (inStack (iso fromFloatDigits toRealFloat)) . real
 
 string :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-string = ParsePrism stringSexpP
+string = Inject . GAtom . Inject $ GString
 
 string' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-string' = ParsePrism $ stringSexpP . inStack (iso pack unpack)
+string' = ParsePrism (inStack (iso pack unpack)) . string
 
 symbol :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-symbol = ParsePrism symbolSexpP
+symbol = Inject . GAtom . Inject $ GSymbol
 
 symbol' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-symbol' = ParsePrism $ symbolSexpP . inStack (iso pack unpack)
+symbol' = ParsePrism (inStack (iso pack unpack)) . symbol
 
 keyword :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-keyword = ParsePrism keywordSexpP
+keyword = Inject . GAtom . Inject $ GKeyword
 
 keyword' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-keyword' = ParsePrism $ keywordSexpP . inStack (iso pack unpack)
+keyword' = ParsePrism (inStack (iso pack unpack)) . keyword
 
 sym :: Text -> Grammar SexpGrammar (Sexp :- b) b
-sym = Inject . GAtom . AtomSymbol
+sym = Inject . GAtom . Inject . GSym
 
 kw :: Text -> Grammar SexpGrammar (Sexp :- b) b
-kw = Inject . GAtom . AtomKeyword
-
+kw = Inject . GAtom . Inject . GKw

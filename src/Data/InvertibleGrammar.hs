@@ -17,7 +17,6 @@ import Control.Category
 import Control.Monad
 import Control.Monad.Except
 import Data.Semigroup
-
 import Data.StackPrism
 
 data Grammar g t t' where
@@ -52,7 +51,8 @@ instance Semigroup (Grammar c t1 t2) where
   (<>) = (:<>:)
 
 class InvertibleGrammar m g where
-  parseWithGrammar :: g a b -> a -> m b
+  parseWithGrammar :: g a b -> (a -> m b)
+  genWithGrammar   :: g a b -> (b -> m a)
 
 instance
   ( Monad m
@@ -72,3 +72,14 @@ instance
     where
       go x = (parseWithGrammar g x >>= go) `mplus` return x
   parseWithGrammar (Inject g)     = parseWithGrammar g
+
+  genWithGrammar (ParsePrism p) = return . forward p
+  genWithGrammar (GenPrism p)   = maybe (error "cannot generate") return . backward p
+  genWithGrammar Id             = return
+  genWithGrammar (g :.: f)      = genWithGrammar g >=> genWithGrammar f
+  genWithGrammar (f :<>: g)     = \x -> genWithGrammar f x `mplus` genWithGrammar g x
+  genWithGrammar (Many g)       = go
+    where
+      go x = (genWithGrammar g x >>= go) `mplus` return x
+  genWithGrammar (Inject g)     = genWithGrammar g
+
