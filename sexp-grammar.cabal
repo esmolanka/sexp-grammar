@@ -26,6 +26,7 @@ library
 
   other-modules:
     Data.InvertibleGrammar
+    Data.InvertibleGrammar.TH
     Language.Sexp.Token
     Language.Sexp.Lexer
     Language.Sexp.Types

@@ -16,4 +16,4 @@ inStack prism = stackPrism f g
     g (b :- t) = (:- t) <$> backward prism b
 
 iso :: (a -> b) -> (b -> a) -> StackPrism a b
-iso fw bw = stackPrism fw (Just . bw)
+iso f g = stackPrism f (Just . g)
