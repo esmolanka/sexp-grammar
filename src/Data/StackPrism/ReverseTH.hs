@@ -15,14 +15,15 @@ import Language.Haskell.TH
 
      E.g. for a datatype constructor
 
-     > data Foo a b c = Foo a b c
+     > data Foo a b c = Foo a b c | Bar
 
      $(revStackPrism 'Foo)
 
      will expand into
 
-     > stackPrism (\(c :- b :- a :- t) -> Foo a b c :- t)
-     >            (\(Foo a b c :- t)   -> Just $ c :- b :- a :- t)
+     > stackPrism
+     >   (\(c :- b :- a :- t) -> Foo a b c :- t)
+     >   (\case { Foo a b c :- t -> Just $ c :- b :- a :- t; _ -> Nothing })
 -}
 
 deriveRevStackPrism :: Name -> Q Exp
