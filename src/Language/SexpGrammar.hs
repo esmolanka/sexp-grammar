@@ -1,6 +1,7 @@
 
 module Language.SexpGrammar
   ( Grammar
+  , grammarFor
   , ListGrammar
   , SexpGrammar
   , StackPrism
@@ -12,6 +13,7 @@ module Language.SexpGrammar
 
 import Data.StackPrism
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.TH
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class

@@ -20,13 +20,14 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
-    Data.StackPrism.ReverseTH
     Language.Sexp
     Language.SexpGrammar
 
   other-modules:
     Data.InvertibleGrammar
     Data.InvertibleGrammar.TH
+    Data.StackPrism.ReverseTH
+    Data.StackPrism.Extra
     Language.Sexp.Token
     Language.Sexp.Lexer
     Language.Sexp.Types
