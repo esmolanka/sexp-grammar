@@ -21,14 +21,25 @@ import Data.Semigroup
 import Data.StackPrism
 
 data Grammar g t t' where
-  FPrism :: StackPrism a b -> Grammar g a b
-  -- | Prism parses from right to left (b to a, a is smaller than b), while
-  -- grammar must always parse from left to right.
-  RPrism :: StackPrism b a -> Grammar g a b
-  Id     :: Grammar g t t
-  (:.:)  :: Grammar g t' t'' -> Grammar g t t' -> Grammar g t t''
+  -- | Embed a prism which can fail during parsing
+  ParsePrism :: StackPrism b a -> Grammar g a b
+
+  -- | Embed a prism which can fail during generation
+  GenPrism :: StackPrism a b -> Grammar g a b
+
+  -- | Identity grammar
+  Id :: Grammar g t t
+
+  -- | Grammar composition
+  (:.:) :: Grammar g t' t'' -> Grammar g t t' -> Grammar g t t''
+
+  -- | Grammar alternation
   (:<>:) :: Grammar g t t' -> Grammar g t t' -> Grammar g t t'
-  Many   :: Grammar g t t -> Grammar g t t
+
+  -- | Grammar repeats
+  Many :: Grammar g t t -> Grammar g t t
+
+  -- | Embed a subgrammar
   Inject :: g a b -> Grammar g a b
 
 instance Category (Grammar c) where
@@ -49,10 +60,11 @@ instance
   , MonadError String m
   , InvertibleGrammar m g
   ) => InvertibleGrammar m (Grammar g) where
-  parseWithGrammar (FPrism prism) = return . forward prism
-  parseWithGrammar (RPrism prism) = maybe err return . backward prism
-    where
-      err = throwError "reverse prism failed"
+  parseWithGrammar (ParsePrism prism) = \a ->
+    case backward prism a of
+      Nothing -> throwError "ParsePrism: unexpected input"
+      Just a -> return a
+  parseWithGrammar (GenPrism prism) = return . forward prism
   parseWithGrammar Id           = return
   parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
   parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x

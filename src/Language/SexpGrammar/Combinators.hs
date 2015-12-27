@@ -35,37 +35,37 @@ el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar ListGrammar a b
 el = Inject . GElem "fromSexp"
 
 bool :: Grammar SexpGrammar (Sexp :- t) (Bool :- t)
-bool = RPrism boolSexpP
+bool = ParsePrism boolSexpP
 
 integer :: Grammar SexpGrammar (Sexp :- t) (Integer :- t)
-integer = RPrism $ intSexpP
+integer = ParsePrism $ intSexpP
 
 int :: Grammar SexpGrammar (Sexp :- t) (Int :- t)
-int = RPrism $ intSexpP . inStack (iso fromIntegral fromIntegral)
+int = ParsePrism $ intSexpP . inStack (iso fromIntegral fromIntegral)
 
 real :: Grammar SexpGrammar (Sexp :- t) (Scientific :- t)
-real = RPrism realSexpP
+real = ParsePrism realSexpP
 
 double :: Grammar SexpGrammar (Sexp :- t) (Double :- t)
-double = RPrism $ realSexpP . inStack (iso fromFloatDigits toRealFloat)
+double = ParsePrism $ realSexpP . inStack (iso fromFloatDigits toRealFloat)
 
 string :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-string = RPrism stringSexpP
+string = ParsePrism stringSexpP
 
 string' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-string' = RPrism $ stringSexpP . inStack (iso pack unpack)
+string' = ParsePrism $ stringSexpP . inStack (iso pack unpack)
 
 symbol :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-symbol = RPrism symbolSexpP
+symbol = ParsePrism symbolSexpP
 
 symbol' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-symbol' = RPrism $ symbolSexpP . inStack (iso pack unpack)
+symbol' = ParsePrism $ symbolSexpP . inStack (iso pack unpack)
 
 keyword :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
-keyword = RPrism keywordSexpP
+keyword = ParsePrism keywordSexpP
 
 keyword' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
-keyword' = RPrism $ keywordSexpP . inStack (iso pack unpack)
+keyword' = ParsePrism $ keywordSexpP . inStack (iso pack unpack)
 
 sym :: Text -> Grammar SexpGrammar (Sexp :- b) b
 sym = Inject . GAtom . AtomSymbol

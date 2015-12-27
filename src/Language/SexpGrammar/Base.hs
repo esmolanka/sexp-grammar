@@ -71,9 +71,9 @@ instance
 
 
 multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
-multiple gram = FPrism nil
-            >>> Many (gram >>> FPrism cons)
-            >>> FPrism (inStack rev)
+multiple gram = GenPrism nil
+            >>> Many (gram >>> GenPrism cons)
+            >>> GenPrism (inStack rev)
   where
     nil  :: StackPrism u ([a] :- u)
     cons :: StackPrism (a :- [a] :- u) ([a] :- u)

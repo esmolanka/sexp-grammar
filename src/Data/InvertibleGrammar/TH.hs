@@ -6,4 +6,4 @@ import Data.StackPrism.ReverseTH
 import Data.InvertibleGrammar
 
 grammarFor :: Name -> ExpQ
-grammarFor name = [e| FPrism $(deriveRevStackPrism name) |]
+grammarFor name = [e| GenPrism $(deriveRevStackPrism name) |]
