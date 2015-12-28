@@ -18,7 +18,6 @@ module Language.SexpGrammar.Combinators
   , keyword
   , string'
   , symbol'
-  , keyword'
   , sym
   , kw
   , fx
@@ -56,7 +55,7 @@ rest = Inject . GRest
 props :: Grammar PropGrammar a b -> Grammar SeqGrammar a b
 props = Inject . GProps
 
-(.:) :: Text -> Grammar SexpGrammar (Sexp :- a) b -> Grammar PropGrammar a b
+(.:) :: Kw -> Grammar SexpGrammar (Sexp :- a) b -> Grammar PropGrammar a b
 (.:) name = Inject . GProp name
 
 ----------------------------------------------------------------------
@@ -89,16 +88,13 @@ symbol = Inject . GAtom . Inject $ GSymbol
 symbol' :: SexpG String
 symbol' = iso unpack pack . symbol
 
-keyword :: SexpG Text
+keyword :: SexpG Kw
 keyword = Inject . GAtom . Inject $ GKeyword
-
-keyword' :: SexpG String
-keyword' = iso unpack pack . keyword
 
 sym :: Text -> SexpG_
 sym = Inject . GAtom . Inject . GSym
 
-kw :: Text -> SexpG_
+kw :: Kw -> SexpG_
 kw = Inject . GAtom . Inject . GKw
 
 ----------------------------------------------------------------------

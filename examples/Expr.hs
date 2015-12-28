@@ -56,9 +56,9 @@ instance SexpIso Expr where
     , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
     , $(grammarFor 'Mul) . list (el (sym "*") >>> el sexpIso >>> el sexpIso)
     , $(grammarFor 'Inv) . list (el (sym "invert") >>> el sexpIso)
-    , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( ":pred"  .: sexpIso
-                                                            >>> ":true"  .: sexpIso
-                                                            >>> ":false" .: sexpIso ))
+    , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
+                                                            >>> Kw "true"  .: sexpIso
+                                                            >>> Kw "false" .: sexpIso ))
     ]
 
 test :: String -> (Expr, Text)

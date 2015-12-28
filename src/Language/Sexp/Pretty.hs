@@ -18,13 +18,16 @@ import Language.Sexp.Types
 text' :: Text -> Doc
 text' = text . Lazy.fromStrict
 
+ppKw :: Kw -> Doc
+ppKw (Kw kw) = colon <> text' kw
+
 ppAtom :: Atom -> Doc
 ppAtom (AtomBool a)    = if a then "#t" else "#f"
 ppAtom (AtomInt a)     = integer a
 ppAtom (AtomReal a)    = text'. T.pack . formatScientific Generic Nothing $ a
 ppAtom (AtomString a)  = pretty (show a)
 ppAtom (AtomSymbol a)  = text' a
-ppAtom (AtomKeyword a) = text' a
+ppAtom (AtomKeyword k) = ppKw k
 
 ppSexp :: Sexp -> Doc
 ppSexp (Fix (Atom a)) = ppAtom a

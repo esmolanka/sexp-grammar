@@ -113,13 +113,11 @@ baseTypeTests = testGroup "Base type combinator tests"
   , testCase "string'" $
     parse string' (String' "foo\nbar baz") @?= Right "foo\nbar baz"
   , testCase "keyword" $
-    parse keyword (Keyword' "foo\nbar baz") @?= Right "foo\nbar baz"
-  , testCase "keyword'" $
-    parse keyword' (Keyword' "foo\nbar baz") @?= Right "foo\nbar baz"
+    parse keyword (Keyword' (Kw "foobarbaz")) @?= Right (Kw "foobarbaz")
   , testCase "symbol" $
-    parse symbol (Symbol' "foo\nbar baz") @?= Right "foo\nbar baz"
+    parse symbol (Symbol' "foobarbaz") @?= Right "foobarbaz"
   , testCase "symbol'" $
-    parse symbol' (Symbol' "foo\nbar baz") @?= Right "foo\nbar baz"
+    parse symbol' (Symbol' "foobarbaz") @?= Right "foobarbaz"
   ]
 
 listTests :: TestTree

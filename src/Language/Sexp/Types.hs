@@ -5,6 +5,7 @@
 
 module Language.Sexp.Types
   ( Atom (..)
+  , Kw (..)
   , SexpF (..)
   , Sexp
   ) where
@@ -13,13 +14,16 @@ import Data.Functor.Foldable (Fix (..))
 import Data.Scientific
 import Data.Text (Text)
 
+newtype Kw = Kw { unKw :: Text }
+  deriving (Show, Eq, Ord)
+
 data Atom
   = AtomBool Bool
   | AtomInt Integer
   | AtomReal Scientific
   | AtomString Text
   | AtomSymbol Text
-  | AtomKeyword Text
+  | AtomKeyword Kw
     deriving (Show, Eq, Ord)
 
 data SexpF r

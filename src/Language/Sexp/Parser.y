@@ -64,7 +64,7 @@ Atom :: { Atom }
   | Real         { AtomReal    (getReal    (extract $1)) }
   | String       { AtomString  (getString  (extract $1)) }
   | Symbol       { AtomSymbol  (getSymbol  (extract $1)) }
-  | Keyword      { AtomKeyword (getKeyword (extract $1)) }
+  | Keyword      { AtomKeyword (mkKw (getKeyword (extract $1))) }
 
 ListBody :: { Sexp }
   : list(Sexp)   { Fix $ List $1 }
@@ -90,6 +90,11 @@ list(p)
   | list1(p)               { $1 }
 
 {
+mkKw :: Text -> Kw
+mkKw t = case T.uncons t of
+  Nothing -> error "Keyword should start with :"
+  Just (_, rs) -> Kw rs
+
 parseSexp :: FilePath -> String -> Either String Sexp
 parseSexp fn inp =
   case parseSexp_ (lexSexp fn inp) of

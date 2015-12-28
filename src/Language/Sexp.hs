@@ -7,6 +7,7 @@ module Language.Sexp
   , Sexp
   , SexpF (..)
   , Atom (..)
+  , Kw (..)
   ) where
 
 import Language.Sexp.Types

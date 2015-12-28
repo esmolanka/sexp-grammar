@@ -13,7 +13,6 @@ import Control.Monad.State
 
 import Data.Scientific
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -62,13 +61,13 @@ instance
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
-  GKw      :: Text -> AtomGrammar (Atom :- t) t
+  GKw      :: Kw -> AtomGrammar (Atom :- t) t
   GBool    :: AtomGrammar (Atom :- t) (Bool :- t)
   GInt     :: AtomGrammar (Atom :- t) (Integer :- t)
   GReal    :: AtomGrammar (Atom :- t) (Scientific :- t)
   GString  :: AtomGrammar (Atom :- t) (Text :- t)
   GSymbol  :: AtomGrammar (Atom :- t) (Text :- t)
-  GKeyword :: AtomGrammar (Atom :- t) (Text :- t)
+  GKeyword :: AtomGrammar (Atom :- t) (Kw :- t)
 
 instance
   ( MonadPlus m
@@ -122,10 +121,7 @@ instance
   genWithGrammar GReal (a :- t)    = return (AtomReal a :- t)
   genWithGrammar GString (a :- t)  = return (AtomString a :- t)
   genWithGrammar GSymbol (a :- t)  = return (AtomSymbol a :- t)
-  genWithGrammar GKeyword (a :- t) =
-    case T.uncons a of
-      Just (':', _) -> return (AtomKeyword a :- t)
-      _             -> throwError "Failed to generate keyword that doesn't start with :"
+  genWithGrammar GKeyword (a :- t) = return (AtomKeyword a :- t)
 
 
 data SeqGrammar a b where
@@ -193,10 +189,10 @@ instance
     put $ SeqCtx plist
     return t'
 
-newtype PropCtx = PropCtx { getProps :: Map Text Sexp }
+newtype PropCtx = PropCtx { getProps :: Map Kw Sexp }
 
 data PropGrammar a b where
-  GProp :: Text
+  GProp :: Kw
         -> Grammar SexpGrammar (Sexp :- t) t'
         -> PropGrammar t t'
 
