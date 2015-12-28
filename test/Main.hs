@@ -10,15 +10,15 @@
 module Main where
 
 import Prelude hiding ((.), id)
-import Control.Applicative
+-- import Control.Applicative
 import Control.Category
 import Data.Functor.Foldable (Fix (..))
 import Data.Semigroup
 import GHC.Generics
-import Test.QuickCheck
+-- import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck as QC
+-- import Test.Tasty.QuickCheck as QC
 
 import Language.Sexp
 import Language.SexpGrammar
@@ -48,22 +48,22 @@ data ArithExprF e =
 
 type ArithExpr = Fix ArithExprF
 
--- TODO: this generator takes too much time to generate even 100 samples.
-instance Arbitrary ArithExpr where
-  arbitrary = Fix <$> frequency
-    [ (10, Lit <$> arbitrary)
-    , (1, Add <$> arbitrary <*> arbitrary)
-    , (1, Mul <$> listOf arbitrary)
-    ]
+-- -- TODO: this generator takes too much time to generate even 100 samples.
+-- instance Arbitrary ArithExpr where
+--   arbitrary = Fix <$> frequency
+--     [ (10, Lit <$> arbitrary)
+--     , (1, Add <$> arbitrary <*> arbitrary)
+--     , (1, Mul <$> listOf arbitrary)
+--     ]
 
-arithExprParseGenProp :: ArithExpr -> Bool
-arithExprParseGenProp expr =
-  (gen arithExprGrammar expr >>= parse arithExprGrammar :: Either String ArithExpr)
-  ==
-  Right expr
-  where
-    arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
-    arithExprGrammar = sexpIso
+-- arithExprParseGenProp :: ArithExpr -> Bool
+-- arithExprParseGenProp expr =
+--   (gen arithExprGrammar expr >>= parse arithExprGrammar :: Either String ArithExpr)
+--   ==
+--   Right expr
+--   where
+--     arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
+--     arithExprGrammar = sexpIso
 
 return []
 
@@ -93,7 +93,7 @@ grammarTests = testGroup "Grammar tests"
   , revStackPrismTests
   , parseTests
   , genTests
-  , parseGenTests
+--  , parseGenTests
   ]
 
 baseTypeTests :: TestTree
@@ -163,10 +163,10 @@ genTests = testGroup "gen tests"
     Right testArithExprSexp @=? gen sexpIso testArithExpr
   ]
 
-parseGenTests :: TestTree
-parseGenTests = testGroup "parse . gen == id"
-  [ QC.testProperty "ArithExprs" arithExprParseGenProp
-  ]
+-- parseGenTests :: TestTree
+-- parseGenTests = testGroup "parse . gen == id"
+--   [ QC.testProperty "ArithExprs" arithExprParseGenProp
+--   ]
 
 main :: IO ()
 main = defaultMain grammarTests
