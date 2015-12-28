@@ -27,7 +27,6 @@ library
     Data.InvertibleGrammar
     Data.InvertibleGrammar.TH
     Data.StackPrism.ReverseTH
-    Data.StackPrism.Extra
     Language.Sexp.Token
     Language.Sexp.Lexer
     Language.Sexp.Types

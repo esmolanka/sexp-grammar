@@ -20,15 +20,19 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 
 import Data.Functor.Foldable (Fix (..))
-import Data.StackPrism.Extra
+import Data.StackPrism
 import Data.StackPrism.Generic
 
 import Data.InvertibleGrammar
 import Language.Sexp
 
+type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
+type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
+
 data SexpGrammar a b where
   GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
-  GList :: Grammar ListGrammar t           t' -> SexpGrammar (Sexp :- t) t'
+  GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
+  GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
 
 instance
   ( MonadPlus m
@@ -38,21 +42,25 @@ instance
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
       Fix (Atom a) -> parseWithGrammar g (a :- t)
-      _ ->
-        throwError $ "Expected atom but found: " ++ Lazy.unpack (printSexp s)
-
+      _ -> throwError $ "Expected atom but found: " ++ Lazy.unpack (printSexp s)
   parseWithGrammar (GList g) (s :- t) = do
     case s of
-      Fix (List xs) -> evalStateT (parseWithGrammar g t) (ListCtx xs)
-      _ ->
-        throwError $ "Expected list but found: " ++ Lazy.unpack (printSexp s)
+      Fix (List xs) -> evalStateT (parseWithGrammar g t) (SeqCtx xs)
+      _ -> throwError $ "Expected list but found: " ++ Lazy.unpack (printSexp s)
+  parseWithGrammar (GVect g) (s :- t) = do
+    case s of
+      Fix (Vector xs) -> evalStateT (parseWithGrammar g t) (SeqCtx xs)
+      _ -> throwError $ "Expected vector but found: " ++ Lazy.unpack (printSexp s)
 
   genWithGrammar (GAtom g) t = do
     (a :- t') <- genWithGrammar g t
     return (Fix (Atom a) :- t')
   genWithGrammar (GList g) t = do
-    (t', ListCtx xs) <- runStateT (genWithGrammar g t) (ListCtx [])
+    (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
     return (Fix (List xs) :- t')
+  genWithGrammar (GVect g) t = do
+    (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
+    return (Fix (Vector xs) :- t')
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
@@ -122,23 +130,23 @@ instance
       _             -> throwError "Failed to generate keyword that doesn't start with :"
 
 
-data ListGrammar a b where
+data SeqGrammar a b where
   -- | Dispatch single list element with a grammar
   GElem :: Grammar SexpGrammar (Sexp :- t) t'
         -- ^ Grammar to parse list element at current position with
-        -> ListGrammar t t'
+        -> SeqGrammar t t'
 
-newtype ListCtx = ListCtx { getItems :: [Sexp] }
+newtype SeqCtx = SeqCtx { getItems :: [Sexp] }
 
 instance
   ( MonadPlus m
-  , MonadState ListCtx m
+  , MonadState SeqCtx m
   , MonadError String m
-  ) => InvertibleGrammar m ListGrammar where
+  ) => InvertibleGrammar m SeqGrammar where
   parseWithGrammar (GElem g) t = do
     xs <- gets getItems
     case xs of
-      [] -> throwError $ "Unexpected end of list"
+      [] -> throwError $ "Unexpected end of sequence"
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)

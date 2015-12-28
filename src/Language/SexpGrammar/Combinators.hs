@@ -1,8 +1,10 @@
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RankNTypes    #-}
 
 module Language.SexpGrammar.Combinators
   ( multiple
   , list
+  , vect
   , el
   , bool
   , integer
@@ -18,6 +20,7 @@ module Language.SexpGrammar.Combinators
   , sym
   , kw
   , fx
+  , pair
   )
 where
 
@@ -26,58 +29,73 @@ import Prelude hiding ((.), id)
 import Control.Category
 import Data.Functor.Foldable (Fix (..))
 import Data.Scientific
-import Data.StackPrism.Extra
+import Data.StackPrism
 import Data.Text (Text, pack, unpack)
+import Data.Coerce
 
 import Data.InvertibleGrammar
 import Language.Sexp.Types
 import Language.SexpGrammar.Base
 
-list :: Grammar ListGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
+----------------------------------------------------------------------
+-- List combinators
+
+list :: Grammar SeqGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
 list = Inject . GList
 
-el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar ListGrammar a b
+vect :: Grammar SeqGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
+vect = Inject . GVect
+
+el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar SeqGrammar a b
 el = Inject . GElem
 
-bool :: Grammar SexpGrammar (Sexp :- t) (Bool :- t)
+----------------------------------------------------------------------
+-- Atom combinators
+
+bool :: SexpG Bool
 bool = Inject . GAtom . Inject $ GBool
 
-integer :: Grammar SexpGrammar (Sexp :- t) (Integer :- t)
+integer :: SexpG Integer
 integer = Inject . GAtom . Inject $ GInt
 
-int :: Grammar SexpGrammar (Sexp :- t) (Int :- t)
+int :: SexpG Int
 int = iso fromIntegral fromIntegral . integer
 
-real :: Grammar SexpGrammar (Sexp :- t) (Scientific :- t)
+real :: SexpG Scientific
 real = Inject . GAtom . Inject $ GReal
 
-double :: Grammar SexpGrammar (Sexp :- t) (Double :- t)
+double :: SexpG Double
 double = iso toRealFloat fromFloatDigits . real
 
-string :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
+string :: SexpG Text
 string = Inject . GAtom . Inject $ GString
 
-string' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
+string' :: SexpG String
 string' = iso unpack pack . string
 
-symbol :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
+symbol :: SexpG Text
 symbol = Inject . GAtom . Inject $ GSymbol
 
-symbol' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
+symbol' :: SexpG String
 symbol' = iso unpack pack . symbol
 
-keyword :: Grammar SexpGrammar (Sexp :- t) (Text :- t)
+keyword :: SexpG Text
 keyword = Inject . GAtom . Inject $ GKeyword
 
-keyword' :: Grammar SexpGrammar (Sexp :- t) (String :- t)
+keyword' :: SexpG String
 keyword' = iso unpack pack . keyword
 
-sym :: Text -> Grammar SexpGrammar (Sexp :- b) b
+sym :: Text -> SexpG_
 sym = Inject . GAtom . Inject . GSym
 
-kw :: Text -> Grammar SexpGrammar (Sexp :- b) b
+kw :: Text -> SexpG_
 kw = Inject . GAtom . Inject . GKw
 
-fx :: Grammar a (f (Fix f) :- t) (Fix f :- t)
-fx = iso Fix (\(Fix x) -> x)
+----------------------------------------------------------------------
+-- Special combinators
 
+fx :: Grammar g (f (Fix f) :- t) (Fix f :- t)
+fx = iso coerce coerce
+
+pair :: Grammar g (b :- a :- t) ((a, b) :- t)
+pair = Iso (\(b :- a :- t) -> (a, b) :- t) (\((a, b) :- t) -> (b :- a :- t))
