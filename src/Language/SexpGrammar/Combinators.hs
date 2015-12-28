@@ -17,20 +17,21 @@ module Language.SexpGrammar.Combinators
   , keyword'
   , sym
   , kw
+  , fx
   )
 where
 
 import Prelude hiding ((.), id)
 
 import Control.Category
-
+import Data.Functor.Foldable (Fix (..))
+import Data.Scientific
 import Data.StackPrism.Extra
 import Data.Text (Text, pack, unpack)
-import Data.Scientific
 
 import Data.InvertibleGrammar
-import Language.SexpGrammar.Base
 import Language.Sexp.Types
+import Language.SexpGrammar.Base
 
 list :: Grammar ListGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
 list = Inject . GList
@@ -76,3 +77,7 @@ sym = Inject . GAtom . Inject . GSym
 
 kw :: Text -> Grammar SexpGrammar (Sexp :- b) b
 kw = Inject . GAtom . Inject . GKw
+
+fx :: Grammar a (f (Fix f) :- t) (Fix f :- t)
+fx = iso Fix (\(Fix x) -> x)
+

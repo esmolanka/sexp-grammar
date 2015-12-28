@@ -1,20 +1,24 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms   #-}
-{-# LANGUAGE TypeOperators     #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedLists      #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE PatternSynonyms      #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Main where
 
 import Prelude hiding ((.), id)
+import Control.Applicative
 import Control.Category
-
-import Data.Semigroup
 import Data.Functor.Foldable (Fix (..))
+import Data.Semigroup
 import GHC.Generics
+import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck as QC
 
 import Language.Sexp
 import Language.SexpGrammar
@@ -36,6 +40,31 @@ data Foo a b = Bar a b
 
 data Rint = Rint Int
 
+data ArithExprF e =
+    Lit Int
+  | Add e e -- ^ (+ x y)
+  | Mul [e] -- ^ (* x1 ... xN)
+  deriving (Show, Eq, Ord)
+
+type ArithExpr = Fix ArithExprF
+
+-- TODO: this generator takes too much time to generate even 100 samples.
+instance Arbitrary ArithExpr where
+  arbitrary = Fix <$> frequency
+    [ (10, Lit <$> arbitrary)
+    , (1, Add <$> arbitrary <*> arbitrary)
+    , (1, Mul <$> listOf arbitrary)
+    ]
+
+arithExprParseGenProp :: ArithExpr -> Bool
+arithExprParseGenProp expr =
+  (gen arithExprGrammar expr >>= parse arithExprGrammar :: Either String ArithExpr)
+  ==
+  Right expr
+  where
+    arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
+    arithExprGrammar = sexpIso
+
 return []
 
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
@@ -47,6 +76,13 @@ instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
     , $(grammarFor 'Baz) . list (el (sym "baz") >>> el sexpIso >>> el sexpIso)
     ]
 
+instance SexpIso ArithExpr where
+  sexpIso = fx . sconcat
+    [ $(grammarFor 'Lit) . int
+    , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
+    , $(grammarFor 'Mul) . list (el (sym "*") >>> multiple (el sexpIso))
+    ]
+
 ----------------------------------------------------------------------
 -- Test cases
 
@@ -55,6 +91,9 @@ grammarTests = testGroup "Grammar tests"
   [ baseTypeTests
   , listTests
   , revStackPrismTests
+  , parseTests
+  , genTests
+  , parseGenTests
   ]
 
 baseTypeTests :: TestTree
@@ -103,6 +142,30 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     (Left "Expected bool, got something else" :: Either String (Foo Bool Bool)) @=?
     parse sexpIso (List' [Symbol' "baz", Bool' False, Int' 10])
+  ]
+
+
+testArithExpr :: ArithExpr
+testArithExpr = Fix (Add (Fix (Lit 0)) (Fix (Mul [])))
+
+testArithExprSexp :: Sexp
+testArithExprSexp = List' [Symbol' "+", Int' 0, List' [Symbol' "*"]]
+
+parseTests :: TestTree
+parseTests = testGroup "parse tests"
+  [ testCase "(+ 0 (*))" $
+    Right testArithExpr @=? parse sexpIso testArithExprSexp
+  ]
+
+genTests :: TestTree
+genTests = testGroup "gen tests"
+  [ testCase "(+ 0 (*))" $
+    Right testArithExprSexp @=? gen sexpIso testArithExpr
+  ]
+
+parseGenTests :: TestTree
+parseGenTests = testGroup "parse . gen == id"
+  [ QC.testProperty "ArithExprs" arithExprParseGenProp
   ]
 
 main :: IO ()
