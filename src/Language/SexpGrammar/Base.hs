@@ -8,9 +8,6 @@
 
 module Language.SexpGrammar.Base where
 
-import Prelude hiding ((.), id)
-
-import Control.Category
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -21,7 +18,6 @@ import qualified Data.Text.Lazy as Lazy
 
 import Data.Functor.Foldable (Fix (..))
 import Data.StackPrism
-import Data.StackPrism.Generic
 
 import Data.InvertibleGrammar
 import Language.Sexp
@@ -136,6 +132,9 @@ data SeqGrammar a b where
         -- ^ Grammar to parse list element at current position with
         -> SeqGrammar t t'
 
+  GRest :: Grammar SexpGrammar (Sexp :- t) (a :- t)
+        -> SeqGrammar t ([a] :- t)
+
 newtype SeqCtx = SeqCtx { getItems :: [Sexp] }
 
 instance
@@ -151,21 +150,31 @@ instance
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)
 
+  parseWithGrammar (GRest g) t = do
+    xs <- gets getItems
+    go xs t
+    where
+      go []     t = return $ [] :- t
+      go (x:xs) t = do
+        y  :- t'  <- parseWithGrammar g (x :- t)
+        ys :- t'' <- go xs t'
+        return $ (y:ys) :- t''
+
   genWithGrammar (GElem g) t = do
     (x :- t') <- genWithGrammar g t
     modify $ \s -> s { getItems = x : getItems s }
     return t'
 
-multiple :: (forall u. Grammar g u (a :- u)) -> Grammar g t ([a] :- t)
-multiple gram = GenPrism nil
-            >>> Many (gram >>> GenPrism cons)
-            >>> embedPrism rev
-  where
-    nil  :: StackPrism u ([a] :- u)
-    cons :: StackPrism (a :- [a] :- u) ([a] :- u)
-    PrismList (P nil :& P cons) = mkPrismList :: StackPrisms [b]
-    rev :: StackPrism [a] [a]
-    rev = stackPrism reverse (Just . reverse)
+  genWithGrammar (GRest g) (ys :- t) = do
+    xs :- t' <- go ys t
+    put (SeqCtx xs)
+    return t'
+    where
+      go []     t = return $ [] :- t
+      go (y:ys) t = do
+        x  :- t'  <- genWithGrammar g (y :- t)
+        xs :- t'' <- go ys t'
+        return $ (x : xs) :- t''
 
 parse
   :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
@@ -174,7 +183,6 @@ parse
   -> m a
 parse gram input =
   (\(x :- _) -> x) <$> parseWithGrammar gram (input :- ())
-
 
 gen
   :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)

@@ -36,4 +36,4 @@ instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
   sexpIso = pair . vect (el sexpIso >>> el sexpIso)
 
 instance (SexpIso a) => SexpIso [a] where
-  sexpIso = list $ multiple $ el sexpIso
+  sexpIso = list $ rest sexpIso

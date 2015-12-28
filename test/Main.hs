@@ -80,7 +80,7 @@ instance SexpIso ArithExpr where
   sexpIso = fx . sconcat
     [ $(grammarFor 'Lit) . int
     , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
-    , $(grammarFor 'Mul) . list (el (sym "*") >>> multiple (el sexpIso))
+    , $(grammarFor 'Mul) . list (el (sym "*") >>> rest sexpIso)
     ]
 
 ----------------------------------------------------------------------
@@ -125,10 +125,10 @@ baseTypeTests = testGroup "Base type combinator tests"
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
   [ testCase "empty list of bools" $
-    parse (list (multiple (el bool))) (List' []) @?= Right []
+    parse (list (rest bool)) (List' []) @?= Right []
   , testCase "list of bools" $
     Right [True, False, False] @=?
-    parse (list (multiple (el bool))) (List' [Bool' True, Bool' False, Bool' False])
+    parse (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False])
   ]
 
 revStackPrismTests :: TestTree

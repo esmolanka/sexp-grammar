@@ -2,10 +2,10 @@
 {-# LANGUAGE RankNTypes    #-}
 
 module Language.SexpGrammar.Combinators
-  ( multiple
-  , list
+  ( list
   , vect
   , el
+  , rest
   , bool
   , integer
   , int
@@ -48,6 +48,9 @@ vect = Inject . GVect
 
 el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar SeqGrammar a b
 el = Inject . GElem
+
+rest :: Grammar SexpGrammar (Sexp :- a) (b :- a) -> Grammar SeqGrammar a ([b] :- a)
+rest = Inject . GRest
 
 ----------------------------------------------------------------------
 -- Atom combinators

@@ -31,13 +31,10 @@ data Grammar g t t' where
   Id :: Grammar g t t
 
   -- | Grammar composition
-  (:.:) :: Grammar g t' t'' -> Grammar g t t' -> Grammar g t t''
+  (:.:) :: Grammar g b c -> Grammar g a b -> Grammar g a c
 
   -- | Grammar alternation
-  (:<>:) :: Grammar g t t' -> Grammar g t t' -> Grammar g t t'
-
-  -- | Grammar repeats
-  Many :: Grammar g t t -> Grammar g t t
+  (:<>:) :: Grammar g a b -> Grammar g a b -> Grammar g a b
 
   -- | Embed a subgrammar
   Inject :: g a b -> Grammar g a b
@@ -78,18 +75,12 @@ instance
   parseWithGrammar Id           = return
   parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
   parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
-  parseWithGrammar (Many g)     = go
-    where
-      go x = (parseWithGrammar g x >>= go) `mplus` return x
-  parseWithGrammar (Inject g)     = parseWithGrammar g
+  parseWithGrammar (Inject g)   = parseWithGrammar g
 
   genWithGrammar (Iso _ g)      = return . g
   genWithGrammar (GenPrism p)   = maybe (throwError "Cannot generate") return . backward p
   genWithGrammar Id             = return
   genWithGrammar (g :.: f)      = genWithGrammar g >=> genWithGrammar f
   genWithGrammar (f :<>: g)     = \x -> genWithGrammar f x `mplus` genWithGrammar g x
-  genWithGrammar (Many g)       = go
-    where
-      go x = (genWithGrammar g x >>= go) `mplus` return x
   genWithGrammar (Inject g)     = genWithGrammar g
 
