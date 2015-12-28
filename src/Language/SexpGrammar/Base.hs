@@ -16,6 +16,7 @@ import Control.Monad.State
 
 import Data.Scientific
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 
 import Data.Functor.Foldable (Fix (..))
@@ -108,14 +109,17 @@ instance
       AtomKeyword a -> return $ a :- t
       _             -> throwError "Expected keyword, got something else"
 
-  genWithGrammar (GSym sym) t = return (AtomKeyword sym :- t)
-  genWithGrammar (GKw kw) t = return (AtomKeyword kw :- t)
-  genWithGrammar GBool (a :- t) = return (AtomBool a :- t)
-  genWithGrammar GInt (a :- t) = return (AtomInt a :- t)
-  genWithGrammar GReal (a :- t) = return (AtomReal a :- t)
-  genWithGrammar GString (a :- t) = return (AtomString a :- t)
-  genWithGrammar GSymbol (a :- t) = return (AtomSymbol a :- t)
-  genWithGrammar GKeyword (a :- t) = return (AtomKeyword a :- t)
+  genWithGrammar (GSym sym) t      = return (AtomSymbol sym :- t)
+  genWithGrammar (GKw kw) t        = return (AtomKeyword kw :- t)
+  genWithGrammar GBool (a :- t)    = return (AtomBool a :- t)
+  genWithGrammar GInt (a :- t)     = return (AtomInt a :- t)
+  genWithGrammar GReal (a :- t)    = return (AtomReal a :- t)
+  genWithGrammar GString (a :- t)  = return (AtomString a :- t)
+  genWithGrammar GSymbol (a :- t)  = return (AtomSymbol a :- t)
+  genWithGrammar GKeyword (a :- t) =
+    case T.uncons a of
+      Just (':', _) -> return (AtomKeyword a :- t)
+      _             -> throwError "Failed to generate keyword that doesn't start with :"
 
 
 data ListGrammar a b where
