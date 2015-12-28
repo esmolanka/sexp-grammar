@@ -40,6 +40,7 @@ library
   build-depends:
       array
     , base >=4.8
+    , containers
     , mtl
     , recursion-schemes
     , scientific

@@ -6,6 +6,8 @@ module Language.SexpGrammar.Combinators
   , vect
   , el
   , rest
+  , props
+  , (.:)
   , bool
   , integer
   , int
@@ -21,8 +23,7 @@ module Language.SexpGrammar.Combinators
   , kw
   , fx
   , pair
-  )
-where
+  ) where
 
 import Prelude hiding ((.), id)
 
@@ -38,7 +39,7 @@ import Language.Sexp.Types
 import Language.SexpGrammar.Base
 
 ----------------------------------------------------------------------
--- List combinators
+-- High level combinators
 
 list :: Grammar SeqGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
 list = Inject . GList
@@ -51,6 +52,12 @@ el = Inject . GElem
 
 rest :: Grammar SexpGrammar (Sexp :- a) (b :- a) -> Grammar SeqGrammar a ([b] :- a)
 rest = Inject . GRest
+
+props :: Grammar PropGrammar a b -> Grammar SeqGrammar a b
+props = Inject . GProps
+
+(.:) :: Text -> Grammar SexpGrammar (Sexp :- a) b -> Grammar PropGrammar a b
+(.:) name = Inject . GProp name
 
 ----------------------------------------------------------------------
 -- Atom combinators

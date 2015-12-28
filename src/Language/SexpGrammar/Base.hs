@@ -15,6 +15,8 @@ import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
+import qualified Data.Map as M
+import Data.Map (Map)
 
 import Data.Functor.Foldable (Fix (..))
 import Data.StackPrism
@@ -135,6 +137,9 @@ data SeqGrammar a b where
   GRest :: Grammar SexpGrammar (Sexp :- t) (a :- t)
         -> SeqGrammar t ([a] :- t)
 
+  GProps :: Grammar PropGrammar t t'
+         -> SeqGrammar t t'
+
 newtype SeqCtx = SeqCtx { getItems :: [Sexp] }
 
 instance
@@ -149,7 +154,6 @@ instance
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)
-
   parseWithGrammar (GRest g) t = do
     xs <- gets getItems
     go xs t
@@ -160,11 +164,19 @@ instance
         ys :- t'' <- go xs t'
         return $ (y:ys) :- t''
 
+  parseWithGrammar (GProps g) t = do
+    xs    <- gets getItems
+    props <- go xs M.empty
+    evalStateT (parseWithGrammar g t) (PropCtx props)
+    where
+      go [] props = return props
+      go (Fix (Atom (AtomKeyword kwd)):x:xs) props = go xs (M.insert kwd x props)
+      go other _ = throwError $ "Property-list is malformed: " ++ Lazy.unpack (printSexp (Fix (List other)))
+
   genWithGrammar (GElem g) t = do
     (x :- t') <- genWithGrammar g t
     modify $ \s -> s { getItems = x : getItems s }
     return t'
-
   genWithGrammar (GRest g) (ys :- t) = do
     xs :- t' <- go ys t
     put (SeqCtx xs)
@@ -175,6 +187,34 @@ instance
         x  :- t'  <- genWithGrammar g (y :- t)
         xs :- t'' <- go ys t'
         return $ (x : xs) :- t''
+  genWithGrammar (GProps g) t = do
+    (t', PropCtx props) <- runStateT (genWithGrammar g t) (PropCtx M.empty)
+    let plist = foldr (\(name, sexp) acc -> Fix (Atom (AtomKeyword name)) : sexp : acc) [] (M.toList props)
+    put $ SeqCtx plist
+    return t'
+
+newtype PropCtx = PropCtx { getProps :: Map Text Sexp }
+
+data PropGrammar a b where
+  GProp :: Text
+        -> Grammar SexpGrammar (Sexp :- t) t'
+        -> PropGrammar t t'
+
+instance
+  ( MonadPlus m
+  , MonadState PropCtx m
+  , MonadError String m
+  ) => InvertibleGrammar m PropGrammar where
+  parseWithGrammar (GProp kwd g) t = do
+    ps <- gets getProps
+    case M.lookup kwd ps of
+      Nothing -> throwError $ "Keyword " ++ show kwd ++ " not found"
+      Just x  -> parseWithGrammar g $ x :- t
+
+  genWithGrammar (GProp kwd g) t = do
+    x :- t' <- genWithGrammar g t
+    modify $ \ps -> ps { getProps = M.insert kwd x (getProps ps) }
+    return t'
 
 parse
   :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
