@@ -1,5 +1,6 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE RankNTypes    #-}
+{-# LANGUAGE RankNTypes      #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeOperators   #-}
 
 module Language.SexpGrammar.Combinators
   ( list
@@ -9,6 +10,7 @@ module Language.SexpGrammar.Combinators
   , rest
   , props
   , (.:)
+  , (.:?)
   , bool
   , integer
   , int
@@ -40,6 +42,7 @@ import Data.Text (Text, pack, unpack)
 import Data.Coerce
 
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.TH
 import Language.Sexp.Types
 import Language.SexpGrammar.Base
 
@@ -64,8 +67,14 @@ rest = Inject . GRest
 props :: Grammar PropGrammar a b -> Grammar SeqGrammar a b
 props = Inject . GProps
 
-(.:) :: Kw -> Grammar SexpGrammar (Sexp :- a) b -> Grammar PropGrammar a b
+(.:) :: Kw -> Grammar SexpGrammar (Sexp :- t) (a :- t) -> Grammar PropGrammar t (a :- t)
 (.:) name = Inject . GProp name
+
+(.:?) :: Kw -> Grammar SexpGrammar (Sexp :- t) (a :- t) -> Grammar PropGrammar t (Maybe a :- t)
+(.:?) name g = coproduct
+  [ $(grammarFor 'Just) . (name .: g)
+  , $(grammarFor 'Nothing)
+  ]
 
 ----------------------------------------------------------------------
 -- Atom combinators

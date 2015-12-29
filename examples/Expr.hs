@@ -42,6 +42,12 @@ data Prim
   | Fibonacci
     deriving (Eq, Enum, Bounded, Data, Show)
 
+data Person = Person
+  { pName :: String
+  , pAddress :: String
+  , pAge :: Maybe Int
+  } deriving (Show)
+
 return []
 
 instance SexpIso Prim
@@ -77,6 +83,14 @@ instance SexpIso Expr where
           swap
          )
     ]
+
+instance SexpIso Person where
+  sexpIso = $(grammarFor 'Person) .
+    list (
+      el string' >>>
+      props (
+        Kw "address" .: string' >>>
+        Kw "age" .:? int))
 
 sexp :: String -> Sexp
 sexp = either error id . parseSexp "<inline>"
