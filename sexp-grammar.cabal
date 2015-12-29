@@ -32,7 +32,7 @@ library
     Language.Sexp.Types
     Language.Sexp.Parser
     Language.Sexp.Pretty
-
+    Language.Sexp.Utils
     Language.SexpGrammar.Base
     Language.SexpGrammar.Class
     Language.SexpGrammar.Combinators
@@ -46,6 +46,7 @@ library
     , scientific
     , semigroups
     , stack-prism
+    , split
     , template-haskell
     , text
     , wl-pprint-text

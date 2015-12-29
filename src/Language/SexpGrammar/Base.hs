@@ -6,7 +6,17 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
-module Language.SexpGrammar.Base where
+module Language.SexpGrammar.Base
+  ( SexpGrammar (..)
+  , SeqGrammar (..)
+  , AtomGrammar (..)
+  , PropGrammar (..)
+  , parse
+  , gen
+  , SexpG
+  , SexpG_
+  , module Data.InvertibleGrammar
+  ) where
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -31,6 +41,13 @@ data SexpGrammar a b where
   GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
   GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
 
+parseSeq :: (MonadError String m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
+parseSeq xs g t = do
+  (a, SeqCtx rest) <- runStateT (parseWithGrammar g t) (SeqCtx xs)
+  unless (null rest) $
+    throwError $ "Unexpected leftover elements: " ++ (unwords $ map (Lazy.unpack . printSexp) rest)
+  return a
+
 instance
   ( MonadPlus m
   , MonadError String m
@@ -42,11 +59,11 @@ instance
       _ -> throwError $ "Expected atom but found: " ++ Lazy.unpack (printSexp s)
   parseWithGrammar (GList g) (s :- t) = do
     case s of
-      Fix (List xs) -> evalStateT (parseWithGrammar g t) (SeqCtx xs)
+      Fix (List xs) -> parseSeq xs g t
       _ -> throwError $ "Expected list but found: " ++ Lazy.unpack (printSexp s)
   parseWithGrammar (GVect g) (s :- t) = do
     case s of
-      Fix (Vector xs) -> evalStateT (parseWithGrammar g t) (SeqCtx xs)
+      Fix (Vector xs) -> parseSeq xs g t
       _ -> throwError $ "Expected vector but found: " ++ Lazy.unpack (printSexp s)
 
   genWithGrammar (GAtom g) t = do
@@ -156,6 +173,7 @@ instance
     return (a :- t)
   parseWithGrammar (GRest g) t = do
     xs <- gets getItems
+    modify $ \s -> s { getItems = [] }
     go xs t
     where
       go []     t = return $ [] :- t
@@ -165,7 +183,8 @@ instance
         return $ (y:ys) :- t''
 
   parseWithGrammar (GProps g) t = do
-    xs    <- gets getItems
+    xs <- gets getItems
+    modify $ \s -> s { getItems = [] }
     props <- go xs M.empty
     evalStateT (parseWithGrammar g t) (PropCtx props)
     where

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE OverloadedLists      #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TemplateHaskell      #-}
@@ -9,6 +10,7 @@ module Expr where
 
 import Prelude hiding ((.), id)
 import Control.Category
+import Data.Data (Data)
 import Data.Semigroup
 import Data.Text.Lazy (Text)
 import Language.Sexp
@@ -29,30 +31,20 @@ data Expr
   | Mul Expr Expr
   | Inv Expr
   | IfZero Expr Expr Expr
-  | Apply [Expr] String Ident -- inconvenient ordering: arguments, useless annotation, identifier
+  | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
     deriving (Show)
 
 data Pair a b = Pair a b deriving (Show)
 
-data Foo = Foo Int String
+data Prim
+  = SquareRoot
+  | Factorial
+  | Fibonacci
+    deriving (Eq, Enum, Bounded, Data, Show)
 
 return []
 
-pairG :: Grammar g (b :- (a :- t)) (Pair a b :- t)
-pairG = $(grammarFor 'Pair)
-
-fooG :: Grammar g (String :- (Int :- t)) (Foo :- t)
-fooG = $(grammarFor 'Foo)
-
-fooG' :: Grammar SexpGrammar (Sexp :- t) (Foo :- t)
-fooG' = fooG . list (el string' >>> el int >>> swap)
-
-
-instance SexpIso a => SexpIso (Maybe a) where
-  sexpIso = sconcat
-    [ $(grammarFor 'Nothing) . sym "nil"
-    , $(grammarFor 'Just) . list (el (sym "just") >>> el sexpIso)
-    ]
+instance SexpIso Prim
 
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso =
@@ -77,7 +69,7 @@ instance SexpIso Expr where
                                                             >>> Kw "true"  .: sexpIso
                                                             >>> Kw "false" .: sexpIso ))
     , $(grammarFor 'Apply) . list
-         (el (sexpIso :: SexpG Ident) >>>
+         (el (sexpIso :: SexpG Prim) >>>
           el (kw (Kw "args")) >>>
           rest (sexpIso :: SexpG Expr) >>>
           swap >>>

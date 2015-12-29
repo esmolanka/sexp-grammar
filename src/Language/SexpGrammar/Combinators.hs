@@ -21,6 +21,7 @@ module Language.SexpGrammar.Combinators
   , symbol'
   , sym
   , kw
+  , coproduct
   , fx
   , pair
   , unpair
@@ -30,6 +31,8 @@ module Language.SexpGrammar.Combinators
 import Prelude hiding ((.), id)
 
 import Control.Category
+import Data.Semigroup (sconcat)
+import qualified Data.List.NonEmpty as NE
 import Data.Functor.Foldable (Fix (..))
 import Data.Scientific
 import Data.StackPrism
@@ -105,6 +108,9 @@ kw = Inject . GAtom . Inject . GKw
 
 ----------------------------------------------------------------------
 -- Special combinators
+
+coproduct :: [Grammar g a b] -> Grammar g a b
+coproduct = sconcat . NE.fromList
 
 fx :: Grammar g (f (Fix f) :- t) (Fix f :- t)
 fx = iso coerce coerce
