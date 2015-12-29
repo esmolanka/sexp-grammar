@@ -1,7 +1,11 @@
 {-# LANGUAGE OverloadedLists      #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE RankNTypes           #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Expr where
 
 import Prelude hiding ((.), id)
 import Control.Category
@@ -25,11 +29,24 @@ data Expr
   | Mul Expr Expr
   | Inv Expr
   | IfZero Expr Expr Expr
+  | Apply [Expr] String Ident -- inconvenient ordering: arguments, useless annotation, identifier
     deriving (Show)
 
-data Pair a b = Pair a b
+data Pair a b = Pair a b deriving (Show)
+
+data Foo = Foo Int String
 
 return []
+
+pairG :: Grammar g (b :- (a :- t)) (Pair a b :- t)
+pairG = $(grammarFor 'Pair)
+
+fooG :: Grammar g (String :- (Int :- t)) (Foo :- t)
+fooG = $(grammarFor 'Foo)
+
+fooG' :: Grammar SexpGrammar (Sexp :- t) (Foo :- t)
+fooG' = fooG . list (el string' >>> el int >>> swap)
+
 
 instance SexpIso a => SexpIso (Maybe a) where
   sexpIso = sconcat
@@ -59,14 +76,26 @@ instance SexpIso Expr where
     , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
                                                             >>> Kw "true"  .: sexpIso
                                                             >>> Kw "false" .: sexpIso ))
+    , $(grammarFor 'Apply) . list
+         (el (sexpIso :: SexpG Ident) >>>
+          el (kw (Kw "args")) >>>
+          rest (sexpIso :: SexpG Expr) >>>
+          swap >>>
+          push "dummy" >>>
+          swap
+         )
     ]
 
-test :: String -> (Expr, Text)
-test str = either error id $ do
+sexp :: String -> Sexp
+sexp = either error id . parseSexp "<inline>"
+
+test :: String -> SexpG a -> (a, Text)
+test str g = either error id $ do
   sexp <- parseSexp "<input>" str
-  expr <- parse sexpIso sexp
-  sexp' <- gen sexpIso expr
+  expr <- parse g sexp
+  sexp' <- gen g expr
   return (expr, printSexp sexp')
 
 -- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Mul (Lit 2) (Mul (Lit 2) (Lit 2))),"(cond 1 (+ 42 10) (* 2 (* 2 2)))")
+

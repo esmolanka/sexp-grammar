@@ -1,6 +1,8 @@
 
 module Language.SexpGrammar
   ( Grammar
+  , SexpG
+  , SexpG_
   , grammarFor
   , iso
   , AtomGrammar

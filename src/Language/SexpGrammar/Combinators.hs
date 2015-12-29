@@ -5,6 +5,7 @@ module Language.SexpGrammar.Combinators
   ( list
   , vect
   , el
+  , push
   , rest
   , props
   , (.:)
@@ -22,6 +23,8 @@ module Language.SexpGrammar.Combinators
   , kw
   , fx
   , pair
+  , unpair
+  , swap
   ) where
 
 import Prelude hiding ((.), id)
@@ -38,7 +41,7 @@ import Language.Sexp.Types
 import Language.SexpGrammar.Base
 
 ----------------------------------------------------------------------
--- High level combinators
+-- Sequence combinators
 
 list :: Grammar SeqGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
 list = Inject . GList
@@ -48,6 +51,9 @@ vect = Inject . GVect
 
 el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar SeqGrammar a b
 el = Inject . GElem
+
+push :: a -> Grammar SeqGrammar t (a :- t)
+push = Inject . GPush
 
 rest :: Grammar SexpGrammar (Sexp :- a) (b :- a) -> Grammar SeqGrammar a ([b] :- a)
 rest = Inject . GRest
@@ -104,4 +110,12 @@ fx :: Grammar g (f (Fix f) :- t) (Fix f :- t)
 fx = iso coerce coerce
 
 pair :: Grammar g (b :- a :- t) ((a, b) :- t)
-pair = Iso (\(b :- a :- t) -> (a, b) :- t) (\((a, b) :- t) -> (b :- a :- t))
+unpair :: Grammar g ((a, b) :- t) (b :- a :- t)
+(pair, unpair) = (Iso f g, Iso g f)
+  where
+    f = (\(b :- a :- t) -> (a, b) :- t)
+    g = (\((a, b) :- t) -> (b :- a :- t))
+
+swap :: Grammar g (b :- a :- t) (a :- b :- t)
+swap = Iso (\(b :- a :- t) -> a :- b :- t)
+           (\(a :- b :- t) -> b :- a :- t)
