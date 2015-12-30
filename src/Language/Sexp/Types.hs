@@ -8,11 +8,20 @@ module Language.Sexp.Types
   , Kw (..)
   , SexpF (..)
   , Sexp
+  , Position (..)
   ) where
 
-import Data.Functor.Foldable (Fix (..))
+import Control.Comonad.Cofree
 import Data.Scientific
 import Data.Text (Text)
+import Text.PrettyPrint.Leijen.Text (Pretty (..), int, colon, (<>))
+
+data Position =
+  Position !Int !Int
+  deriving (Show, Ord, Eq)
+
+instance Pretty Position where
+  pretty (Position line col) = int line <> colon <> int col
 
 newtype Kw = Kw { unKw :: Text }
   deriving (Show, Eq, Ord)
@@ -33,7 +42,7 @@ data SexpF r
   | List [r]
     deriving (Eq, Ord, Functor, Foldable, Traversable)
 
-type Sexp = Fix SexpF
+type Sexp = Cofree SexpF Position
 
 instance (Show f) => Show (SexpF f) where
   show (Atom a) = show a

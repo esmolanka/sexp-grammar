@@ -10,24 +10,26 @@
 module Main where
 
 import Prelude hiding ((.), id)
+
+import Control.Comonad.Cofree
 import Control.Category
 import Data.Functor.Foldable (Fix (..))
 import Data.Semigroup
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
-import Test.QuickCheck
+import Test.QuickCheck ()
 
 import Language.Sexp
 import Language.SexpGrammar
 
-pattern List' xs   = Fix (List xs)
-pattern Bool' x    = Fix (Atom (AtomBool x))
-pattern Int' x     = Fix (Atom (AtomInt x))
-pattern Keyword' x = Fix (Atom (AtomKeyword x))
-pattern Real' x    = Fix (Atom (AtomReal x))
-pattern String' x  = Fix (Atom (AtomString x))
-pattern Symbol' x  = Fix (Atom (AtomSymbol x))
+pattern List' xs   = (Position (-1) (-1)) :< (List xs)
+pattern Bool' x    = (Position (-1) (-1)) :< (Atom (AtomBool x))
+pattern Int' x     = (Position (-1) (-1)) :< (Atom (AtomInt x))
+pattern Keyword' x = (Position (-1) (-1)) :< (Atom (AtomKeyword x))
+pattern Real' x    = (Position (-1) (-1)) :< (Atom (AtomReal x))
+pattern String' x  = (Position (-1) (-1)) :< (Atom (AtomString x))
+pattern Symbol' x  = (Position (-1) (-1)) :< (Atom (AtomSymbol x))
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord)

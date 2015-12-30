@@ -5,6 +5,7 @@ module Language.Sexp
   , printSexps
   , printSexp
   , Sexp
+  , Position (..)
   , SexpF (..)
   , Atom (..)
   , Kw (..)

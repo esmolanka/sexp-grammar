@@ -13,6 +13,7 @@ module Language.Sexp.Lexer
 
 import qualified Data.Text as T
 import Language.Sexp.Token
+import Language.Sexp.Types (Position (..))
 }
 
 %wrapper "posn"

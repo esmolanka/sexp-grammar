@@ -52,31 +52,28 @@ Sexps :: { [Sexp] }
   : list(Sexp)   { $1 }
 
 Sexp :: { Sexp }
-  : Atom                                  { Fix $ Atom $1 }
-  | bracketed('(', ListBody, ')')         { $1 }
-  | bracketed('[', VectorBody, ']')       { $1 }
-  | '#' bracketed('(', VectorBody, ')')   { $2 }
-  | "'" Sexp                              { Fix $ Quoted $2 }
+  : Atom                                  { Atom @@ $1 }
+  | '(' ListBody ')'                      { const $2 @@ $1 }
+  | '[' VectorBody ']'                    { const $2 @@ $1 }
+  | '#' '(' VectorBody ')'                { const $3 @@ $1 }
+  | "'" Sexp                              { const (Quoted $2) @@ $1 }
 
-Atom :: { Atom }
-  : Bool         { AtomBool    (getBool    (extract $1)) }
-  | Integer      { AtomInt     (getInt     (extract $1)) }
-  | Real         { AtomReal    (getReal    (extract $1)) }
-  | String       { AtomString  (getString  (extract $1)) }
-  | Symbol       { AtomSymbol  (getSymbol  (extract $1)) }
-  | Keyword      { AtomKeyword (mkKw (getKeyword (extract $1))) }
+Atom :: { LocatedBy Position Atom }
+  : Bool         { fmap (AtomBool    . getBool)           $1 }
+  | Integer      { fmap (AtomInt     . getInt)            $1 }
+  | Real         { fmap (AtomReal    . getReal)           $1 }
+  | String       { fmap (AtomString  . getString)         $1 }
+  | Symbol       { fmap (AtomSymbol  . getSymbol)         $1 }
+  | Keyword      { fmap (AtomKeyword . mkKw . getKeyword) $1 }
 
-ListBody :: { Sexp }
-  : list(Sexp)   { Fix $ List $1 }
+ListBody :: { SexpF Sexp }
+  : list(Sexp)   { List $1 }
 
-VectorBody :: { Sexp }
-  : list(Sexp)   { Fix $ Vector $1 }
+VectorBody :: { SexpF Sexp }
+  : list(Sexp)   { Vector $1 }
 
 
 -- Utils
-
-bracketed(o, p, c)
-  : o p c                  { $2 }
 
 rev_list1(p)
   : p                      { [$1]    }

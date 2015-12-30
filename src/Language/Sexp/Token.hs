@@ -4,10 +4,10 @@
 
 module Language.Sexp.Token where
 
+import Control.Comonad.Cofree
 import Data.Text (Text)
 import Data.Text.Lazy (pack, fromStrict)
 import Data.Scientific
-
 import Text.PrettyPrint.Leijen.Text
 
 data Token
@@ -26,10 +26,6 @@ data Token
   | TokUnknown { getUnknown :: !Char }        -- for unknown lexemes
     deriving (Show, Eq)
 
-data Position =
-  Position !Int !Int
-  deriving (Show, Ord, Eq)
-
 data LocatedBy p a = L !p !a
   deriving (Show, Eq, Functor)
 
@@ -39,6 +35,9 @@ mapPosition f (L p a) = L (f p) a
 
 extract :: LocatedBy p a -> a
 extract (L _ a) = a
+
+(@@) :: (a -> f (Cofree f p)) -> LocatedBy p a -> Cofree f p
+(@@) f (L p a) = p :< f a
 
 instance Pretty Token where
   pretty TokLParen      = "left paren '('"
@@ -54,6 +53,3 @@ instance Pretty Token where
   pretty (TokStr     s) = "string" <+> text (pack (show s))
   pretty (TokBool    b) = "boolean" <+> if b then "#t" else "#f"
   pretty (TokUnknown u) = "unknown lexeme" <+> text (pack (show u))
-
-instance Pretty Position where
-  pretty (Position line col) = int line <> colon <> int col

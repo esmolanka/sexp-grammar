@@ -5,7 +5,7 @@ module Language.Sexp.Pretty
   , printSexps
   ) where
 
-import Data.Functor.Foldable (Fix (..))
+import Control.Comonad.Cofree
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as Lazy
 import Data.Text (Text)
@@ -30,10 +30,10 @@ ppAtom (AtomSymbol a)  = text' a
 ppAtom (AtomKeyword k) = ppKw k
 
 ppSexp :: Sexp -> Doc
-ppSexp (Fix (Atom a)) = ppAtom a
-ppSexp (Fix (Vector ss)) = brackets (align $ sep (map ppSexp ss))
-ppSexp (Fix (Quoted a)) = squote <> ppSexp a
-ppSexp (Fix (List ss)) = parens (align $ sep (map ppSexp ss))
+ppSexp (_ :< Atom a) = ppAtom a
+ppSexp (_ :< Vector ss) = brackets (align $ sep (map ppSexp ss))
+ppSexp (_ :< Quoted a) = squote <> ppSexp a
+ppSexp (_ :< List ss) = parens (align $ sep (map ppSexp ss))
 
 printSexp :: Sexp -> Lazy.Text
 printSexp = displayT . renderPretty 0.5 75 . ppSexp
