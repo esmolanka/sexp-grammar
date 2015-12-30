@@ -25,7 +25,7 @@ import Data.StackPrism
 
 data Grammar g t t' where
   -- | Embed a prism which can fail during generation
-  GenPrism :: StackPrism a b -> Grammar g a b
+  GenPrism :: String -> StackPrism a b -> Grammar g a b
 
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
 
@@ -42,14 +42,14 @@ data Grammar g t t' where
   Inject :: g a b -> Grammar g a b
 
 push :: (Eq a) => a -> Grammar g t (a :- t)
-push a = GenPrism $ stackPrism g f
+push a = GenPrism "push" $ stackPrism g f
   where
     g t = a :- t
     f (a' :- t) = if a == a' then Just t else Nothing
 
 
 pushForget :: a -> Grammar g t (a :- t)
-pushForget a = GenPrism $ stackPrism g f
+pushForget a = GenPrism "pushForget" $ stackPrism g f
   where
     g t = a :- t
     f (_ :- t) = Just t
@@ -61,7 +61,7 @@ iso f' g' = Iso f g
     g (b :- t) = g' b :- t
 
 embedPrism :: StackPrism a b -> Grammar g (a :- t) (b :- t)
-embedPrism prism = GenPrism (stackPrism f g)
+embedPrism prism = GenPrism "custom prism" (stackPrism f g)
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
@@ -85,17 +85,17 @@ instance
   , MonadError String m
   , InvertibleGrammar m g
   ) => InvertibleGrammar m (Grammar g) where
-  parseWithGrammar (Iso f _)    = return . f
-  parseWithGrammar (GenPrism p) = return . forward p
-  parseWithGrammar Id           = return
-  parseWithGrammar (g :.: f)    = parseWithGrammar g <=< parseWithGrammar f
-  parseWithGrammar (f :<>: g)   = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
-  parseWithGrammar (Inject g)   = parseWithGrammar g
+  parseWithGrammar (Iso f _)      = return . f
+  parseWithGrammar (GenPrism _ p) = return . forward p
+  parseWithGrammar Id             = return
+  parseWithGrammar (g :.: f)      = parseWithGrammar g <=< parseWithGrammar f
+  parseWithGrammar (f :<>: g)     = \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
+  parseWithGrammar (Inject g)     = parseWithGrammar g
 
-  genWithGrammar (Iso _ g)      = return . g
-  genWithGrammar (GenPrism p)   = maybe (throwError "Cannot generate") return . backward p
-  genWithGrammar Id             = return
-  genWithGrammar (g :.: f)      = genWithGrammar g >=> genWithGrammar f
-  genWithGrammar (f :<>: g)     = \x -> genWithGrammar f x `mplus` genWithGrammar g x
-  genWithGrammar (Inject g)     = genWithGrammar g
+  genWithGrammar (Iso _ g)         = return . g
+  genWithGrammar (GenPrism name p) = maybe (throwError $ "Cannot generate Sexp for: " ++ name) return . backward p
+  genWithGrammar Id                = return
+  genWithGrammar (g :.: f)         = genWithGrammar g >=> genWithGrammar f
+  genWithGrammar (f :<>: g)        = \x -> genWithGrammar f x `mplus` genWithGrammar g x
+  genWithGrammar (Inject g)        = genWithGrammar g
 

@@ -10,7 +10,6 @@ import Prelude hiding ((.), id)
 import Control.Arrow
 import Control.Category
 
-import Data.StackPrism
 import Data.InvertibleGrammar.TH
 import qualified Data.List.NonEmpty as NE
 import Data.Data
@@ -27,14 +26,13 @@ import Language.Sexp.Utils
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
 
+getEnumName :: (Data a) => a -> Text
+getEnumName = Text.pack . lispifyName . showConstr . toConstr
+
 class SexpIso a where
   sexpIso :: SexpG a
   default sexpIso :: (Enum a, Bounded a, Eq a, Data a) => SexpG a
-  sexpIso = coproduct $ map (\a -> just a . sym (name a)) [minBound .. maxBound]
-    where
-      name = Text.pack . lispifyName . showConstr . toConstr
-      just :: (Eq a) => a -> Grammar g t (a :- t)
-      just a = GenPrism $ stackPrism (a :-) (\(a' :- t) -> if a == a' then Just t else Nothing)
+  sexpIso = coproduct $ map (\a -> push a . sym (getEnumName a)) [minBound .. maxBound]
 
 instance SexpIso Bool where
   sexpIso = bool
