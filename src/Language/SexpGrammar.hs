@@ -3,14 +3,17 @@ module Language.SexpGrammar
   ( Grammar
   , SexpG
   , SexpG_
-  , grammarFor
-  , iso
   , AtomGrammar
   , SeqGrammar
   , SexpGrammar
   , StackPrism
   , parse
   , gen
+  , grammarFor
+  , iso
+  , embedPrism
+  , push
+  , pushForget
   , (:-) (..)
   , module Language.SexpGrammar.Combinators
   , module Language.SexpGrammar.Class

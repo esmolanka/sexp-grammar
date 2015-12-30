@@ -11,6 +11,8 @@ module Data.InvertibleGrammar
   ( Grammar (..)
   , iso
   , embedPrism
+  , push
+  , pushForget
   , InvertibleGrammar(..)
   ) where
 
@@ -38,6 +40,19 @@ data Grammar g t t' where
 
   -- | Embed a subgrammar
   Inject :: g a b -> Grammar g a b
+
+push :: (Eq a) => a -> Grammar g t (a :- t)
+push a = GenPrism $ stackPrism g f
+  where
+    g t = a :- t
+    f (a' :- t) = if a == a' then Just t else Nothing
+
+
+pushForget :: a -> Grammar g t (a :- t)
+pushForget a = GenPrism $ stackPrism g f
+  where
+    g t = a :- t
+    f (_ :- t) = Just t
 
 iso :: (a -> b) -> (b -> a) -> Grammar g (a :- t) (b :- t)
 iso f' g' = Iso f g

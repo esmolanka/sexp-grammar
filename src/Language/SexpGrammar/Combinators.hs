@@ -6,7 +6,6 @@ module Language.SexpGrammar.Combinators
   ( list
   , vect
   , el
-  , push
   , rest
   , props
   , (.:)
@@ -57,9 +56,6 @@ vect = Inject . GVect
 
 el :: Grammar SexpGrammar (Sexp :- a) b -> Grammar SeqGrammar a b
 el = Inject . GElem
-
-push :: a -> Grammar SeqGrammar t (a :- t)
-push = Inject . GPush
 
 rest :: Grammar SexpGrammar (Sexp :- a) (b :- a) -> Grammar SeqGrammar a ([b] :- a)
 rest = Inject . GRest

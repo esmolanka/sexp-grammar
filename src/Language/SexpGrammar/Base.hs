@@ -147,8 +147,6 @@ data SeqGrammar a b where
         -- ^ Grammar to parse list element at current position with
         -> SeqGrammar t t'
 
-  GPush :: a -> SeqGrammar t (a :- t)
-
   GRest :: Grammar SexpGrammar (Sexp :- t) (a :- t)
         -> SeqGrammar t ([a] :- t)
 
@@ -169,8 +167,6 @@ instance
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)
-  parseWithGrammar (GPush a) t =
-    return (a :- t)
   parseWithGrammar (GRest g) t = do
     xs <- gets getItems
     modify $ \s -> s { getItems = [] }
@@ -196,8 +192,6 @@ instance
     (x :- t') <- genWithGrammar g t
     modify $ \s -> s { getItems = x : getItems s }
     return t'
-  genWithGrammar (GPush _) (_ :- t) =
-    return t
   genWithGrammar (GRest g) (ys :- t) = do
     xs :- t' <- go ys t
     put (SeqCtx xs)
