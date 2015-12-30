@@ -1,24 +1,22 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverloadedLists      #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE PatternSynonyms      #-}
-{-# LANGUAGE TemplateHaskell      #-}
-{-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLists       #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
 module Main where
 
 import Prelude hiding ((.), id)
--- import Control.Applicative
 import Control.Category
 import Data.Functor.Foldable (Fix (..))
 import Data.Semigroup
-import GHC.Generics
--- import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.HUnit
--- import Test.Tasty.QuickCheck as QC
+import Test.Tasty.QuickCheck as QC
+import Test.QuickCheck
 
 import Language.Sexp
 import Language.SexpGrammar
@@ -32,11 +30,11 @@ pattern String' x  = Fix (Atom (AtomString x))
 pattern Symbol' x  = Fix (Atom (AtomSymbol x))
 
 data Pair a b = Pair a b
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord)
 
 data Foo a b = Bar a b
              | Baz a b
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord)
 
 data Rint = Rint Int
 
@@ -48,22 +46,23 @@ data ArithExprF e =
 
 type ArithExpr = Fix ArithExprF
 
--- -- TODO: this generator takes too much time to generate even 100 samples.
--- instance Arbitrary ArithExpr where
---   arbitrary = Fix <$> frequency
---     [ (10, Lit <$> arbitrary)
---     , (1, Add <$> arbitrary <*> arbitrary)
---     , (1, Mul <$> listOf arbitrary)
---     ]
+instance Arbitrary ArithExpr where
+  arbitrary = Fix <$> frequency
+    [ (5, Lit <$> arbitrary)
+    , (1, Add <$> arbitrary <*> arbitrary)
+    , (1, do
+          n <- choose (0, 7)
+          Mul <$> vectorOf n arbitrary)
+    ]
 
--- arithExprParseGenProp :: ArithExpr -> Bool
--- arithExprParseGenProp expr =
---   (gen arithExprGrammar expr >>= parse arithExprGrammar :: Either String ArithExpr)
---   ==
---   Right expr
---   where
---     arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
---     arithExprGrammar = sexpIso
+arithExprParseGenProp :: ArithExpr -> Bool
+arithExprParseGenProp expr =
+  (gen arithExprGrammar expr >>= parse arithExprGrammar :: Either String ArithExpr)
+  ==
+  Right expr
+  where
+    arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
+    arithExprGrammar = sexpIso
 
 return []
 
@@ -93,7 +92,7 @@ grammarTests = testGroup "Grammar tests"
   , revStackPrismTests
   , parseTests
   , genTests
---  , parseGenTests
+  , parseGenTests
   ]
 
 baseTypeTests :: TestTree
@@ -161,10 +160,10 @@ genTests = testGroup "gen tests"
     Right testArithExprSexp @=? gen sexpIso testArithExpr
   ]
 
--- parseGenTests :: TestTree
--- parseGenTests = testGroup "parse . gen == id"
---   [ QC.testProperty "ArithExprs" arithExprParseGenProp
---   ]
+parseGenTests :: TestTree
+parseGenTests = testGroup "parse . gen == id"
+  [ QC.testProperty "ArithExprs" arithExprParseGenProp
+  ]
 
 main :: IO ()
 main = defaultMain grammarTests

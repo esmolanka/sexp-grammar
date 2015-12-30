@@ -49,14 +49,14 @@ library
 test-suite sexp-grammar-test
   type:              exitcode-stdio-1.0
   build-depends:
-      base
+      QuickCheck
+    , base
     , recursion-schemes
     , semigroups
     , sexp-grammar
     , stack-prism
     , tasty
     , tasty-hunit
-    , QuickCheck
     , tasty-quickcheck
   main-is:           Main.hs
   hs-source-dirs:    test
