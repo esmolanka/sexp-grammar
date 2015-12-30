@@ -32,9 +32,9 @@ $charesc     = [abfnrtv\\\"]
 @escape      = \\ ($charesc | $digit+ | x $hex+)
 @string      = $graphic # [\"\\] | " " | @escape
 
-$idinitial   = [$alpha \!\$\%\&\*\/\<\=\>\?\~\_\^]
-$idsubseq    = [$idinitial $digit \:\.\+\-]
-@identifier  = $idinitial $idsubseq* | "+" | "-" | "..."
+$idinitial   = [$alpha \!\$\%\&\*\/\<\=\>\?\~\_\^\.\+\-]
+$idsubseq    = [$idinitial $digit \:]
+@identifier  = $idinitial $idsubseq*
 @keyword     = ":" $idsubseq+
 
 :-
