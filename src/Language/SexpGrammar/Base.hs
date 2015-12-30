@@ -18,7 +18,6 @@ module Language.SexpGrammar.Base
   , module Data.InvertibleGrammar
   ) where
 
-import Control.Comonad.Cofree
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -47,12 +46,13 @@ parseSeq xs g t = do
     throwError $ "Unexpected leftover elements: " ++ (unwords $ map (Lazy.unpack . printSexp) rest)
   return a
 
-posError :: (MonadError String m) => Position -> String -> m a
-posError (Position line col) str =
-  throwError $ concat [show line, ":", show col, ": ", str]
-
-mk :: SexpF Sexp -> Sexp
-mk s = Position (-1) (-1) :< s
+posError :: (MonadError String m) => Sexp -> String -> m a
+posError sexp str =
+  let Position line col = getPos sexp
+  in  throwError $ concat
+        [ show line, ":", show col, ": expected "
+        , str, ", but got: ", Lazy.unpack (printSexp sexp)
+        ]
 
 instance
   ( MonadPlus m
@@ -61,26 +61,26 @@ instance
 
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
-      _ :< Atom a -> parseWithGrammar g (a :- t)
-      pos :< _    -> posError pos $ ": Expected atom but found: " ++ Lazy.unpack (printSexp s)
+      Atom _ a -> parseWithGrammar g (a :- t)
+      other    -> posError other "atom"
   parseWithGrammar (GList g) (s :- t) = do
     case s of
-      _ :< List xs -> parseSeq xs g t
-      pos :< _     -> posError pos $ "Expected list but found: " ++ Lazy.unpack (printSexp s)
+      List _ xs -> parseSeq xs g t
+      other     -> posError other "list"
   parseWithGrammar (GVect g) (s :- t) = do
     case s of
-      _ :< Vector xs -> parseSeq xs g t
-      pos :< _       -> posError pos $ "Expected vector but found: " ++ Lazy.unpack (printSexp s)
+      Vector _ xs -> parseSeq xs g t
+      other       -> posError other "vector"
 
   genWithGrammar (GAtom g) t = do
     (a :- t') <- genWithGrammar g t
-    return (mk (Atom a) :- t')
+    return (Atom dummyPos a :- t')
   genWithGrammar (GList g) t = do
     (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
-    return (mk (List xs) :- t')
+    return (List dummyPos xs :- t')
   genWithGrammar (GVect g) t = do
     (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
-    return (mk (Vector xs) :- t')
+    return (Vector dummyPos xs :- t')
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
@@ -191,8 +191,8 @@ instance
     evalStateT (parseWithGrammar g t) (PropCtx props)
     where
       go [] props = return props
-      go ((_ :< (Atom (AtomKeyword kwd))):x:xs) props = go xs (M.insert kwd x props)
-      go other _ = throwError $ "Property-list is malformed: " ++ Lazy.unpack (printSexp (mk (List other)))
+      go (Atom _ (AtomKeyword kwd):x:xs) props = go xs (M.insert kwd x props)
+      go other _ = throwError $ "Property-list is malformed: " ++ Lazy.unpack (printSexp (List dummyPos other))
 
   genWithGrammar (GElem g) t = do
     (x :- t') <- genWithGrammar g t
@@ -210,7 +210,7 @@ instance
         return $ (x : xs) :- t''
   genWithGrammar (GProps g) t = do
     (t', PropCtx props) <- runStateT (genWithGrammar g t) (PropCtx M.empty)
-    let plist = foldr (\(name, sexp) acc -> mk (Atom (AtomKeyword name)) : sexp : acc) [] (M.toList props)
+    let plist = foldr (\(name, sexp) acc -> Atom dummyPos (AtomKeyword name) : sexp : acc) [] (M.toList props)
     put $ SeqCtx plist
     return t'
 

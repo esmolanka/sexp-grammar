@@ -6,19 +6,22 @@
 module Language.Sexp.Types
   ( Atom (..)
   , Kw (..)
-  , SexpF (..)
-  , Sexp
+  , Sexp (..)
   , Position (..)
+  , dummyPos
+  , getPos
   ) where
 
-import Control.Comonad.Cofree
 import Data.Scientific
 import Data.Text (Text)
 import Text.PrettyPrint.Leijen.Text (Pretty (..), int, colon, (<>))
 
 data Position =
-  Position !Int !Int
+  Position {-# UNPACK #-} !Int {-# UNPACK #-} !Int
   deriving (Show, Ord, Eq)
+
+dummyPos :: Position
+dummyPos = Position 0 0
 
 instance Pretty Position where
   pretty (Position line col) = int line <> colon <> int col
@@ -35,17 +38,16 @@ data Atom
   | AtomKeyword Kw
     deriving (Show, Eq, Ord)
 
-data SexpF r
-  = Atom Atom
-  | Quoted r
-  | Vector [r]
-  | List [r]
-    deriving (Eq, Ord, Functor, Foldable, Traversable)
+data Sexp
+  = Atom   {-# UNPACK #-} !Position !Atom
+  | List   {-# UNPACK #-} !Position [Sexp]
+  | Vector {-# UNPACK #-} !Position [Sexp]
+  | Quoted {-# UNPACK #-} !Position Sexp
+    deriving (Show, Eq, Ord)
 
-type Sexp = Cofree SexpF Position
-
-instance (Show f) => Show (SexpF f) where
-  show (Atom a) = show a
-  show (List ls) = "List " ++ show ls
-  show (Vector ls) = "Vector " ++ show ls
-  show (Quoted a) = "Quoted (" ++ show a ++ ")"
+{-# INLINE getPos #-}
+getPos :: Sexp -> Position
+getPos (Atom p _) = p
+getPos (Quoted p _) = p
+getPos (Vector p _) = p
+getPos (List p _) = p

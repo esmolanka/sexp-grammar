@@ -4,9 +4,10 @@ module Language.Sexp
   , parseSexp
   , printSexps
   , printSexp
-  , Sexp
+  , Sexp (..)
   , Position (..)
-  , SexpF (..)
+  , dummyPos
+  , getPos
   , Atom (..)
   , Kw (..)
   ) where

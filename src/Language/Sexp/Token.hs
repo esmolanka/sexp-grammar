@@ -4,7 +4,6 @@
 
 module Language.Sexp.Token where
 
-import Control.Comonad.Cofree
 import Data.Text (Text)
 import Data.Text.Lazy (pack, fromStrict)
 import Data.Scientific
@@ -36,8 +35,8 @@ mapPosition f (L p a) = L (f p) a
 extract :: LocatedBy p a -> a
 extract (L _ a) = a
 
-(@@) :: (a -> f (Cofree f p)) -> LocatedBy p a -> Cofree f p
-(@@) f (L p a) = p :< f a
+(@@) :: (a -> (p -> b)) -> LocatedBy p a -> b
+(@@) f (L p a) = f a p
 
 instance Pretty Token where
   pretty TokLParen      = "left paren '('"

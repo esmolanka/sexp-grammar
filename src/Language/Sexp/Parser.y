@@ -12,7 +12,6 @@ module Language.Sexp.Parser
   , parseSexp
   ) where
 
-import Data.Functor.Foldable (Fix (..))
 import Data.Text (Text)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Scientific
@@ -52,11 +51,11 @@ Sexps :: { [Sexp] }
   : list(Sexp)   { $1 }
 
 Sexp :: { Sexp }
-  : Atom                                  { Atom @@ $1 }
+  : Atom                                  { (\a p -> Atom p a) @@ $1 }
   | '(' ListBody ')'                      { const $2 @@ $1 }
   | '[' VectorBody ']'                    { const $2 @@ $1 }
   | '#' '(' VectorBody ')'                { const $3 @@ $1 }
-  | "'" Sexp                              { const (Quoted $2) @@ $1 }
+  | "'" Sexp                              { const (\p -> Quoted p $2) @@ $1 }
 
 Atom :: { LocatedBy Position Atom }
   : Bool         { fmap (AtomBool    . getBool)           $1 }
@@ -66,11 +65,11 @@ Atom :: { LocatedBy Position Atom }
   | Symbol       { fmap (AtomSymbol  . getSymbol)         $1 }
   | Keyword      { fmap (AtomKeyword . mkKw . getKeyword) $1 }
 
-ListBody :: { SexpF Sexp }
-  : list(Sexp)   { List $1 }
+ListBody :: { Position -> Sexp }
+  : list(Sexp)   { \p -> List p $1 }
 
-VectorBody :: { SexpF Sexp }
-  : list(Sexp)   { Vector $1 }
+VectorBody :: { Position -> Sexp }
+  : list(Sexp)   { \p -> Vector p $1 }
 
 
 -- Utils

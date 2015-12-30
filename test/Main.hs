@@ -11,9 +11,7 @@ module Main where
 
 import Prelude hiding ((.), id)
 
-import Control.Comonad.Cofree
 import Control.Category
-import Data.Functor.Foldable (Fix (..))
 import Data.Semigroup
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -23,13 +21,13 @@ import Test.QuickCheck ()
 import Language.Sexp
 import Language.SexpGrammar
 
-pattern List' xs   = (Position (-1) (-1)) :< (List xs)
-pattern Bool' x    = (Position (-1) (-1)) :< (Atom (AtomBool x))
-pattern Int' x     = (Position (-1) (-1)) :< (Atom (AtomInt x))
-pattern Keyword' x = (Position (-1) (-1)) :< (Atom (AtomKeyword x))
-pattern Real' x    = (Position (-1) (-1)) :< (Atom (AtomReal x))
-pattern String' x  = (Position (-1) (-1)) :< (Atom (AtomString x))
-pattern Symbol' x  = (Position (-1) (-1)) :< (Atom (AtomSymbol x))
+pattern List' xs   = List (Position 0 0) xs
+pattern Bool' x    = Atom (Position 0 0) (AtomBool x)
+pattern Int' x     = Atom (Position 0 0) (AtomInt x)
+pattern Keyword' x = Atom (Position 0 0) (AtomKeyword x)
+pattern Real' x    = Atom (Position 0 0) (AtomReal x)
+pattern String' x  = Atom (Position 0 0) (AtomString x)
+pattern Symbol' x  = Atom (Position 0 0) (AtomSymbol x)
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord)
@@ -40,16 +38,14 @@ data Foo a b = Bar a b
 
 data Rint = Rint Int
 
-data ArithExprF e =
+data ArithExpr =
     Lit Int
-  | Add e e -- ^ (+ x y)
-  | Mul [e] -- ^ (* x1 ... xN)
+  | Add ArithExpr ArithExpr -- ^ (+ x y)
+  | Mul [ArithExpr] -- ^ (* x1 ... xN)
   deriving (Show, Eq, Ord)
 
-type ArithExpr = Fix ArithExprF
-
 instance Arbitrary ArithExpr where
-  arbitrary = Fix <$> frequency
+  arbitrary = frequency
     [ (5, Lit <$> arbitrary)
     , (1, Add <$> arbitrary <*> arbitrary)
     , (1, do
@@ -78,7 +74,7 @@ instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
     ]
 
 instance SexpIso ArithExpr where
-  sexpIso = fx . sconcat
+  sexpIso = sconcat
     [ $(grammarFor 'Lit) . int
     , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
     , $(grammarFor 'Mul) . list (el (sym "*") >>> rest sexpIso)
@@ -145,7 +141,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
 
 
 testArithExpr :: ArithExpr
-testArithExpr = Fix (Add (Fix (Lit 0)) (Fix (Mul [])))
+testArithExpr = Add (Lit 0) (Mul [])
 
 testArithExprSexp :: Sexp
 testArithExprSexp = List' [Symbol' "+", Int' 0, List' [Symbol' "*"]]

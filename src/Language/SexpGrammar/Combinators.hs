@@ -23,7 +23,6 @@ module Language.SexpGrammar.Combinators
   , sym
   , kw
   , coproduct
-  , fx
   , pair
   , unpair
   , swap
@@ -34,11 +33,9 @@ import Prelude hiding ((.), id)
 import Control.Category
 import Data.Semigroup (sconcat)
 import qualified Data.List.NonEmpty as NE
-import Data.Functor.Foldable (Fix (..))
 import Data.Scientific
 import Data.StackPrism
 import Data.Text (Text, pack, unpack)
-import Data.Coerce
 
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.TH
@@ -116,9 +113,6 @@ kw = Inject . GAtom . Inject . GKw
 
 coproduct :: [Grammar g a b] -> Grammar g a b
 coproduct = sconcat . NE.fromList
-
-fx :: Grammar g (f (Fix f) :- t) (Fix f :- t)
-fx = iso coerce coerce
 
 pair :: Grammar g (b :- a :- t) ((a, b) :- t)
 unpair :: Grammar g ((a, b) :- t) (b :- a :- t)
