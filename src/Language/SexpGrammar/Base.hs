@@ -27,6 +27,7 @@ import Control.Monad.Except
 #else
 import Control.Monad.Error
 #endif
+import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Scientific
@@ -63,6 +64,11 @@ posError sexp str =
   where
     Position line col = getPos sexp
 
+badAtom :: (MonadReader Position m, MonadError String m) => Atom -> String -> m a
+badAtom atom atomType = do
+  pos <- ask
+  posError (Atom pos atom) atomType
+
 instance
   ( MonadPlus m
   , MonadError String m
@@ -70,7 +76,7 @@ instance
 
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
-      Atom _ a -> parseWithGrammar g (a :- t)
+      Atom p a -> runReaderT (parseWithGrammar g (a :- t)) p
       other    -> posError other "atom"
   parseWithGrammar (GList g) (s :- t) = do
     case s of
@@ -82,7 +88,7 @@ instance
       other       -> posError other "vector"
 
   genWithGrammar (GAtom g) t = do
-    (a :- t') <- genWithGrammar g t
+    (a :- t') <- runReaderT (genWithGrammar g t) dummyPos
     return (Atom dummyPos a :- t')
   genWithGrammar (GList g) t = do
     (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
@@ -104,6 +110,7 @@ data AtomGrammar a b where
 instance
   ( MonadPlus m
   , MonadError String m
+  , MonadReader Position m
   ) => InvertibleGrammar m AtomGrammar where
 
   parseWithGrammar (GSym sym') (atom :- t) =
@@ -119,32 +126,32 @@ instance
   parseWithGrammar GBool (atom :- t) =
     case atom of
       AtomBool a -> return $ a :- t
-      _          -> throwError "Expected bool, got something else"
+      _          -> badAtom atom "bool"
 
   parseWithGrammar GInt (atom :- t) =
     case atom of
       AtomInt a -> return $ a :- t
-      _         -> throwError "Expected int, got something else"
+      _         -> badAtom atom "int"
 
   parseWithGrammar GReal (atom :- t) =
     case atom of
       AtomReal a -> return $ a :- t
-      _          -> throwError "Expected real, got something else"
+      _          -> badAtom atom "real"
 
   parseWithGrammar GString (atom :- t) =
     case atom of
       AtomString a -> return $ a :- t
-      _            -> throwError "Expected string, got something else"
+      _            -> badAtom atom "string"
 
   parseWithGrammar GSymbol (atom :- t) =
     case atom of
       AtomSymbol a -> return $ a :- t
-      _            -> throwError "Expected symbol, got something else"
+      _            -> badAtom atom "symbol"
 
   parseWithGrammar GKeyword (atom :- t) =
     case atom of
       AtomKeyword a -> return $ a :- t
-      _             -> throwError "Expected keyword, got something else"
+      _             -> badAtom atom "keyword"
 
   genWithGrammar (GSym sym) t      = return (AtomSymbol sym :- t)
   genWithGrammar (GKw kw) t        = return (AtomKeyword kw :- t)

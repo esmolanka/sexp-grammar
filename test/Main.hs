@@ -151,21 +151,21 @@ listTests = testGroup "List combinator tests"
   [ testCase "empty list of bools" $
     parse (list (rest bool)) (List' []) @?= Right []
   , testCase "list of bools" $
-    Right [True, False, False] @=?
-    parse (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False])
+    parse (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False]) @?=
+    Right [True, False, False]
   ]
 
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
-    Right (Pair False True) @=?
-    parse sexpIso (List' [Bool' False, Bool' True])
+    parse sexpIso (List' [Bool' False, Bool' True]) @?=
+    Right (Pair False True)
   , testCase "sum of products (Bar True 42)" $
-    Right (Bar True (42 :: Int)) @=?
-    parse sexpIso (List' [Symbol' "bar", Bool' True, Int' 42])
+    parse sexpIso (List' [Symbol' "bar", Bool' True, Int' 42]) @?=
+    Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    (Left "Expected bool, got something else" :: Either String (Foo Bool Bool)) @=?
-    parse sexpIso (List' [Symbol' "baz", Bool' False, Int' 10])
+    parse sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
+    (Left "0:0: expected bool, but got: 10" :: Either String (Foo Bool Bool))
   ]
 
 
