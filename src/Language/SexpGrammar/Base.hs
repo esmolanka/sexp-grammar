@@ -40,7 +40,7 @@ import Data.InvertibleGrammar
 import Language.Sexp
 
 type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
-type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
+type SexpG_  = forall t. Grammar SexpGrammar (Sexp :- t) t
 
 data SexpGrammar a b where
   GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
@@ -56,11 +56,12 @@ parseSeq xs g t = do
 
 posError :: (MonadError String m) => Sexp -> String -> m a
 posError sexp str =
-  let Position line col = getPos sexp
-  in  throwError $ concat
-        [ show line, ":", show col, ": expected "
-        , str, ", but got: ", Lazy.unpack (printSexp sexp)
-        ]
+  throwError $ concat
+    [ show line, ":", show col, ": expected "
+    , str, ", but got: ", Lazy.unpack (printSexp sexp)
+    ]
+  where
+    Position line col = getPos sexp
 
 instance
   ( MonadPlus m
@@ -92,7 +93,7 @@ instance
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
-  GKw      :: Kw -> AtomGrammar (Atom :- t) t
+  GKw      :: Kw   -> AtomGrammar (Atom :- t) t
   GBool    :: AtomGrammar (Atom :- t) (Bool :- t)
   GInt     :: AtomGrammar (Atom :- t) (Integer :- t)
   GReal    :: AtomGrammar (Atom :- t) (Scientific :- t)
@@ -177,7 +178,7 @@ instance
   parseWithGrammar (GElem g) t = do
     xs <- gets getItems
     case xs of
-      [] -> throwError $ "Unexpected end of sequence"
+      []    -> throwError $ "Unexpected end of sequence"
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)

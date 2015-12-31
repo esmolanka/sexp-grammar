@@ -12,6 +12,7 @@ module Language.SexpGrammar
   , grammarFor
   , iso
   , embedPrism
+  , embedParsePrism
   , push
   , pushForget
   , (:-) (..)
