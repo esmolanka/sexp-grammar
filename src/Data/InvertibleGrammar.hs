@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
@@ -17,9 +18,16 @@ module Data.InvertibleGrammar
   ) where
 
 import Prelude hiding ((.), id)
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
 import Control.Category
 import Control.Monad
+#if MIN_VERSION_mtl(2, 2, 0)
 import Control.Monad.Except
+#else
+import Control.Monad.Error
+#endif
 import Data.Semigroup
 import Data.StackPrism
 

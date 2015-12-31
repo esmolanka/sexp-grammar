@@ -11,6 +11,7 @@ module Main where
 
 import Prelude hiding ((.), id)
 
+import Control.Applicative
 import Control.Category
 import Data.Semigroup
 import Test.Tasty

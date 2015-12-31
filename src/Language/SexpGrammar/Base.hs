@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
@@ -18,7 +19,14 @@ module Language.SexpGrammar.Base
   , module Data.InvertibleGrammar
   ) where
 
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
+#if MIN_VERSION_mtl(2, 2, 0)
 import Control.Monad.Except
+#else
+import Control.Monad.Error
+#endif
 import Control.Monad.State
 
 import Data.Scientific
@@ -238,7 +246,7 @@ instance
     return t'
 
 parse
-  :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> Sexp
   -> m a
@@ -246,7 +254,7 @@ parse gram input =
   (\(x :- _) -> x) <$> parseWithGrammar gram (input :- ())
 
 gen
-  :: (MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> a
   -> m Sexp

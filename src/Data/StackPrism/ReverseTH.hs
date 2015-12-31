@@ -40,15 +40,18 @@ deriveRevStackPrism constructorName = do
   vs <- mapM (const $ newName "x") ts
   t <- newName "t"
 
-  let matchStack []     = varP t
-      matchStack (v:vs) = [p| ($(varP v) :- $(matchStack vs)) |]
+  let matchStack []      = varP t
+      matchStack (_v:vs) = [p| $(varP _v) :- $_vs' |]
+        where
+          _vs' = matchStack vs
       fPat  = matchStack vs
       buildConstructor = foldr (\v acc -> appE acc (varE v)) (conE realConstructorName) vs
       fBody = [e| $buildConstructor :- $(varE t) |]
       fFunc = lamE [fPat] fBody
 
-  let matchConsructor = conP realConstructorName (map varP (reverse vs))
-      gPat  = [p| $matchConsructor :- $(varP t) |]
+  let gPat  = [p| $_matchConsructor :- $(varP t) |]
+        where
+          _matchConsructor = conP realConstructorName (map varP (reverse vs))
       gBody = foldr (\v acc -> [e| $(varE v) :- $acc |]) (varE t) vs
       gFunc = lamCaseE $ catMaybes [ Just $ match gPat (normalB [e| Just $ $gBody |]) []
                                    , if single
