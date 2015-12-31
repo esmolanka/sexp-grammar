@@ -47,7 +47,7 @@ data Sexp
 
 {-# INLINE getPos #-}
 getPos :: Sexp -> Position
-getPos (Atom p _) = p
+getPos (Atom p _)   = p
 getPos (Quoted p _) = p
 getPos (Vector p _) = p
-getPos (List p _) = p
+getPos (List p _)   = p

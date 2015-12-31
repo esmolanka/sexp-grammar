@@ -50,6 +50,7 @@ test-suite sexp-grammar-test
   build-depends:
       QuickCheck
     , base
+    , scientific
     , semigroups
     , sexp-grammar
     , stack-prism

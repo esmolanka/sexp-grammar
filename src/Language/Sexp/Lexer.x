@@ -42,22 +42,26 @@ $idsubseq    = [$idinitial $digit \:]
 
 $whitechar+        ;
 ";".*              ;
-"("                { just TokLParen                }
-")"                { just TokRParen                }
-"["                { just TokLBracket              }
-"]"                { just TokRBracket              }
-"'" / $graphic     { just TokQuote                 }
-"#t"               { just (TokBool True)           }
-"#f"               { just (TokBool False)          }
-"#" / $graphic     { just TokHash                  }
-@identifier        { TokSymbol  `via` T.pack       }
-@keyword           { TokKeyword `via` T.pack       }
-@intnum            { TokInt     `via` read         }
-@scinum            { TokReal    `via` read         }
-\" @string* \"     { TokStr `via` (T.pack . read)  }
-.                  { TokUnknown `via` head         }
+"("                { just TokLParen                   }
+")"                { just TokRParen                   }
+"["                { just TokLBracket                 }
+"]"                { just TokRBracket                 }
+"'" / $graphic     { just TokQuote                    }
+"#t"               { just (TokBool True)              }
+"#f"               { just (TokBool False)             }
+"#" / $graphic     { just TokHash                     }
+@intnum            { TokInt     `via` readInteger     }
+@scinum            { TokReal    `via` read            }
+@identifier        { TokSymbol  `via` T.pack          }
+@keyword           { TokKeyword `via` T.pack          }
+\" @string* \"     { TokStr     `via` (T.pack . read) }
+.                  { TokUnknown `via` head            }
 
 {
+
+readInteger :: String -> Integer
+readInteger ('+': xs) = read xs
+readInteger xs        = read xs
 
 just :: Token -> AlexPosn -> String -> LocatedBy AlexPosn Token
 just tok pos _ = L pos tok

@@ -13,11 +13,12 @@ import Prelude hiding ((.), id)
 
 import Control.Applicative
 import Control.Category
+import Data.Scientific
 import Data.Semigroup
+import Test.QuickCheck ()
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
-import Test.QuickCheck ()
 
 import Language.Sexp
 import Language.SexpGrammar
@@ -29,6 +30,15 @@ pattern Keyword' x = Atom (Position 0 0) (AtomKeyword x)
 pattern Real' x    = Atom (Position 0 0) (AtomReal x)
 pattern String' x  = Atom (Position 0 0) (AtomString x)
 pattern Symbol' x  = Atom (Position 0 0) (AtomSymbol x)
+
+stripPos :: Sexp -> Sexp
+stripPos (Atom _ x)    = Atom dummyPos x
+stripPos (List _ xs)   = List dummyPos $ map stripPos xs
+stripPos (Vector _ xs) = Vector dummyPos $ map stripPos xs
+stripPos (Quoted _ x)  = Quoted dummyPos $ stripPos x
+
+parseSexp' :: String -> Either String Sexp
+parseSexp' input = stripPos <$> parseSexp "input" input
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord)
@@ -83,6 +93,24 @@ instance SexpIso ArithExpr where
 
 ----------------------------------------------------------------------
 -- Test cases
+
+allTests :: TestTree
+allTests = testGroup "All tests"
+  [ lexerTests
+  , grammarTests
+  ]
+
+lexerTests :: TestTree
+lexerTests = testGroup "Lexer tests"
+  [ testCase "123 is an integer number" $
+    parseSexp' "123" @?= Right (Int' 123)
+  , testCase "+123 is an integer number" $
+    parseSexp' "+123" @?= Right (Int' 123)
+  , testCase "-123 is an integer number" $
+    parseSexp' "-123" @?= Right (Int' (- 123))
+  , testCase "+123.4e5 is a floating number" $
+    parseSexp' "+123.4e5" @?= Right (Real' (read "+123.4e5" :: Scientific))
+  ]
 
 grammarTests :: TestTree
 grammarTests = testGroup "Grammar tests"
@@ -165,4 +193,4 @@ parseGenTests = testGroup "parse . gen == id"
   ]
 
 main :: IO ()
-main = defaultMain grammarTests
+main = defaultMain allTests
