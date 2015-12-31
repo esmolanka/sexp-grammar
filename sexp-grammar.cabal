@@ -1,19 +1,35 @@
 name:                sexp-grammar
-version:             0.1.0
-synopsis:            Invertible grammar combinators for serializing and deserializing from S-expessions
+version:             1.0.0
 license:             BSD3
 license-file:        LICENSE
-author:              esmolanka@gmail.com, serg.foo@gmail.com
-maintainer:          esmolanka@gmail.com
+author:              Eugene Smolanka, Sergey Vinokurov
+maintainer:          Eugene Smolanka <esmolanka@gmail.com>, Sergey Vinokurov <serg.foo@gmail.com>
+homepage:            https://github.com/esmolanka/sexp-grammar
 category:            Language
 build-type:          Simple
 extra-source-files:  examples/Expr.hs
 cabal-version:       >=1.10
+synopsis:
+  Invertible parsers for S-expressions
+description:
+  Invertible grammar combinators for serializing and deserializing from S-expessions
+tested-with:   GHC == 7.8.3, GHC == 7.10.3
+
+source-repository head
+  type: git
+  location: https://github.com/esmolanka/sexp-grammar
+
+flag dev
+  description: whether to build library in development mode with strict checks
+  default:     False
+  manual:      True
 
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
+  ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
+  if flag(dev)
+    ghc-options:       -Werror
   exposed-modules:
     Language.Sexp
     Language.Sexp.Utils
@@ -34,7 +50,7 @@ library
 
   build-depends:
       array
-    , base >=4.7
+    , base >=4.7 && <5
     , containers
     , mtl >=2.1
     , scientific
