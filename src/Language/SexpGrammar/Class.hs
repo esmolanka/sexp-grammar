@@ -1,7 +1,7 @@
-{-# LANGUAGE DefaultSignatures   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TypeOperators     #-}
 
 module Language.SexpGrammar.Class where
 
@@ -21,7 +21,7 @@ import qualified Data.Text as Text
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Language.Sexp
+import Language.Sexp.Types
 import Language.Sexp.Utils
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators

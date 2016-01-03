@@ -38,7 +38,8 @@ import Data.Map (Map)
 import Data.StackPrism
 
 import Data.InvertibleGrammar
-import Language.Sexp
+import Language.Sexp.Types
+import Language.Sexp.Pretty
 
 type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
 type SexpG_  = forall t. Grammar SexpGrammar (Sexp :- t) t
