@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
-{-# LANGUAGE OverloadedLists      #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -11,15 +10,9 @@ module Expr where
 import Prelude hiding ((.), id)
 import Control.Category
 import Data.Data (Data)
-import Data.Semigroup
 import Data.Text.Lazy (Text)
 import Language.Sexp
 import Language.SexpGrammar
-
-import Debug.Trace (trace)
-
-traceIt :: Show a => a -> a
-traceIt a = trace ("It: " ++ show a) a
 
 newtype Ident = Ident String
   deriving (Show)
@@ -34,38 +27,21 @@ data Expr
   | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
     deriving (Show)
 
-data Pair a b = Pair a b deriving (Show)
-
 data Prim
   = SquareRoot
   | Factorial
   | Fibonacci
     deriving (Eq, Enum, Bounded, Data, Show)
 
-data Person = Person
-  { pName :: String
-  , pAddress :: String
-  , pAge :: Maybe Int
-  } deriving (Show)
-
 return []
 
 instance SexpIso Prim
-
-instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
-  sexpIso =
-    list (              -- begin list
-      el sexpIso >>>    -- consume and push first element to stack:  (a :- t)
-      el sexpIso        -- consume and push second element to stack: (b :- a :- t)
-    ) >>>
-    $(grammarFor 'Pair) -- pop b, pop a, apply a to Pair,
-                        -- apply b to (Pair a):                      (Pair a b :- t)
 
 instance SexpIso Ident where
   sexpIso = $(grammarFor 'Ident) . symbol'
 
 instance SexpIso Expr where
-  sexpIso = sconcat
+  sexpIso = coproduct
     [ $(grammarFor 'Var) . sexpIso
     , $(grammarFor 'Lit) . int
     , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
@@ -74,26 +50,16 @@ instance SexpIso Expr where
     , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
                                                             >>> Kw "true"  .: sexpIso
                                                             >>> Kw "false" .: sexpIso ))
-    , $(grammarFor 'Apply) . list
-         (el (sexpIso :: SexpG Prim) >>>
-          el (kw (Kw "args")) >>>
-          rest (sexpIso :: SexpG Expr) >>>
-          swap >>>
-          push "dummy" >>>
-          swap
+    , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args to Apply node
+        list
+         (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
+          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+          rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()
+          swap >>>                             -- Swap: prim :- args :- ()
+          push "dummy" >>>                     -- Push "dummy" :- "dummy" :- prim :- args
+          swap                                 -- Swap: prim :- "dummy" :- args
          )
     ]
-
-instance SexpIso Person where
-  sexpIso = $(grammarFor 'Person) .
-    list (
-      el string' >>>
-      props (
-        Kw "address" .: string' >>>
-        Kw "age" .:? int))
-
-sexp :: String -> Sexp
-sexp = either error id . parseSexp "<inline>"
 
 test :: String -> SexpG a -> (a, Text)
 test str g = either error id $ do

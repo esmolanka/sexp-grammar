@@ -9,6 +9,7 @@ category:            Language
 build-type:          Simple
 extra-source-files:  README.md
                      examples/Expr.hs
+                     examples/Misc.hs
 cabal-version:       >=1.10
 synopsis:
   Invertible parsers for S-expressions
