@@ -6,6 +6,7 @@ module Language.SexpGrammar
   , AtomGrammar
   , SeqGrammar
   , SexpGrammar
+  , PropGrammar
   , StackPrism
   , parse
   , gen
@@ -26,3 +27,4 @@ import Data.InvertibleGrammar.TH
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class
+

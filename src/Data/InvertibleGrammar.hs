@@ -33,22 +33,22 @@ import Data.Semigroup
 import Data.StackPrism
 
 data Grammar g t t' where
-  -- | Embed a prism which can fail during generation
+  -- Embed a prism which can fail during generation
   GenPrism :: String -> StackPrism a b -> Grammar g a b
 
-  -- | Embed a prism which can fail during parsing
+  -- Embed a prism which can fail during parsing
   ParsePrism :: String -> StackPrism b a -> Grammar g a b
 
-  -- | Embed an isomorphism that never fails
+  -- Embed an isomorphism that never fails
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
 
-  -- | Grammar composition
+  -- Grammar composition
   (:.:) :: Grammar g b c -> Grammar g a b -> Grammar g a c
 
-  -- | Grammar alternation
+  -- Grammar alternation
   (:<>:) :: Grammar g a b -> Grammar g a b -> Grammar g a b
 
-  -- | Embed a subgrammar
+  -- Embed a subgrammar
   Inject :: g a b -> Grammar g a b
 
 push :: (Eq a) => a -> Grammar g t (a :- t)

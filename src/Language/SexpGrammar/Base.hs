@@ -169,9 +169,7 @@ instance
 
 
 data SeqGrammar a b where
-  -- | Dispatch single list element with a grammar
   GElem :: Grammar SexpGrammar (Sexp :- t) t'
-        -- ^ Grammar to parse list element at current position with
         -> SeqGrammar t t'
 
   GRest :: Grammar SexpGrammar (Sexp :- t) (a :- t)
