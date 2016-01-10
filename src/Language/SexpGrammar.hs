@@ -16,10 +16,10 @@ free.
 >   $(grammarFor 'Person) .               -- construct Person from
 >     list (                              -- a list with
 >       el (sym "person") >>>             -- symbol "person",
->       el string' >>>                    -- some string,
+>       el string'        >>>             -- some string,
 >       props (                           -- and properties
->         Kw "address" .: string' >>>     -- :address with string value,
->         Kw "age" .:? int))              -- and optional :age int proprety
+>         Kw "address" .:  string' >>>    -- :address with string value,
+>         Kw "age"     .:? int ))         -- and optional :age int proprety
 
 So now we can use @personGrammar@ to parse S-expessions to @Person@
 record and pretty-print any @Person@ back to S-expression.
@@ -78,15 +78,16 @@ module Language.SexpGrammar
   -- * TemplateHaskell helpers
   , grammarFor
   -- * Grammar types
+  , SexpGrammar
   , AtomGrammar
   , SeqGrammar
-  , SexpGrammar
   , PropGrammar
   -- * Parsing and printing
   , parseFromString
   , parseFromFile
   , prettyToText
   , prettyToFile
+  -- ** Low-level printing and parsing
   , parse
   , gen
   -- * Typeclass for Sexp grammars

@@ -2,7 +2,7 @@ sexp-grammar
 ============
 
 Invertible syntax library for serializing and deserializing Haskell
-structures into S-expressions. You can write the grammar once and get
+structures into S-expressions. Just write a grammar once and get
 both parser and pretty-printer, for free.
 
 ```haskell
@@ -81,9 +81,9 @@ vect  :: Grammar SeqGrammar t t' -> Grammar SexpGrammar (Sexp :- t) t'
 
 `SeqGrammar` basically describes the sequence of elements in a Sexp
 list (or vector). Single element grammar is defined with `el`, "rest
-of the list" grammar is defined with `rest` combinator. If the rest of
-the list should be treated as property list, `props` combinator should
-be used.
+of the list" grammar could be defined with `rest` combinator. If the
+rest of the list is a property list, `props` combinator should be
+used.
 
 ```haskell
 el    :: Grammar SexpGrammar (Sexp :- a)  b       -> Grammar SeqGrammar a b
