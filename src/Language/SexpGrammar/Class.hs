@@ -17,22 +17,17 @@ import Data.Map (Map)
 import Data.Scientific
 import Data.Set (Set)
 import Data.Text (Text)
-import qualified Data.Text as Text
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Language.Sexp.Types
-import Language.Sexp.Utils
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
-
-getEnumName :: (Data a) => a -> Text
-getEnumName = Text.pack . lispifyName . showConstr . toConstr
 
 class SexpIso a where
   sexpIso :: SexpG a
   default sexpIso :: (Enum a, Bounded a, Eq a, Data a) => SexpG a
-  sexpIso = coproduct $ map (\a -> push a . sym (getEnumName a)) [minBound .. maxBound]
+  sexpIso = enum
 
 instance SexpIso Bool where
   sexpIso = bool

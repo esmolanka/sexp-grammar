@@ -1,15 +1,19 @@
 
 module Language.Sexp
-  ( parseSexps
+  (
+  -- * Parse and print
+    parseSexps
   , parseSexp
   , printSexps
   , printSexp
+  -- * Type
   , Sexp (..)
+  , Atom (..)
+  , Kw (..)
+  -- ** Position
   , Position (..)
   , dummyPos
   , getPos
-  , Atom (..)
-  , Kw (..)
   ) where
 
 import Language.Sexp.Types

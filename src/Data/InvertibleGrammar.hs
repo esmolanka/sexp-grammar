@@ -51,19 +51,7 @@ data Grammar g t t' where
   -- Embed a subgrammar
   Inject :: g a b -> Grammar g a b
 
-push :: (Eq a) => a -> Grammar g t (a :- t)
-push a = GenPrism "push" $ stackPrism g f
-  where
-    g t = a :- t
-    f (a' :- t) = if a == a' then Just t else Nothing
-
-pushForget :: a -> Grammar g t (a :- t)
-pushForget a = GenPrism "pushForget" $ stackPrism g f
-  where
-    g t = a :- t
-    f (_ :- t) = Just t
-
--- | Make a grammar from isomorphism on top element of stack
+-- | Make a grammar from a total isomorphism on top element of stack
 iso :: (a -> b) -> (b -> a) -> Grammar g (a :- t) (b :- t)
 iso f' g' = Iso f g
   where
@@ -83,6 +71,23 @@ embedParsePrism prismName prism = ParsePrism prismName (stackPrism f g)
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
+
+-- | Unconditionally push given value on stack, i.e. it does not
+-- consume anything on parsing. However such grammar expects the same
+-- value as given one on stack during generation.
+push :: (Eq a) => a -> Grammar g t (a :- t)
+push a = GenPrism "push" $ stackPrism g f
+  where
+    g t = a :- t
+    f (a' :- t) = if a == a' then Just t else Nothing
+
+-- | Same as 'push' except it does not check the value on stack during
+-- generation. Potentially unsafe as it \"forgets\" some data.
+pushForget :: a -> Grammar g t (a :- t)
+pushForget a = GenPrism "pushForget" $ stackPrism g f
+  where
+    g t = a :- t
+    f (_ :- t) = Just t
 
 instance Category (Grammar c) where
   id = Iso id id

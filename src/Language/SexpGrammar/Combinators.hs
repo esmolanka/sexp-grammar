@@ -3,14 +3,9 @@
 {-# LANGUAGE TypeOperators   #-}
 
 module Language.SexpGrammar.Combinators
-  ( list
-  , vect
-  , el
-  , rest
-  , props
-  , (.:)
-  , (.:?)
-  , bool
+  (
+  -- ** Atom grammars
+    bool
   , integer
   , int
   , real
@@ -20,17 +15,30 @@ module Language.SexpGrammar.Combinators
   , keyword
   , string'
   , symbol'
+  , enum
   , sym
   , kw
-  , coproduct
+  -- ** Complex grammars
+  , list
+  , vect
+  -- *** Sequence grammars
+  , el
+  , rest
+  , props
+  -- *** Property grammars
+  , (.:)
+  , (.:?)
+  -- ** Utility grammars
   , pair
   , unpair
   , swap
+  , coproduct
   ) where
 
 import Prelude hiding ((.), id)
 
 import Control.Category
+import Data.Data
 import Data.Semigroup (sconcat)
 import qualified Data.List.NonEmpty as NE
 import Data.Scientific
@@ -40,6 +48,7 @@ import Data.Text (Text, pack, unpack)
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.TH
 import Language.Sexp.Types
+import Language.Sexp.Utils (lispifyName)
 import Language.SexpGrammar.Base
 
 ----------------------------------------------------------------------
@@ -61,7 +70,14 @@ el = Inject . GElem
 rest :: Grammar SexpGrammar (Sexp :- a) (b :- a) -> Grammar SeqGrammar a ([b] :- a)
 rest = Inject . GRest
 
--- | Define a property list grammar on the rest of the sequence
+-- | Define a property list grammar on the rest of the sequence. The
+-- remaining sequence must be empty or start with a keyword and its
+-- corresponding value and continue with the sequence built by the
+-- same rules.
+--
+-- E.g.
+--
+-- > :kw1 <val1> :kw2 <val2> ... :kwN <valN>
 props :: Grammar PropGrammar a b -> Grammar SeqGrammar a b
 props = Inject . GProps
 
@@ -119,6 +135,14 @@ symbol' = iso unpack pack . symbol
 keyword :: SexpG Kw
 keyword = Inject . GAtom . Inject $ GKeyword
 
+-- | Define a grammar for an enumeration type. Automatically derives
+-- all symbol names from data constructor names and \"lispifies\" them.
+enum :: (Enum a, Bounded a, Eq a, Data a) => SexpG a
+enum = coproduct $ map (\a -> push a . sym (getEnumName a)) [minBound .. maxBound]
+  where
+    getEnumName :: (Data a) => a -> Text
+    getEnumName = pack . lispifyName . showConstr . toConstr
+
 -- | Define a grammar for a constant symbol
 sym :: Text -> SexpG_
 sym = Inject . GAtom . Inject . GSym
@@ -130,7 +154,22 @@ kw = Inject . GAtom . Inject . GKw
 ----------------------------------------------------------------------
 -- Special combinators
 
--- | Combine several alternative grammars into one grammar
+-- | Combine several alternative grammars into one grammar. Useful for
+-- defining grammars for sum types.
+--
+-- E.g. consider a data type:
+--
+-- > data Maybe a = Nothing | Just a
+--
+-- A total grammar which would handle both cases should be constructed
+-- with 'coproduct' combinator or with @Semigroup@'s instance.
+--
+-- > maybeGrammar :: SexpG a -> SexpG (Maybe a)
+-- > maybeGrammar g =
+-- >   coproduct
+-- >     [ $(grammarFor 'Nothing) . kw (Kw "nil")
+-- >     , $(grammarFor 'Just)    . g
+-- >     ]
 coproduct :: [Grammar g a b] -> Grammar g a b
 coproduct = sconcat . NE.fromList
 
@@ -145,7 +184,22 @@ unpair :: Grammar g ((a, b) :- t) (b :- a :- t)
     f = (\(b :- a :- t) -> (a, b) :- t)
     g = (\((a, b) :- t) -> (b :- a :- t))
 
--- | Swap two top elements of stack
+-- | Swap two top elements of stack. Useful for defining grammars for
+-- data constructors with inconvenient field order.
+--
+-- E.g. consider a data type, which has field order different from
+-- what would like to display to user:
+--
+-- > data Command = Command { args :: [String], executable :: FilePath }
+--
+-- In S-expression executable should go first:
+--
+-- > commandGrammar =
+-- >   $(grammarFor 'Command) .
+-- >     list ( el (sym "call") >>>  -- symbol "call"
+-- >            el string'      >>>  -- executable name
+-- >            rest string'    >>>  -- arguments
+-- >            swap )
 swap :: Grammar g (b :- a :- t) (a :- b :- t)
 swap = Iso (\(b :- a :- t) -> a :- b :- t)
            (\(a :- b :- t) -> b :- a :- t)
