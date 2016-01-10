@@ -9,8 +9,8 @@
 
 module Language.SexpGrammar.Base
   ( SexpGrammar (..)
-  , SeqGrammar (..)
   , AtomGrammar (..)
+  , SeqGrammar (..)
   , PropGrammar (..)
   , parse
   , gen
@@ -41,7 +41,11 @@ import Data.InvertibleGrammar
 import Language.Sexp.Types
 import Language.Sexp.Pretty
 
+-- | Grammar which matches Sexp to a value of type a and vice versa.
 type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
+
+-- | Grammar which pattern matches Sexp and produces nothing, or
+-- consumes nothing but generates some Sexp.
 type SexpG_  = forall t. Grammar SexpGrammar (Sexp :- t) t
 
 data SexpGrammar a b where

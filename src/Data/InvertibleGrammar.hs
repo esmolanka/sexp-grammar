@@ -39,6 +39,7 @@ data Grammar g t t' where
   -- | Embed a prism which can fail during parsing
   ParsePrism :: String -> StackPrism b a -> Grammar g a b
 
+  -- | Embed an isomorphism that never fails
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
 
   -- | Grammar composition
@@ -56,27 +57,29 @@ push a = GenPrism "push" $ stackPrism g f
     g t = a :- t
     f (a' :- t) = if a == a' then Just t else Nothing
 
-
 pushForget :: a -> Grammar g t (a :- t)
 pushForget a = GenPrism "pushForget" $ stackPrism g f
   where
     g t = a :- t
     f (_ :- t) = Just t
 
+-- | Make a grammar from isomorphism on top element of stack
 iso :: (a -> b) -> (b -> a) -> Grammar g (a :- t) (b :- t)
 iso f' g' = Iso f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
 
+-- | Make a grammar from a prism which can fail during generation
 embedPrism :: StackPrism a b -> Grammar g (a :- t) (b :- t)
 embedPrism prism = GenPrism "custom prism" (stackPrism f g)
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
 
+-- | Make a grammar from a prism which can fail during parsing
 embedParsePrism :: String -> StackPrism b a -> Grammar g (a :- t) (b :- t)
-embedParsePrism prismName prism = ParsePrism prismName(stackPrism f g)
+embedParsePrism prismName prism = ParsePrism prismName (stackPrism f g)
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
