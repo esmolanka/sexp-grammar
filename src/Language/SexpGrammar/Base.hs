@@ -31,7 +31,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Scientific
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -207,7 +207,10 @@ instance
     xs <- gets getItems
     modify $ \s -> s { getItems = [] }
     props <- go xs M.empty
-    evalStateT (parseWithGrammar g t) (PropCtx props)
+    (res, PropCtx ctx) <- runStateT (parseWithGrammar g t) (PropCtx props)
+    when (not $ M.null ctx) $
+      throwError $ "Property-list contains unrecognized keys: " ++ unwords (map (unpack . unKw) (M.keys ctx))
+    return res
     where
       go [] props = return props
       go (Atom _ (AtomKeyword kwd):x:xs) props = go xs (M.insert kwd x props)
@@ -249,7 +252,9 @@ instance
     ps <- gets getProps
     case M.lookup kwd ps of
       Nothing -> throwError $ "Keyword " ++ show kwd ++ " not found"
-      Just x  -> parseWithGrammar g $ x :- t
+      Just x  -> do
+        put (PropCtx $ M.delete kwd ps)
+        parseWithGrammar g $ x :- t
 
   genWithGrammar (GProp kwd g) t = do
     x :- t' <- genWithGrammar g t
