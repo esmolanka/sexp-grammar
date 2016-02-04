@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP        #-}
 {-# LANGUAGE RankNTypes #-}
 
 {- |
@@ -97,6 +98,9 @@ module Language.SexpGrammar
   , (:-) (..)
   ) where
 
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
 import Data.StackPrism
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.TH
@@ -125,4 +129,4 @@ prettyToFile :: FilePath -> SexpG a -> a -> IO (Either String ())
 prettyToFile fn g a = do
   case gen g a of
     Left msg -> return $ Left msg
-    Right s -> Right <$> T.writeFile fn (printSexp s)
+    Right s  -> Right <$> T.writeFile fn (printSexp s)
