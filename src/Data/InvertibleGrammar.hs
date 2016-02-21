@@ -106,21 +106,41 @@ instance
   , MonadError String m
   , InvertibleGrammar m g
   ) => InvertibleGrammar m (Grammar g) where
-  parseWithGrammar (Iso f _)           = return . f
-  parseWithGrammar (GenPrism _ p)      = return . forward p
-  parseWithGrammar (ParsePrism name p) =
-    maybe (throwError $ "Cannot parse Sexp for: " ++ name) return . backward p
-  parseWithGrammar (g :.: f)           = parseWithGrammar g <=< parseWithGrammar f
-  parseWithGrammar (f :<>: g)          =
-    \x -> parseWithGrammar f x `mplus` parseWithGrammar g x
-  parseWithGrammar (Inject g)          = parseWithGrammar g
 
-  genWithGrammar (Iso _ g)         = return . g
+  parseWithGrammar (Iso f _) =
+    return . f
+
+  parseWithGrammar (GenPrism _ p) =
+    return . forward p
+
+  parseWithGrammar (ParsePrism name p) =
+    maybe (throwError $ "Cannot parse for: " ++ name) return . backward p
+
+  parseWithGrammar (g :.: f) =
+    parseWithGrammar g <=< parseWithGrammar f
+
+  parseWithGrammar (f :<>: g) = \x ->
+    parseWithGrammar f x `mplus` parseWithGrammar g x
+
+  parseWithGrammar (Inject g) =
+    parseWithGrammar g
+
+
+  genWithGrammar (Iso _ g) =
+    return . g
+
   genWithGrammar (GenPrism name p) =
-    maybe (throwError $ "Cannot generate Sexp for: " ++ name) return . backward p
-  genWithGrammar (ParsePrism _ p)  = return . forward p
-  genWithGrammar (g :.: f)         = genWithGrammar g >=> genWithGrammar f
-  genWithGrammar (f :<>: g)        =
-    \x -> genWithGrammar f x `mplus` genWithGrammar g x
-  genWithGrammar (Inject g)        = genWithGrammar g
+    maybe (throwError $ "Cannot generate for: " ++ name) return . backward p
+
+  genWithGrammar (ParsePrism _ p) =
+    return . forward p
+
+  genWithGrammar (g :.: f) =
+    genWithGrammar g >=> genWithGrammar f
+
+  genWithGrammar (f :<>: g) = \x ->
+    genWithGrammar f x `mplus` genWithGrammar g x
+
+  genWithGrammar (Inject g) =
+    genWithGrammar g
 

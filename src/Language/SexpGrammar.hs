@@ -107,6 +107,7 @@ import Data.InvertibleGrammar.TH
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class
+import Language.SexpGrammar.Parser
 
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy.IO as T
@@ -114,12 +115,12 @@ import Language.Sexp (parseSexp, printSexp)
 
 parseFromString :: SexpG a -> String -> Either String a
 parseFromString g input =
-  parseSexp "<string>" input >>= parse g
+  parseSexp "<string>" input >>= runParser (parse g)
 
 parseFromFile :: SexpG a -> FilePath -> IO (Either String a)
 parseFromFile g fn = do
   str <- readFile fn
-  return $ parseSexp fn str >>= parse g
+  return $ parseSexp fn str >>= runParser (parse g)
 
 prettyToText :: SexpG a -> a -> Either String Text
 prettyToText g =

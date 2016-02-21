@@ -61,12 +61,14 @@ instance SexpIso Expr where
          )
     ]
 
+exprGrammar :: SexpG Expr
+exprGrammar = sexpIso
+
 test :: String -> SexpG a -> (a, Text)
 test str g = either error id $ do
-  sexp <- parseSexp "<input>" str
-  expr <- parse g sexp
-  sexp' <- gen g expr
-  return (expr, printSexp sexp')
+  e <- parseFromString g str
+  sexp' <- gen g e
+  return (e, printSexp sexp')
 
 -- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Mul (Lit 2) (Mul (Lit 2) (Lit 2))),"(cond 1 (+ 42 10) (* 2 (* 2 2)))")

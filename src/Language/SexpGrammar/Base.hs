@@ -48,31 +48,30 @@ type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
 -- consumes nothing but generates some Sexp.
 type SexpG_  = forall t. Grammar SexpGrammar (Sexp :- t) t
 
+
+throwErrorPos :: (MonadError String m, MonadReader Position m) => String -> m a
+throwErrorPos msg = do
+  Position line col <- ask
+  throwError $ concat
+    [ show line, ":", show col, ": " ++ msg
+    ]
+
+----------------------------------------------------------------------
+-- Top-level grammar
+
 data SexpGrammar a b where
   GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
   GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
   GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
 
-parseSeq :: (MonadError String m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
-parseSeq xs g t = do
-  (a, SeqCtx rest) <- runStateT (parseWithGrammar g t) (SeqCtx xs)
-  unless (null rest) $
-    throwError $ "Unexpected leftover elements: " ++ (unwords $ map (Lazy.unpack . printSexp) rest)
-  return a
-
-posError :: (MonadError String m) => Sexp -> String -> m a
-posError sexp str =
+unexpectedSexpError :: (MonadError String m) => String -> Sexp -> m a
+unexpectedSexpError expected sexp =
   throwError $ concat
     [ show line, ":", show col, ": expected "
-    , str, ", but got: ", Lazy.unpack (printSexp sexp)
+    , expected, ", but got: ", Lazy.unpack (printSexp sexp)
     ]
   where
     Position line col = getPos sexp
-
-badAtom :: (MonadReader Position m, MonadError String m) => Atom -> String -> m a
-badAtom atom atomType = do
-  pos <- ask
-  posError (Atom pos atom) atomType
 
 instance
   ( MonadPlus m
@@ -81,26 +80,33 @@ instance
 
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
-      Atom p a -> runReaderT (parseWithGrammar g (a :- t)) p
-      other    -> posError other "atom"
+      Atom p a    -> runReaderT (parseWithGrammar g (a :- t)) p
+      other       -> unexpectedSexpError "atom" other
+
   parseWithGrammar (GList g) (s :- t) = do
     case s of
-      List _ xs -> parseSeq xs g t
-      other     -> posError other "list"
+      List p xs   -> runReaderT (parseSequence xs g t) p
+      other       -> unexpectedSexpError "list" other
+
   parseWithGrammar (GVect g) (s :- t) = do
     case s of
-      Vector _ xs -> parseSeq xs g t
-      other       -> posError other "vector"
+      Vector p xs -> runReaderT (parseSequence xs g t) p
+      other       -> unexpectedSexpError "vector" other
 
   genWithGrammar (GAtom g) t = do
     (a :- t') <- runReaderT (genWithGrammar g t) dummyPos
     return (Atom dummyPos a :- t')
+
   genWithGrammar (GList g) t = do
-    (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
+    (t', SeqCtx xs) <- runStateT (runReaderT (genWithGrammar g t) dummyPos) (SeqCtx [])
     return (List dummyPos xs :- t')
+
   genWithGrammar (GVect g) t = do
-    (t', SeqCtx xs) <- runStateT (genWithGrammar g t) (SeqCtx [])
+    (t', SeqCtx xs) <- runStateT (runReaderT (genWithGrammar g t) dummyPos) (SeqCtx [])
     return (Vector dummyPos xs :- t')
+
+----------------------------------------------------------------------
+-- Atom grammar
 
 data AtomGrammar a b where
   GSym     :: Text -> AtomGrammar (Atom :- t) t
@@ -112,6 +118,16 @@ data AtomGrammar a b where
   GSymbol  :: AtomGrammar (Atom :- t) (Text :- t)
   GKeyword :: AtomGrammar (Atom :- t) (Kw :- t)
 
+unexpectedAtomError :: (MonadReader Position m, MonadError String m) => Atom -> Atom -> m a
+unexpectedAtomError expected atom = do
+  pos <- ask
+  unexpectedSexpError (Lazy.unpack . printSexp $ Atom pos expected) (Atom pos atom)
+
+unexpectedAtomTypeError :: (MonadReader Position m, MonadError String m) => String -> Atom -> m a
+unexpectedAtomTypeError expected atom = do
+  pos <- ask
+  unexpectedSexpError ("atom of type " ++ expected) (Atom pos atom)
+
 instance
   ( MonadPlus m
   , MonadError String m
@@ -121,42 +137,42 @@ instance
   parseWithGrammar (GSym sym') (atom :- t) =
     case atom of
       AtomSymbol sym | sym' == sym -> return t
-      other -> throwError $ "Expected symbol " ++ show sym' ++ ", got " ++ show other
+      _ -> unexpectedAtomError (AtomSymbol sym') atom
 
   parseWithGrammar (GKw kw') (atom :- t) =
     case atom of
       AtomKeyword kw | kw' == kw -> return t
-      other -> throwError $ "Expected keyword " ++ show kw' ++ ", got " ++ show other
+      _ -> unexpectedAtomError (AtomKeyword kw') atom
 
   parseWithGrammar GBool (atom :- t) =
     case atom of
       AtomBool a -> return $ a :- t
-      _          -> badAtom atom "bool"
+      _          -> unexpectedAtomTypeError "bool" atom
 
   parseWithGrammar GInt (atom :- t) =
     case atom of
       AtomInt a -> return $ a :- t
-      _         -> badAtom atom "int"
+      _         -> unexpectedAtomTypeError "int"  atom
 
   parseWithGrammar GReal (atom :- t) =
     case atom of
       AtomReal a -> return $ a :- t
-      _          -> badAtom atom "real"
+      _          -> unexpectedAtomTypeError "real" atom
 
   parseWithGrammar GString (atom :- t) =
     case atom of
       AtomString a -> return $ a :- t
-      _            -> badAtom atom "string"
+      _            -> unexpectedAtomTypeError "string" atom
 
   parseWithGrammar GSymbol (atom :- t) =
     case atom of
       AtomSymbol a -> return $ a :- t
-      _            -> badAtom atom "symbol"
+      _            -> unexpectedAtomTypeError "symbol" atom
 
   parseWithGrammar GKeyword (atom :- t) =
     case atom of
       AtomKeyword a -> return $ a :- t
-      _             -> badAtom atom "keyword"
+      _             -> unexpectedAtomTypeError "keyword" atom
 
   genWithGrammar (GSym sym) t      = return (AtomSymbol sym :- t)
   genWithGrammar (GKw kw) t        = return (AtomKeyword kw :- t)
@@ -167,6 +183,16 @@ instance
   genWithGrammar GSymbol (a :- t)  = return (AtomSymbol a :- t)
   genWithGrammar GKeyword (a :- t) = return (AtomKeyword a :- t)
 
+
+-----------------------------------------------------------------------
+-- Sequence grammar
+
+parseSequence :: (MonadError String m, MonadReader Position m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
+parseSequence xs g t = do
+  (a, SeqCtx rest) <- runStateT (parseWithGrammar g t) (SeqCtx xs)
+  unless (null rest) $
+    throwError $ "unexpected leftover elements: " ++ (unwords $ map (Lazy.unpack . printSexp) rest)
+  return a
 
 data SeqGrammar a b where
   GElem :: Grammar SexpGrammar (Sexp :- t) t'
@@ -183,15 +209,17 @@ newtype SeqCtx = SeqCtx { getItems :: [Sexp] }
 instance
   ( MonadPlus m
   , MonadState SeqCtx m
+  , MonadReader Position m
   , MonadError String m
   ) => InvertibleGrammar m SeqGrammar where
   parseWithGrammar (GElem g) t = do
     xs <- gets getItems
     case xs of
-      []    -> throwError $ "Unexpected end of sequence"
+      []    -> throwErrorPos "unexpected end of sequence"
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         parseWithGrammar g (x :- t)
+
   parseWithGrammar (GRest g) t = do
     xs <- gets getItems
     modify $ \s -> s { getItems = [] }
@@ -209,17 +237,18 @@ instance
     props <- go xs M.empty
     (res, PropCtx ctx) <- runStateT (parseWithGrammar g t) (PropCtx props)
     when (not $ M.null ctx) $
-      throwError $ "Property-list contains unrecognized keys: " ++ unwords (map (unpack . unKw) (M.keys ctx))
+      throwErrorPos $ "property-list contains unrecognized keys: " ++ unwords (map (unpack . unKw) (M.keys ctx))
     return res
     where
       go [] props = return props
       go (Atom _ (AtomKeyword kwd):x:xs) props = go xs (M.insert kwd x props)
-      go other _ = throwError $ "Property-list is malformed: " ++ Lazy.unpack (printSexp (List dummyPos other))
+      go other _ = throwErrorPos $ "property-list is malformed: " ++ Lazy.unpack (printSexp (List dummyPos other))
 
   genWithGrammar (GElem g) t = do
     (x :- t') <- genWithGrammar g t
     modify $ \s -> s { getItems = x : getItems s }
     return t'
+
   genWithGrammar (GRest g) (ys :- t) = do
     xs :- t' <- go ys t
     put (SeqCtx xs)
@@ -230,28 +259,33 @@ instance
         x  :- t'  <- genWithGrammar g (y :- t)
         xs :- t'' <- go ys t'
         return $ (x : xs) :- t''
+
   genWithGrammar (GProps g) t = do
     (t', PropCtx props) <- runStateT (genWithGrammar g t) (PropCtx M.empty)
     let plist = foldr (\(name, sexp) acc -> Atom dummyPos (AtomKeyword name) : sexp : acc) [] (M.toList props)
     put $ SeqCtx plist
     return t'
 
-newtype PropCtx = PropCtx { getProps :: Map Kw Sexp }
+----------------------------------------------------------------------
+-- Property list grammar
 
 data PropGrammar a b where
   GProp :: Kw
         -> Grammar SexpGrammar (Sexp :- t) t'
         -> PropGrammar t t'
 
+newtype PropCtx = PropCtx { getProps :: Map Kw Sexp }
+
 instance
   ( MonadPlus m
   , MonadState PropCtx m
+  , MonadReader Position m
   , MonadError String m
   ) => InvertibleGrammar m PropGrammar where
   parseWithGrammar (GProp kwd g) t = do
     ps <- gets getProps
     case M.lookup kwd ps of
-      Nothing -> throwError $ "Keyword " ++ show kwd ++ " not found"
+      Nothing -> throwErrorPos $ "key " ++ show kwd ++ " not found"
       Just x  -> do
         put (PropCtx $ M.delete kwd ps)
         parseWithGrammar g $ x :- t
