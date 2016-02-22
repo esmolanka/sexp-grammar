@@ -35,7 +35,9 @@ instance Alternative Result where
   Failure _ <|> Success b = Success b
   Failure a <|> Failure b = Failure (a ++ "\nor\n" ++ b)
 
-instance MonadPlus Result
+instance MonadPlus Result where
+  mzero = empty
+  mplus = (<|>)
 
 instance MonadError [Char] Result where
   throwError = Failure
