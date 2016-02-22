@@ -39,16 +39,19 @@ library
 
   other-modules:
     Data.InvertibleGrammar
+    Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH
+    Data.StackPrism.ReverseGeneric
     Data.StackPrism.ReverseTH
-    Language.Sexp.Token
     Language.Sexp.Lexer
-    Language.Sexp.Types
     Language.Sexp.Parser
     Language.Sexp.Pretty
+    Language.Sexp.Token
+    Language.Sexp.Types
     Language.SexpGrammar.Base
     Language.SexpGrammar.Class
     Language.SexpGrammar.Combinators
+    Language.SexpGrammar.Parser
 
   build-depends:
       array

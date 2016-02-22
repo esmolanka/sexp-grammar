@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -8,8 +10,11 @@ module Misc where
 import Prelude hiding ((.), id)
 import Control.Category
 import Data.Text.Lazy (Text)
+import Data.InvertibleGrammar.Generic
 import Language.Sexp
 import Language.SexpGrammar
+
+import GHC.Generics
 
 newtype Ident = Ident String
   deriving (Show)
@@ -42,9 +47,30 @@ instance SexpIso Person where
         Kw "address" .: string' >>>
         Kw "age" .:? int))
 
-test :: String -> Grammar SexpGrammar (Sexp :- ()) (a :- ()) -> (a, Text)
+
+data FooBar
+  = Foo Int Double
+  | Bar Bool
+    deriving (Show, Generic)
+
+return []
+
+foobarSexp :: SexpG FooBar
+foobarSexp =
+  match $
+    With (list (el int >>> el double)) $
+    With bool $
+    End
+
+foobarSexp' :: SexpG FooBar
+foobarSexp' =
+  coproduct
+    [ $(grammarFor 'Foo) . list (el int >>> el double)
+    , $(grammarFor 'Bar) . bool
+    ]
+
+test :: String -> SexpG a -> (a, Text)
 test str g = either error id $ do
-  sexp <- parseSexp "<input>" str
-  expr <- parse g sexp
-  sexp' <- gen g expr
-  return (expr, printSexp sexp')
+  e <- parseFromString g str
+  sexp' <- gen g e
+  return (e, printSexp sexp')

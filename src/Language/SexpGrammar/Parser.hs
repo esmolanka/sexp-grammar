@@ -19,7 +19,6 @@ data Result a
 
 instance Applicative Result where
   pure = Success
-
   Success f <*> Success a = Success (f a)
   Failure a <*> Success _ = Failure a
   Success _ <*> Failure b = Failure b

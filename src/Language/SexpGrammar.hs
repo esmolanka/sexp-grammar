@@ -65,7 +65,8 @@ Grammar types diagram:
 -}
 
 module Language.SexpGrammar
-  ( Grammar
+  ( Sexp
+  , Grammar
   , SexpG
   , SexpG_
   -- * Combinators
@@ -78,6 +79,9 @@ module Language.SexpGrammar
   , module Language.SexpGrammar.Combinators
   -- * TemplateHaskell helpers
   , grammarFor
+  -- * GHC.Generics helpers
+  , match
+  , Coproduct (..)
   -- * Grammar types
   , SexpGrammar
   , AtomGrammar
@@ -104,6 +108,8 @@ import Control.Applicative
 import Data.StackPrism
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.TH
+import Data.InvertibleGrammar.Generic
+import Language.Sexp (Sexp)
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class
@@ -124,10 +130,10 @@ parseFromFile g fn = do
 
 prettyToText :: SexpG a -> a -> Either String Text
 prettyToText g =
-  fmap printSexp . gen g
+  fmap printSexp . runParser (gen g)
 
 prettyToFile :: FilePath -> SexpG a -> a -> IO (Either String ())
 prettyToFile fn g a = do
-  case gen g a of
+  case runParser (gen g) a of
     Left msg -> return $ Left msg
     Right s  -> Right <$> T.writeFile fn (printSexp s)

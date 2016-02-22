@@ -77,7 +77,6 @@ instance
   ( MonadPlus m
   , MonadError String m
   ) => InvertibleGrammar m SexpGrammar where
-
   parseWithGrammar (GAtom g) (s :- t) =
     case s of
       Atom p a    -> runReaderT (parseWithGrammar g (a :- t)) p
@@ -92,6 +91,7 @@ instance
     case s of
       Vector p xs -> runReaderT (parseSequence xs g t) p
       other       -> unexpectedSexpError "vector" other
+
 
   genWithGrammar (GAtom g) t = do
     (a :- t') <- runReaderT (genWithGrammar g t) dummyPos
@@ -133,7 +133,6 @@ instance
   , MonadError String m
   , MonadReader Position m
   ) => InvertibleGrammar m AtomGrammar where
-
   parseWithGrammar (GSym sym') (atom :- t) =
     case atom of
       AtomSymbol sym | sym' == sym -> return t
@@ -173,6 +172,7 @@ instance
     case atom of
       AtomKeyword a -> return $ a :- t
       _             -> unexpectedAtomTypeError "keyword" atom
+
 
   genWithGrammar (GSym sym) t      = return (AtomSymbol sym :- t)
   genWithGrammar (GKw kw) t        = return (AtomKeyword kw :- t)

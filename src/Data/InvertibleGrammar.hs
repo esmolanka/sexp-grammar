@@ -59,8 +59,8 @@ iso f' g' = Iso f g
     g (b :- t) = g' b :- t
 
 -- | Make a grammar from a prism which can fail during generation
-embedPrism :: StackPrism a b -> Grammar g (a :- t) (b :- t)
-embedPrism prism = GenPrism "custom prism" (stackPrism f g)
+embedPrism :: String -> StackPrism a b -> Grammar g (a :- t) (b :- t)
+embedPrism prismName prism = GenPrism prismName (stackPrism f g)
   where
     f (a :- t) = forward prism a :- t
     g (b :- t) = (:- t) <$> backward prism b
@@ -114,7 +114,7 @@ instance
     return . forward p
 
   parseWithGrammar (ParsePrism name p) =
-    maybe (throwError $ "Cannot parse for: " ++ name) return . backward p
+    maybe (throwError $ "cannot parse " ++ name) return . backward p
 
   parseWithGrammar (g :.: f) =
     parseWithGrammar g <=< parseWithGrammar f
@@ -130,7 +130,7 @@ instance
     return . g
 
   genWithGrammar (GenPrism name p) =
-    maybe (throwError $ "Cannot generate for: " ++ name) return . backward p
+    maybe (throwError $ "cannot generate " ++ name) return . backward p
 
   genWithGrammar (ParsePrism _ p) =
     return . forward p
