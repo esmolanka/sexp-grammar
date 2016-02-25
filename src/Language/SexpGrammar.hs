@@ -77,11 +77,6 @@ module Language.SexpGrammar
   , push
   , pushForget
   , module Language.SexpGrammar.Combinators
-  -- * TemplateHaskell helpers
-  , grammarFor
-  -- * GHC.Generics helpers
-  , match
-  , Coproduct (..)
   -- * Grammar types
   , SexpGrammar
   , AtomGrammar
@@ -107,8 +102,6 @@ import Control.Applicative
 #endif
 import Data.StackPrism
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.TH
-import Data.InvertibleGrammar.Generic
 import Language.Sexp (Sexp)
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Combinators

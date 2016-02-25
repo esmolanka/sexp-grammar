@@ -36,6 +36,9 @@ library
     Language.Sexp
     Language.Sexp.Utils
     Language.SexpGrammar
+    Language.SexpGrammar.TH
+    Language.SexpGrammar.Generic
+
 
   other-modules:
     Data.InvertibleGrammar

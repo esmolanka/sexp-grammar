@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -17,43 +16,40 @@ import Language.SexpGrammar
 import GHC.Generics
 
 newtype Ident = Ident String
-  deriving (Show)
+  deriving (Show, Generic)
 
-data Pair a b = Pair a b deriving (Show)
+data Pair a b = Pair a b
+  deriving (Show, Generic)
 
 data Person = Person
   { pName :: String
   , pAddress :: String
   , pAge :: Maybe Int
-  } deriving (Show)
-
-return []
+  } deriving (Show, Generic)
 
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso =
+    -- Combinator 'with' matches the single constructor of a datatype to a grammar
+    with $                  -- pops b, pops a, applies a to Pair,
+                            -- apply b to (Pair a):                      (Pair a b :- t)
     list (                  -- begin list
       el sexpIso >>>        -- consume and push first element to stack:  (a :- t)
       el sexpIso            -- consume and push second element to stack: (b :- a :- t)
-    ) >>>
-    $(grammarFor 'Pair)     -- pop b, pop a, apply a to Pair,
-                            -- apply b to (Pair a):                      (Pair a b :- t)
+    )
 
 instance SexpIso Person where
-  sexpIso = $(grammarFor 'Person) .
+  sexpIso = with $
     list (
       el (sym "person") >>>
-      el string' >>>
+      el string'        >>>
       props (
-        Kw "address" .: string' >>>
-        Kw "age" .:? int))
-
+        Kw "address" .:  string' >>>
+        Kw "age"     .:? int))
 
 data FooBar
   = Foo Int Double
   | Bar Bool
     deriving (Show, Generic)
-
-return []
 
 foobarSexp :: SexpG FooBar
 foobarSexp =
@@ -61,13 +57,6 @@ foobarSexp =
     With (list (el int >>> el double)) $
     With bool $
     End
-
-foobarSexp' :: SexpG FooBar
-foobarSexp' =
-  coproduct
-    [ $(grammarFor 'Foo) . list (el int >>> el double)
-    , $(grammarFor 'Bar) . bool
-    ]
 
 test :: String -> SexpG a -> (a, Text)
 test str g = either error id $ do

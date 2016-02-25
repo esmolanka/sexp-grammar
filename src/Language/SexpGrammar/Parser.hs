@@ -33,7 +33,7 @@ instance Alternative Result where
   empty = Failure "empty"
   Success a <|> _ = Success a
   Failure _ <|> Success b = Success b
-  Failure a <|> Failure b = Failure (a ++ "\nor\n" ++ b)
+  Failure a <|> Failure b = Failure (a ++ "\n" ++ b)
 
 instance MonadPlus Result where
   mzero = empty
@@ -50,4 +50,4 @@ runParser :: (a -> Result b) -> a -> Either String b
 runParser parser a =
   case parser a of
     Success a -> Right a
-    Failure b -> Left b
+    Failure b -> Left $ "List of failures:\n" ++ b

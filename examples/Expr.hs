@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -11,11 +11,15 @@ import Prelude hiding ((.), id)
 import Control.Category
 import Data.Data (Data)
 import Data.Text.Lazy (Text)
+
 import Language.Sexp
 import Language.SexpGrammar
+import Language.SexpGrammar.Generic
+import GHC.Generics
+
 
 newtype Ident = Ident String
-  deriving (Show)
+  deriving (Show, Generic)
 
 data Expr
   = Var Ident
@@ -26,41 +30,39 @@ data Expr
   | Inv Expr
   | IfZero Expr Expr Expr
   | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
-    deriving (Show)
+    deriving (Show, Generic)
 
 data Prim
   = SquareRoot
   | Factorial
   | Fibonacci
-    deriving (Eq, Enum, Bounded, Data, Show)
-
-return []
+    deriving (Eq, Enum, Bounded, Data, Show, Generic)
 
 instance SexpIso Prim
 
 instance SexpIso Ident where
-  sexpIso = $(grammarFor 'Ident) . symbol'
+  sexpIso = with symbol'
 
 instance SexpIso Expr where
-  sexpIso = coproduct'
-    [ $(grammarFor 'Var) . sexpIso
-    , $(grammarFor 'Lit) . int
-    , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
-    , $(grammarFor 'Mul) . list (el (sym "*") >>> el sexpIso >>> el sexpIso)
-    , $(grammarFor 'Inv) . list (el (sym "invert") >>> el sexpIso)
-    , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
-                                                            >>> Kw "true"  .: sexpIso
-                                                            >>> Kw "false" .: sexpIso ))
-    , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args to Apply node
-        list
-         (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
-          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
-          rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()
-          swap >>>                             -- Swap: prim :- args :- ()
-          push "dummy" >>>                     -- Push "dummy" :- "dummy" :- prim :- args
-          swap                                 -- Swap: prim :- "dummy" :- args
-         )
-    ]
+  sexpIso = match
+    $ With sexpIso
+    $ With int
+    $ With (list (el (sym "+") >>> el sexpIso >>> el sexpIso))
+    $ With (list (el (sym "*") >>> el sexpIso >>> el sexpIso))
+    $ With (list (el (sym "negate") >>> el sexpIso))
+    $ With (list (el (sym "invert") >>> el sexpIso))
+    $ With (list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
+                                          >>> Kw "true"  .: sexpIso
+                                          >>> Kw "false" .: sexpIso )))
+    $ With (list
+        (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
+         el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+         rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()
+         swap >>>                             -- Swap: prim :- args :- ()
+         push "dummy" >>>                     -- Push "dummy" :- "dummy" :- prim :- args
+         swap                                 -- Swap: prim :- "dummy" :- args
+        ))
+    $ End
 
 exprGrammar :: SexpG Expr
 exprGrammar = sexpIso
