@@ -13,7 +13,7 @@
 
 module Data.StackPrism.ReverseGeneric (
     -- * Deriving stack prisms
-    mkRevPrismList, StackPrisms, PrismList(..), MkPrismList, StackPrismLhs,
+    mkRevPrismList, StackPrisms, PrismList(..), MkPrismList, StackPrismLhs, MkStackPrism,
   ) where
 
 import Data.StackPrism
