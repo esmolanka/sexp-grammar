@@ -46,16 +46,16 @@ instance SexpIso Person where
         Kw "address" .:  string' >>>
         Kw "age"     .:? int))
 
-data FooBar
+data FooBar a
   = Foo Int Double
-  | Bar Bool
+  | Bar a
     deriving (Show, Generic)
 
-foobarSexp :: SexpG FooBar
+foobarSexp :: SexpG (FooBar Int)
 foobarSexp =
   match $
-    With (list (el int >>> el double)) $
-    With bool $
+    With (\foo -> foo . list (el int >>> el double)) $
+    With (\bar -> bar . int) $
     End
 
 test :: String -> SexpG a -> (a, Text)

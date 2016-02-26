@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE RankNTypes           #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Expr where
@@ -16,7 +17,6 @@ import Language.Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.Generic
 import GHC.Generics
-
 
 newtype Ident = Ident String
   deriving (Show, Generic)
@@ -45,16 +45,16 @@ instance SexpIso Ident where
 
 instance SexpIso Expr where
   sexpIso = match
-    $ With sexpIso
-    $ With int
-    $ With (list (el (sym "+") >>> el sexpIso >>> el sexpIso))
-    $ With (list (el (sym "*") >>> el sexpIso >>> el sexpIso))
-    $ With (list (el (sym "negate") >>> el sexpIso))
-    $ With (list (el (sym "invert") >>> el sexpIso))
-    $ With (list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
+    $ With (\var -> var . sexpIso)
+    $ With (\lit -> lit . int)
+    $ With (\add -> add . list (el (sym "+") >>> el sexpIso >>> el sexpIso))
+    $ With (\mul -> mul . list (el (sym "*") >>> el sexpIso >>> el sexpIso))
+    $ With (\neg -> neg . list (el (sym "negate") >>> el sexpIso))
+    $ With (\inv -> inv . list (el (sym "invert") >>> el sexpIso))
+    $ With (\ifz -> ifz . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
                                           >>> Kw "true"  .: sexpIso
                                           >>> Kw "false" .: sexpIso )))
-    $ With (list
+    $ With (\app -> app . list
         (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
          rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()

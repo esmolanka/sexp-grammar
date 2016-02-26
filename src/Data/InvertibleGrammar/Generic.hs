@@ -42,12 +42,12 @@ with g =
   let PrismList (P prism) = mkRevPrismList
   in GenPrism (conName (undefined :: m c f e)) prism . g
 
-match :: (Generic a, MkPrismList (Rep a), Match (Rep a) bs t2) => Coproduct t t1 bs t2 -> Grammar t (t1 :- t2) (a :- t2)
+match :: (Generic a, MkPrismList (Rep a), Match (Rep a) bs t) => Coproduct g s bs a t -> Grammar g (s :- t) (a :- t)
 match lst = let (g, End) = match' mkRevPrismList lst in g
 
-data Coproduct g s a t where
-  With :: Grammar g (s :- t) b -> Coproduct g s bs t -> Coproduct g s (b ': bs) t
-  End :: Coproduct g s '[] t
+data Coproduct g s bs a t where
+  With :: (Grammar g b (a :- t) -> Grammar g (s :- t) (a :- t)) -> Coproduct g s bs a t -> Coproduct g s (b ': bs) a t
+  End :: Coproduct g s '[] a t
 
 type family Trav (t :: * -> *) (l :: [*]) :: [*]
 type instance Trav (M1 D c f) lst = Trav f lst
@@ -55,7 +55,7 @@ type instance Trav (f :+: g) lst = Trav g (Trav f lst)
 type instance Trav (M1 C c f) (l ': ls) = ls
 
 class Match (f :: * -> *) bs t where
-  match' :: PrismList f a -> Coproduct g s bs t -> (Grammar g (s :- t) (a :- t), Coproduct g s (Trav f bs) t)
+  match' :: PrismList f a -> Coproduct g s bs a t -> (Grammar g (s :- t) (a :- t), Coproduct g s (Trav f bs) a t)
 
 instance (Match f bs t) => Match (M1 D c f) bs t where
   match' (PrismList p) = match' p
@@ -71,4 +71,4 @@ instance
 
 instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t where
   match' (P prism) (With g rest) =
-    (GenPrism (conName (undefined :: m c f e)) prism . g, rest)
+    (g $ GenPrism (conName (undefined :: m c f e)) prism, rest)
