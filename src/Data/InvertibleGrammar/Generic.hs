@@ -43,10 +43,20 @@ with g =
   let PrismList (P prism) = mkRevPrismList
   in GenPrism (conName (undefined :: m c f e)) prism . g
 
+type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
+  (:++) (a ': as) bs = a ': (as :++ bs)
+  (:++) '[] bs = bs
+
+type family Coll (f :: * -> *) (t :: *) :: [*] where
+  Coll (M1 D c f) t = Coll f t
+  Coll (f :+: g)  t = Coll f t :++ Coll g t
+  Coll (M1 C c f) t = '[StackPrismLhs f t]
+
 match
   :: ( Generic a
      , MkPrismList (Rep a)
      , Match (Rep a) bs t
+     , bs ~ Coll (Rep a) t
      ) =>
      Coproduct g s bs a t
   -> Grammar g (s :- t) (a :- t)
