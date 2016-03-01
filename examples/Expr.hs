@@ -11,9 +11,9 @@ module Expr where
 import Prelude hiding ((.), id)
 import Control.Category
 import Data.Data (Data)
-import Data.Text.Lazy (Text)
+import qualified Data.ByteString.Lazy.Char8 as B8
 
-import Language.Sexp
+import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.Generic
 import GHC.Generics
@@ -67,11 +67,11 @@ instance SexpIso Expr where
 exprGrammar :: SexpG Expr
 exprGrammar = sexpIso
 
-test :: String -> SexpG a -> (a, Text)
+test :: String -> SexpG a -> (a, String)
 test str g = either error id $ do
-  e <- parseFromString g str
-  sexp' <- gen g e
-  return (e, printSexp sexp')
+  e <- decode' g (B8.pack str)
+  sexp' <- genSexp g e
+  return (e, B8.unpack (Sexp.encode sexp'))
 
 -- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Mul (Lit 2) (Mul (Lit 2) (Lit 2))),"(cond 1 (+ 42 10) (* 2 (* 2 2)))")

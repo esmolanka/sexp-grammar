@@ -12,8 +12,8 @@ module Language.SexpGrammar.Base
   , AtomGrammar (..)
   , SeqGrammar (..)
   , PropGrammar (..)
-  , parse
-  , gen
+  , runParse
+  , runGen
   , SexpG
   , SexpG_
   , module Data.InvertibleGrammar
@@ -37,9 +37,14 @@ import qualified Data.Map as M
 import Data.Map (Map)
 import Data.StackPrism
 
+import Text.PrettyPrint.Leijen.Text (Pretty(..), hsep, displayT, renderPretty)
+
 import Data.InvertibleGrammar
 import Language.Sexp.Types
-import Language.Sexp.Pretty
+import Language.Sexp.Pretty ()
+
+display :: (Pretty a) => a -> String
+display = Lazy.unpack . displayT . renderPretty 0.5 75 . pretty
 
 -- | Grammar which matches Sexp to a value of type a and vice versa.
 type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
@@ -68,7 +73,7 @@ unexpectedSexpError :: (MonadError String m) => String -> Sexp -> m a
 unexpectedSexpError expected sexp =
   throwError $ concat
     [ show line, ":", show col, ": expected "
-    , expected, ", but got: ", Lazy.unpack (printSexp sexp)
+    , expected, ", but got: ", display sexp
     ]
   where
     Position line col = getPos sexp
@@ -121,7 +126,7 @@ data AtomGrammar a b where
 unexpectedAtomError :: (MonadReader Position m, MonadError String m) => Atom -> Atom -> m a
 unexpectedAtomError expected atom = do
   pos <- ask
-  unexpectedSexpError (Lazy.unpack . printSexp $ Atom pos expected) (Atom pos atom)
+  unexpectedSexpError (display $ Atom pos expected) (Atom pos atom)
 
 unexpectedAtomTypeError :: (MonadReader Position m, MonadError String m) => String -> Atom -> m a
 unexpectedAtomTypeError expected atom = do
@@ -191,7 +196,7 @@ parseSequence :: (MonadError String m, MonadReader Position m, InvertibleGrammar
 parseSequence xs g t = do
   (a, SeqCtx rest) <- runStateT (parseWithGrammar g t) (SeqCtx xs)
   unless (null rest) $
-    throwError $ "unexpected leftover elements: " ++ (unwords $ map (Lazy.unpack . printSexp) rest)
+    throwError $ "unexpected leftover elements: " ++ display (hsep (map pretty rest))
   return a
 
 data SeqGrammar a b where
@@ -242,7 +247,7 @@ instance
     where
       go [] props = return props
       go (Atom _ (AtomKeyword kwd):x:xs) props = go xs (M.insert kwd x props)
-      go other _ = throwErrorPos $ "property-list is malformed: " ++ Lazy.unpack (printSexp (List dummyPos other))
+      go other _ = throwErrorPos $ "property-list is malformed: " ++ display (List dummyPos other)
 
   genWithGrammar (GElem g) t = do
     (x :- t') <- genWithGrammar g t
@@ -295,18 +300,18 @@ instance
     modify $ \ps -> ps { getProps = M.insert kwd x (getProps ps) }
     return t'
 
-parse
+runParse
   :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> Sexp
   -> m a
-parse gram input =
+runParse gram input =
   (\(x :- _) -> x) <$> parseWithGrammar gram (input :- ())
 
-gen
+runGen
   :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> a
   -> m Sexp
-gen gram input =
+runGen gram input =
   (\(x :- _) -> x) <$> genWithGrammar gram (input :- ())

@@ -12,11 +12,15 @@ module Language.Sexp.Lexer
   ) where
 
 import qualified Data.Text as T
+import Data.Text.Read
+import qualified Data.Text.Lazy as TL
+import Data.Text.Lazy.Encoding (decodeUtf8)
+import qualified Data.ByteString.Lazy.Char8 as B8
 import Language.Sexp.Token
 import Language.Sexp.Types (Position (..))
 }
 
-%wrapper "posn"
+%wrapper "posn-bytestring"
 
 $whitechar   = [\ \t\n\r\f\v]
 
@@ -42,34 +46,44 @@ $idsubseq    = [$idinitial $digit \:]
 
 $whitechar+        ;
 ";".*              ;
-"("                { just TokLParen                   }
-")"                { just TokRParen                   }
-"["                { just TokLBracket                 }
-"]"                { just TokRBracket                 }
-"'" / $graphic     { just TokQuote                    }
-"#t"               { just (TokBool True)              }
-"#f"               { just (TokBool False)             }
-"#" / $graphic     { just TokHash                     }
-@intnum            { TokInt     `via` readInteger     }
-@scinum            { TokReal    `via` read            }
-@identifier        { TokSymbol  `via` T.pack          }
-@keyword           { TokKeyword `via` T.pack          }
-\" @string* \"     { TokStr     `via` (T.pack . read) }
-.                  { TokUnknown `via` head            }
+"("                { just TokLParen       }
+")"                { just TokRParen       }
+"["                { just TokLBracket     }
+"]"                { just TokRBracket     }
+"'" / $graphic     { just TokQuote        }
+"#t"               { just (TokBool True)  }
+"#f"               { just (TokBool False) }
+"#" / $graphic     { just TokHash         }
+@intnum            { TokInt     `via` readInteger       }
+@scinum            { TokReal    `via` (read . T.unpack) }
+@identifier        { TokSymbol  `via` id                }
+@keyword           { TokKeyword `via` id                }
+\" @string* \"     { TokStr     `via` readString        }
+.                  { TokUnknown `via` T.head            }
 
 {
 
-readInteger :: String -> Integer
-readInteger ('+': xs) = read xs
-readInteger xs        = read xs
+readInteger :: T.Text -> Integer
+readInteger str =
+  case signed decimal str of
+    Left err -> error $ "Lexer is broken: " ++ err
+    Right (a, rest)
+      | T.null (T.strip rest) -> a
+      | otherwise -> error $ "Lexer is broken, leftover: " ++ show rest
 
-just :: Token -> AlexPosn -> String -> LocatedBy AlexPosn Token
-just tok pos _ = L pos tok
+readString :: T.Text -> T.Text
+readString =
+  T.pack . read . T.unpack
 
-via :: (a -> Token) -> (String -> a) -> AlexPosn -> String -> LocatedBy AlexPosn Token
-via ftok f pos str = L pos (ftok (f str))
+just :: Token -> AlexPosn -> B8.ByteString -> LocatedBy AlexPosn Token
+just tok pos _ =
+  L pos tok
 
-lexSexp :: FilePath -> String -> [LocatedBy Position Token]
+via :: (a -> Token) -> (T.Text -> a) -> AlexPosn -> B8.ByteString -> LocatedBy AlexPosn Token
+via ftok f pos str =
+  L pos . ftok . f  . TL.toStrict . decodeUtf8 $ str
+
+lexSexp :: FilePath -> B8.ByteString -> [LocatedBy Position Token]
 lexSexp f = map (mapPosition fixPos) . alexScanTokens
   where
     fixPos (AlexPn _ l c) = Position l c

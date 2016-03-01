@@ -34,11 +34,12 @@ library
     ghc-options:       -Werror
   exposed-modules:
     Language.Sexp
+    Language.Sexp.Encode
+    Language.Sexp.Pretty
     Language.Sexp.Utils
     Language.SexpGrammar
     Language.SexpGrammar.TH
     Language.SexpGrammar.Generic
-
 
   other-modules:
     Data.InvertibleGrammar
@@ -48,7 +49,6 @@ library
     Data.StackPrism.ReverseTH
     Language.Sexp.Lexer
     Language.Sexp.Parser
-    Language.Sexp.Pretty
     Language.Sexp.Token
     Language.Sexp.Types
     Language.SexpGrammar.Base
@@ -59,6 +59,7 @@ library
   build-depends:
       array
     , base >=4.7 && <5
+    , bytestring
     , containers
     , mtl >=2.1
     , scientific

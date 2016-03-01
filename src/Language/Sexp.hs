@@ -2,10 +2,9 @@
 module Language.Sexp
   (
   -- * Parse and print
-    parseSexps
-  , parseSexp
-  , printSexps
-  , printSexp
+    decode
+  , encode
+  , encodePretty
   -- * Type
   , Sexp (..)
   , Atom (..)
@@ -19,3 +18,4 @@ module Language.Sexp
 import Language.Sexp.Types
 import Language.Sexp.Parser
 import Language.Sexp.Pretty
+import Language.Sexp.Encode

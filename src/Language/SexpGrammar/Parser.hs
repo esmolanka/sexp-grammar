@@ -46,8 +46,8 @@ instance MonadError [Char] Result where
       Success a -> Success a
       Failure b -> handle b
 
-runParser :: (a -> Result b) -> a -> Either String b
-runParser parser a =
+runR :: (a -> Result b) -> a -> Either String b
+runR parser a =
   case parser a of
     Success a -> Right a
     Failure b -> Left $ "List of failures:\n" ++ b

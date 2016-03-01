@@ -65,7 +65,9 @@ Grammar types diagram:
 -}
 
 module Language.SexpGrammar
-  ( Sexp
+  ( Sexp (..)
+  , Sexp.Atom (..)
+  , Sexp.Kw (..)
   , Grammar
   , SexpG
   , SexpG_
@@ -82,14 +84,16 @@ module Language.SexpGrammar
   , AtomGrammar
   , SeqGrammar
   , PropGrammar
-  -- * Parsing and printing
-  , parseFromString
-  , parseFromFile
-  , prettyToText
-  , prettyToFile
-  -- ** Low-level printing and parsing
-  , parse
-  , gen
+  -- * Decoding and encoding using SexpIso typeclass
+  , decode
+  , encode
+  , encodePretty
+  , decode'
+  , encode'
+  , encodePretty'
+  -- * Parsing and encoding to Sexp
+  , parseSexp
+  , genSexp
   -- * Typeclass for Sexp grammars
   , SexpIso (..)
   -- * Re-exported from stack-prism
@@ -97,36 +101,50 @@ module Language.SexpGrammar
   , (:-) (..)
   ) where
 
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
-import Data.StackPrism
+import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.InvertibleGrammar
+import Data.StackPrism
+
 import Language.Sexp (Sexp)
+import qualified Language.Sexp as Sexp
+
 import Language.SexpGrammar.Base
-import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class
-import Language.SexpGrammar.Parser
+import Language.SexpGrammar.Combinators
+import Language.SexpGrammar.Parser (runR)
 
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy.IO as T
-import Language.Sexp (parseSexp, printSexp)
+----------------------------------------------------------------------
+-- Sexp interface
 
-parseFromString :: SexpG a -> String -> Either String a
-parseFromString g input =
-  parseSexp "<string>" input >>= runParser (parse g)
+parseSexp :: SexpG a -> Sexp -> Either String a
+parseSexp g = runR (runParse g)
 
-parseFromFile :: SexpG a -> FilePath -> IO (Either String a)
-parseFromFile g fn = do
-  str <- readFile fn
-  return $ parseSexp fn str >>= runParser (parse g)
+genSexp :: SexpG a -> a -> Either String Sexp
+genSexp g = runR (runGen g)
 
-prettyToText :: SexpG a -> a -> Either String Text
-prettyToText g =
-  fmap printSexp . runParser (gen g)
+----------------------------------------------------------------------
+-- ByteString interface
 
-prettyToFile :: FilePath -> SexpG a -> a -> IO (Either String ())
-prettyToFile fn g a = do
-  case runParser (gen g) a of
-    Left msg -> return $ Left msg
-    Right s  -> Right <$> T.writeFile fn (printSexp s)
+decode :: SexpIso a => ByteString -> Either String a
+decode input =
+  Sexp.decode input >>= parseSexp sexpIso
+
+encode :: SexpIso a => a -> Either String ByteString
+encode =
+  fmap Sexp.encode . genSexp sexpIso
+
+encodePretty :: SexpIso a => a -> Either String ByteString
+encodePretty =
+  fmap Sexp.encodePretty . genSexp sexpIso
+
+decode' :: SexpG a -> ByteString -> Either String a
+decode' g input =
+  Sexp.decode input >>= parseSexp g
+
+encode' :: SexpG a -> a -> Either String ByteString
+encode' g =
+  fmap Sexp.encode . genSexp g
+
+encodePretty' :: SexpG a -> a -> Either String ByteString
+encodePretty' g =
+  fmap Sexp.encodePretty . genSexp g
