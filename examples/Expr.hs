@@ -55,12 +55,12 @@ instance SexpIso Expr where
                                           >>> Kw "true"  .: sexpIso
                                           >>> Kw "false" .: sexpIso )))
     $ With (\app -> app . list
-        (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
+        (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
-         rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()
-         swap >>>                             -- Swap: prim :- args :- ()
-         push "dummy" >>>                     -- Push "dummy" :- "dummy" :- prim :- args
-         swap                                 -- Swap: prim :- "dummy" :- args
+         rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
+         swap >>>                             -- Swap:            prim :- args :- ()
+         push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
+         swap                                 -- Swap:            prim :- "dummy" :- args :- ()
         ))
     $ End
 

@@ -52,14 +52,14 @@ instance SexpIso Expr where
     , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
                                                             >>> Kw "true"  .: sexpIso
                                                             >>> Kw "false" .: sexpIso ))
-    , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args to Apply node
+    , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args :- () to Apply node
         list
-         (el (sexpIso :: SexpG Prim) >>>       -- Push prim: prim :- ()
+         (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
           el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
-          rest (sexpIso :: SexpG Expr) >>>     -- Push args: args :- prim :- ()
-          swap >>>                             -- Swap: prim :- args :- ()
-          push "dummy" >>>                     -- Push "dummy" :- "dummy" :- prim :- args
-          swap                                 -- Swap: prim :- "dummy" :- args
+          rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
+          swap >>>                             -- Swap:            prim :- args :- ()
+          push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
+          swap                                 -- Swap:            prim :- "dummy" :- args :- ()
          )
     ]
 
