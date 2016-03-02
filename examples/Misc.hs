@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE TypeOperators        #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Misc where

@@ -51,8 +51,7 @@ type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
 
 -- | Grammar which pattern matches Sexp and produces nothing, or
 -- consumes nothing but generates some Sexp.
-type SexpG_  = forall t. Grammar SexpGrammar (Sexp :- t) t
-
+type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
 
 throwErrorPos :: (MonadError String m, MonadReader Position m) => String -> m a
 throwErrorPos msg = do

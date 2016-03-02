@@ -48,10 +48,10 @@ import Data.StackPrism
 import Data.Text (Text, pack, unpack)
 
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.TH
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
 import Language.SexpGrammar.Base
+import Language.SexpGrammar.Generic
 
 ----------------------------------------------------------------------
 -- Sequence combinators
@@ -89,10 +89,11 @@ props = Inject . GProps
 
 -- | Define optional property pair grammar
 (.:?) :: Kw -> Grammar SexpGrammar (Sexp :- t) (a :- t) -> Grammar PropGrammar t (Maybe a :- t)
-(.:?) name g = coproduct
-  [ $(grammarFor 'Just) . (name .: g)
-  , $(grammarFor 'Nothing)
-  ]
+(.:?) name g = match
+  $ With (\nothing -> nothing)
+  $ With (\just -> just . (name .: g))
+  $ End
+
 
 ----------------------------------------------------------------------
 -- Atom combinators

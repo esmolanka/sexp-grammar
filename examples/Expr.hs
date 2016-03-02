@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE RankNTypes           #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}

@@ -26,6 +26,7 @@ import Language.SexpGrammar.Combinators
 
 class SexpIso a where
   sexpIso :: SexpG a
+
   default sexpIso :: (Enum a, Bounded a, Eq a, Data a) => SexpG a
   sexpIso = enum
 

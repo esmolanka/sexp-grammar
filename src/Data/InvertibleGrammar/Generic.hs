@@ -59,12 +59,12 @@ match
      , bs ~ Coll (Rep a) t
      ) =>
      Coproduct g s bs a t
-  -> Grammar g (s :- t) (a :- t)
+  -> Grammar g s (a :- t)
 match = fst . match' mkRevPrismList
 
 data Coproduct g s bs a t where
   With
-    :: (Grammar g b (a :- t) -> Grammar g (s :- t) (a :- t))
+    :: (Grammar g b (a :- t) -> Grammar g s (a :- t))
     -> Coproduct g s bs a t
     -> Coproduct g s (b ': bs) a t
 
@@ -78,7 +78,7 @@ type family Trav (t :: * -> *) (l :: [*]) :: [*] where
 class Match (f :: * -> *) bs t where
   match' :: PrismList f a
          -> Coproduct g s bs a t
-         -> ( Grammar g (s :- t) (a :- t)
+         -> ( Grammar g s (a :- t)
             , Coproduct g s (Trav f bs) a t
             )
 

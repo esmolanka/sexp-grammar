@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TemplateHaskell      #-}
-{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TemplateHaskell      #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module ExprTH where
