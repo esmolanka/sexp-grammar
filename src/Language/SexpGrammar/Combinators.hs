@@ -51,7 +51,6 @@ import Data.InvertibleGrammar
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
 import Language.SexpGrammar.Base
-import Language.SexpGrammar.Generic
 
 ----------------------------------------------------------------------
 -- Sequence combinators
@@ -89,11 +88,7 @@ props = Inject . GProps
 
 -- | Define optional property pair grammar
 (.:?) :: Kw -> Grammar SexpGrammar (Sexp :- t) (a :- t) -> Grammar PropGrammar t (Maybe a :- t)
-(.:?) name g = match
-  $ With (\nothing -> nothing)
-  $ With (\just -> just . (name .: g))
-  $ End
-
+(.:?) name = Inject . GOptProp name
 
 ----------------------------------------------------------------------
 -- Atom combinators

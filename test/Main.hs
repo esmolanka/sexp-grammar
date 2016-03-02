@@ -204,7 +204,6 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
            "0:0: expected atom of type bool, but got: 10") :: Either String (Foo Bool Bool))
   ]
 
-
 testArithExpr :: ArithExpr
 testArithExpr = Add (Lit 0) (Mul [])
 

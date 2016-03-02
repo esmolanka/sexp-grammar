@@ -27,7 +27,7 @@ data Expr
   | Mul Expr Expr
   | Neg Expr
   | Inv Expr
-  | IfZero Expr Expr Expr
+  | IfZero Expr Expr (Maybe Expr)
   | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
     deriving (Show, Generic)
 
@@ -51,8 +51,8 @@ instance SexpIso Expr where
     $ With (\neg -> neg . list (el (sym "negate") >>> el sexpIso))
     $ With (\inv -> inv . list (el (sym "invert") >>> el sexpIso))
     $ With (\ifz -> ifz . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
-                                          >>> Kw "true"  .: sexpIso
-                                          >>> Kw "false" .: sexpIso )))
+                                                        >>> Kw "true"  .:  sexpIso
+                                                        >>> Kw "false" .:? sexpIso )))
     $ With (\app -> app . list
         (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing

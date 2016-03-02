@@ -31,7 +31,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Scientific
-import Data.Text (Text, unpack)
+import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Map as M
 import Data.Map (Map)
@@ -241,7 +241,7 @@ instance
     props <- go xs M.empty
     (res, PropCtx ctx) <- runStateT (parseWithGrammar g t) (PropCtx props)
     when (not $ M.null ctx) $
-      throwErrorPos $ "property-list contains unrecognized keys: " ++ unwords (map (unpack . unKw) (M.keys ctx))
+      throwErrorPos $ "property-list contains unrecognized keys: " ++ unwords (map display (M.keys ctx))
     return res
     where
       go [] props = return props
@@ -274,9 +274,13 @@ instance
 -- Property list grammar
 
 data PropGrammar a b where
-  GProp :: Kw
-        -> Grammar SexpGrammar (Sexp :- t) t'
-        -> PropGrammar t t'
+  GProp    :: Kw
+           -> Grammar SexpGrammar (Sexp :- t) (a :- t)
+           -> PropGrammar t (a :- t)
+
+  GOptProp :: Kw
+           -> Grammar SexpGrammar (Sexp :- t) (a :- t)
+           -> PropGrammar t (Maybe a :- t)
 
 newtype PropCtx = PropCtx { getProps :: Map Kw Sexp }
 
@@ -289,14 +293,33 @@ instance
   parseWithGrammar (GProp kwd g) t = do
     ps <- gets getProps
     case M.lookup kwd ps of
-      Nothing -> throwErrorPos $ "key " ++ show kwd ++ " not found"
+      Nothing -> throwErrorPos $ "key " ++ display kwd ++ " not found"
       Just x  -> do
         put (PropCtx $ M.delete kwd ps)
         parseWithGrammar g $ x :- t
 
+  parseWithGrammar (GOptProp kwd g) t = do
+    ps <- gets getProps
+    case M.lookup kwd ps of
+      Nothing ->
+        return (Nothing :- t)
+      Just x  -> do
+        put (PropCtx $ M.delete kwd ps)
+        (a :- t') <- parseWithGrammar g (x :- t)
+        return (Just a :- t')
+
+
   genWithGrammar (GProp kwd g) t = do
     x :- t' <- genWithGrammar g t
     modify $ \ps -> ps { getProps = M.insert kwd x (getProps ps) }
+    return t'
+
+  genWithGrammar (GOptProp _ _) (Nothing :- t) = do
+    return t
+
+  genWithGrammar (GOptProp kwd g) (Just x :- t) = do
+    x' :- t' <- genWithGrammar g (x :- t)
+    modify $ \ps -> ps { getProps = M.insert kwd x' (getProps ps) }
     return t'
 
 runParse

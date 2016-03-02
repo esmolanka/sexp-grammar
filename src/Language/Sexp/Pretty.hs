@@ -16,7 +16,7 @@ import Text.PrettyPrint.Leijen.Text
 import Language.Sexp.Types
 
 instance Pretty Kw where
-  pretty = text . Lazy.fromStrict . unKw
+  pretty (Kw s) = colon <> text (Lazy.fromStrict s)
 
 ppAtom :: Atom -> Doc
 ppAtom (AtomBool a)    = if a then "#t" else "#f"
@@ -24,7 +24,7 @@ ppAtom (AtomInt a)     = integer a
 ppAtom (AtomReal a)    = text . Lazy.pack . formatScientific Generic Nothing $ a
 ppAtom (AtomString a)  = pretty (show a)
 ppAtom (AtomSymbol a)  = text . Lazy.fromStrict $ a
-ppAtom (AtomKeyword k) = colon <> pretty k
+ppAtom (AtomKeyword k) = pretty k
 
 instance Pretty Atom where
   pretty = ppAtom

@@ -25,7 +25,7 @@ data Expr
   | Add Expr Expr
   | Mul Expr Expr
   | Inv Expr
-  | IfZero Expr Expr Expr
+  | IfZero Expr Expr (Maybe Expr)
   | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
     deriving (Show)
 
@@ -49,9 +49,9 @@ instance SexpIso Expr where
     , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
     , $(grammarFor 'Mul) . list (el (sym "*") >>> el sexpIso >>> el sexpIso)
     , $(grammarFor 'Inv) . list (el (sym "invert") >>> el sexpIso)
-    , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
-                                                            >>> Kw "true"  .: sexpIso
-                                                            >>> Kw "false" .: sexpIso ))
+    , $(grammarFor 'IfZero) . list (el (sym "cond") >>> props ( Kw "pred"  .:  sexpIso
+                                                            >>> Kw "true"  .:  sexpIso
+                                                            >>> Kw "false" .:? sexpIso ))
     , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args :- () to Apply node
         list
          (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
