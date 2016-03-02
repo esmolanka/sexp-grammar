@@ -8,9 +8,8 @@
 {-# OPTIONS_GHC -fno-warn-unused-matches      #-}
 
 module Language.Sexp.Parser
-  ( decode
-  , parseSexp
-  , parseSexps
+  ( parseSexp_
+  , parseSexps_
   ) where
 
 import Data.Text (Text)
@@ -92,21 +91,6 @@ mkKw :: Text -> Kw
 mkKw t = case T.uncons t of
   Nothing -> error "Keyword should start with :"
   Just (_, rs) -> Kw rs
-
-decode :: B8.ByteString -> Either String Sexp
-decode = parseSexp_ . lexSexp "<string>"
-
-parseSexp :: FilePath -> B8.ByteString -> Either String Sexp
-parseSexp fn inp =
-  case parseSexp_ (lexSexp fn inp) of
-    Left err -> Left $ fn ++ ":" ++ err
-    Right a  -> Right a
-
-parseSexps :: FilePath -> B8.ByteString -> Either String [Sexp]
-parseSexps fn inp =
-  case parseSexps_ (lexSexp fn inp) of
-    Left err -> Left $ fn ++ ":" ++ err
-    Right a  -> Right a
 
 parseError :: [LocatedBy Position Token] -> Either String b
 parseError toks = case toks of

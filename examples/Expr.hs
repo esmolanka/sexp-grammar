@@ -69,7 +69,7 @@ exprGrammar = sexpIso
 
 test :: String -> SexpG a -> (a, String)
 test str g = either error id $ do
-  e <- decode' g (B8.pack str)
+  e <- decodeWith g (B8.pack str)
   sexp' <- genSexp g e
   return (e, B8.unpack (Sexp.encode sexp'))
 
