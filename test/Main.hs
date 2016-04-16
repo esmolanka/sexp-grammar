@@ -31,7 +31,7 @@ import GHC.Generics
 import Language.Sexp as Sexp
 import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
-import Language.SexpGrammar.TH
+import Language.SexpGrammar.TH hiding (match)
 
 pattern List' xs   = List (Position 0 0) xs
 pattern Bool' x    = Atom (Position 0 0) (AtomBool x)

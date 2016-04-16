@@ -77,7 +77,6 @@ test-suite sexp-grammar-test
     , scientific
     , semigroups
     , sexp-grammar
-    , stack-prism
     , tasty
     , tasty-hunit
     , tasty-quickcheck
