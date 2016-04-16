@@ -1,5 +1,6 @@
 
 -- Adapted from Data.StackPrism.Generic originally written by Martijn van Steenbergen
+-- Copyright (c) 2013, Martijn van Steenbergen
 
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
