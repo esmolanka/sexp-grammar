@@ -1,0 +1,6 @@
+resolver: lts-2.15
+packages:
+- '.'
+extra-deps:
+- recursion-schemes-4.1.2
+flags: {}
