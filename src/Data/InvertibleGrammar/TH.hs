@@ -1,9 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Data.InvertibleGrammar.TH where
 
-import Language.Haskell.TH
-import Data.StackPrism.ReverseTH
 import Data.InvertibleGrammar
+import Data.Maybe
+import Language.Haskell.TH as TH
+
 
 {- | Build a prism and the corresponding grammar that will match on the
      given constructor and convert it to reverse sequence of :- stacks.
@@ -29,7 +30,41 @@ import Data.InvertibleGrammar
      > fooGrammar :: Grammar g (c :- (b :- (a :- t))) (FooBar a b c :- t)
 -}
 grammarFor :: Name -> ExpQ
-grammarFor conName = [e| GenPrism $(stringE (show conName)) $(deriveRevStackPrism conName) |]
+grammarFor constructorName = do
+  DataConI realConstructorName _typ parentName _fixity <- reify constructorName
+  TyConI dataDef <- reify parentName
+
+  let Just (single, constructorInfo) = do
+        (single, allConstr) <- constructors dataDef
+        constr <- findConstructor realConstructorName allConstr
+        return (single, constr)
+
+  let ts = fieldTypes constructorInfo
+  vs <- mapM (const $ newName "x") ts
+  t <- newName "t"
+
+  let matchStack []      = varP t
+      matchStack (_v:vs) = [p| $(varP _v) :- $_vs' |]
+        where
+          _vs' = matchStack vs
+      fPat  = matchStack vs
+      buildConstructor = foldr (\v acc -> appE acc (varE v)) (conE realConstructorName) vs
+      fBody = [e| $buildConstructor :- $(varE t) |]
+      fFunc = lamE [fPat] fBody
+
+  let gPat  = [p| $_matchConsructor :- $(varP t) |]
+        where
+          _matchConsructor = conP realConstructorName (map varP (reverse vs))
+      gBody = foldr (\v acc -> [e| $(varE v) :- $acc |]) (varE t) vs
+      gFunc = lamCaseE $ catMaybes
+        [ Just $ TH.match gPat (normalB [e| Just $ $gBody |]) []
+        , if single
+          then Nothing
+          else Just $ TH.match wildP (normalB [e| Nothing |]) []
+        ]
+
+  [e| GenPrism $(stringE (show constructorName)) $fFunc $gFunc |]
+
 
 {- | Build prisms and corresponding grammars for all data constructors of given
      type. Expects grammars to zip built ones with.
@@ -54,10 +89,31 @@ match tyName = do
         TyConI (DataD _ _ _ cons _) -> cons
         TyConI (NewtypeD _ _ _ con _) -> [con]
         _ -> error "Type name is expected"
-    constructorName :: Con -> Name
-    constructorName con =
-      case con of
-        NormalC name _ -> name
-        RecC name _ -> name
-        InfixC _ name _ -> name
-        ForallC _ _ con' -> constructorName con'
+
+----------------------------------------------------------------------
+-- Utils
+
+constructors :: Dec -> Maybe (Bool, [Con])
+constructors (DataD _ _ _ cs _)   = Just (length cs == 1, cs)
+constructors (NewtypeD _ _ _ c _) = Just (True, [c])
+constructors _                    = Nothing
+
+findConstructor :: Name -> [Con] -> Maybe Con
+findConstructor _ [] = Nothing
+findConstructor name (c:cs)
+  | constructorName c == name = Just c
+  | otherwise = findConstructor name cs
+
+constructorName :: Con -> Name
+constructorName con =
+  case con of
+    NormalC name _ -> name
+    RecC name _ -> name
+    InfixC _ name _ -> name
+    ForallC _ _ con' -> constructorName con'
+
+fieldTypes :: Con -> [Type]
+fieldTypes (NormalC _ fieldTypes) = map snd fieldTypes
+fieldTypes (RecC _ fieldTypes) = map (\(_, _, t) ->t) fieldTypes
+fieldTypes (InfixC (_,a) _b (_,b)) = [a, b]
+fieldTypes (ForallC _ _ con') = fieldTypes con'

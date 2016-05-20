@@ -44,7 +44,6 @@ import Data.Data
 import Data.Semigroup (sconcat)
 import qualified Data.List.NonEmpty as NE
 import Data.Scientific
-import Data.StackPrism
 import Data.Text (Text, pack, unpack)
 
 import Data.InvertibleGrammar
@@ -182,8 +181,8 @@ coproduct' = foldr (:<>:) catchAll
     r = Proxy
     typeName = tyConName . typeRepTyCon . typeRep $ r
     catchAll =
-      embedPrism      typeName (stackPrism undefined (const Nothing)) >>>
-      embedParsePrism typeName (stackPrism undefined (const Nothing))
+      embedPrism      typeName undefined (const Nothing) >>>
+      embedParsePrism typeName undefined (const Nothing)
 
 -- | Construct pair from two top elements of stack
 pair :: Grammar g (b :- a :- t) ((a, b) :- t)

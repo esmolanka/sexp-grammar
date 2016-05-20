@@ -38,9 +38,6 @@ library
     Data.InvertibleGrammar
     Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH
-    Data.StackPrism
-    Data.StackPrism.ReverseGeneric
-    Data.StackPrism.ReverseTH
     Language.Sexp.Lexer
     Language.Sexp.Parser
     Language.Sexp.Token

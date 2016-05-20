@@ -71,6 +71,7 @@ module Language.SexpGrammar
   , Grammar
   , SexpG
   , SexpG_
+  , (:-) (..)
   -- * Combinators
   -- ** Primitive grammars
   , iso
@@ -99,14 +100,10 @@ module Language.SexpGrammar
   , genSexp
   -- * Typeclass for Sexp grammars
   , SexpIso (..)
-  -- * Re-exported from stack-prism
-  , StackPrism
-  , (:-) (..)
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.InvertibleGrammar
-import Data.StackPrism
 
 import Language.Sexp (Sexp)
 import qualified Language.Sexp as Sexp

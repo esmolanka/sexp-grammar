@@ -35,7 +35,6 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Map as M
 import Data.Map (Map)
-import Data.StackPrism
 
 import Text.PrettyPrint.Leijen.Text (Pretty(..), hsep, displayT, renderPretty)
 

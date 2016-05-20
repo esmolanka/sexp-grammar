@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
@@ -10,6 +11,7 @@
 
 module Data.InvertibleGrammar
   ( Grammar (..)
+  , (:-) (..)
   , iso
   , embedPrism
   , embedParsePrism
@@ -30,14 +32,13 @@ import Control.Monad.Except
 import Control.Monad.Error
 #endif
 import Data.Semigroup
-import Data.StackPrism
 
 data Grammar g t t' where
   -- Embed a prism which can fail during generation
-  GenPrism :: String -> StackPrism a b -> Grammar g a b
+  GenPrism :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g a b
 
   -- Embed a prism which can fail during parsing
-  ParsePrism :: String -> StackPrism b a -> Grammar g a b
+  ParsePrism :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g a b
 
   -- Embed an isomorphism that never fails
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
@@ -51,6 +52,16 @@ data Grammar g t t' where
   -- Embed a subgrammar
   Inject :: g a b -> Grammar g a b
 
+instance Category (Grammar c) where
+  id = Iso id id
+  (.) x y = x :.: y
+
+instance Semigroup (Grammar c t1 t2) where
+  (<>) = (:<>:)
+
+data h :- t = h :- t deriving (Eq, Show, Functor)
+infixr 5 :-
+
 -- | Make a grammar from a total isomorphism on top element of stack
 iso :: (a -> b) -> (b -> a) -> Grammar g (a :- t) (b :- t)
 iso f' g' = Iso f g
@@ -59,42 +70,35 @@ iso f' g' = Iso f g
     g (b :- t) = g' b :- t
 
 -- | Make a grammar from a prism which can fail during generation
-embedPrism :: String -> StackPrism a b -> Grammar g (a :- t) (b :- t)
-embedPrism prismName prism = GenPrism prismName (stackPrism f g)
+embedPrism :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g (a :- t) (b :- t)
+embedPrism prismName f' g' = GenPrism prismName f g
   where
-    f (a :- t) = forward prism a :- t
-    g (b :- t) = (:- t) <$> backward prism b
+    f (a :- t) = f' a :- t
+    g (b :- t) = (:- t) <$> g' b
 
 -- | Make a grammar from a prism which can fail during parsing
-embedParsePrism :: String -> StackPrism b a -> Grammar g (a :- t) (b :- t)
-embedParsePrism prismName prism = ParsePrism prismName (stackPrism f g)
+embedParsePrism :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g (a :- t) (b :- t)
+embedParsePrism prismName f' g' = ParsePrism prismName f g
   where
-    f (a :- t) = forward prism a :- t
-    g (b :- t) = (:- t) <$> backward prism b
+    f (a :- t) = f' a :- t
+    g (b :- t) = (:- t) <$> g' b
 
 -- | Unconditionally push given value on stack, i.e. it does not
 -- consume anything on parsing. However such grammar expects the same
 -- value as given one on stack during generation.
 push :: (Eq a) => a -> Grammar g t (a :- t)
-push a = GenPrism "push" $ stackPrism g f
+push a = GenPrism "push" f g
   where
-    g t = a :- t
-    f (a' :- t) = if a == a' then Just t else Nothing
+    f t = a :- t
+    g (a' :- t) = if a == a' then Just t else Nothing
 
 -- | Same as 'push' except it does not check the value on stack during
 -- generation. Potentially unsafe as it \"forgets\" some data.
 pushForget :: a -> Grammar g t (a :- t)
-pushForget a = GenPrism "pushForget" $ stackPrism g f
+pushForget a = GenPrism "pushForget" f g
   where
-    g t = a :- t
-    f (_ :- t) = Just t
-
-instance Category (Grammar c) where
-  id = Iso id id
-  (.) x y = x :.: y
-
-instance Semigroup (Grammar c t1 t2) where
-  (<>) = (:<>:)
+    f t = a :- t
+    g (_ :- t) = Just t
 
 class InvertibleGrammar m g where
   parseWithGrammar :: g a b -> (a -> m b)
@@ -110,11 +114,11 @@ instance
   parseWithGrammar (Iso f _) =
     return . f
 
-  parseWithGrammar (GenPrism _ p) =
-    return . forward p
+  parseWithGrammar (GenPrism _ f _) =
+    return . f
 
-  parseWithGrammar (ParsePrism name p) =
-    maybe (throwError $ "cannot parse " ++ name) return . backward p
+  parseWithGrammar (ParsePrism name _ g) =
+    maybe (throwError $ "cannot parse " ++ name) return . g
 
   parseWithGrammar (g :.: f) =
     parseWithGrammar g <=< parseWithGrammar f
@@ -129,11 +133,11 @@ instance
   genWithGrammar (Iso _ g) =
     return . g
 
-  genWithGrammar (GenPrism name p) =
-    maybe (throwError $ "cannot generate " ++ name) return . backward p
+  genWithGrammar (GenPrism name _ g) =
+    maybe (throwError $ "cannot generate " ++ name) return . g
 
-  genWithGrammar (ParsePrism _ p) =
-    return . forward p
+  genWithGrammar (ParsePrism _ f _) =
+    return . f
 
   genWithGrammar (g :.: f) =
     genWithGrammar g >=> genWithGrammar f
@@ -143,4 +147,3 @@ instance
 
   genWithGrammar (Inject g) =
     genWithGrammar g
-
