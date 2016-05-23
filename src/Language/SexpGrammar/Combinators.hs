@@ -1,6 +1,7 @@
-{-# LANGUAGE RankNTypes      #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeOperators   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Language.SexpGrammar.Combinators
   (
@@ -33,6 +34,7 @@ module Language.SexpGrammar.Combinators
   , unpair
   , swap
   , coproduct
+  , coproduct'
   ) where
 
 import Prelude hiding ((.), id)
@@ -46,7 +48,6 @@ import Data.StackPrism
 import Data.Text (Text, pack, unpack)
 
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.TH
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
 import Language.SexpGrammar.Base
@@ -87,10 +88,7 @@ props = Inject . GProps
 
 -- | Define optional property pair grammar
 (.:?) :: Kw -> Grammar SexpGrammar (Sexp :- t) (a :- t) -> Grammar PropGrammar t (Maybe a :- t)
-(.:?) name g = coproduct
-  [ $(grammarFor 'Just) . (name .: g)
-  , $(grammarFor 'Nothing)
-  ]
+(.:?) name = Inject . GOptProp name
 
 ----------------------------------------------------------------------
 -- Atom combinators
@@ -172,6 +170,20 @@ kw = Inject . GAtom . Inject . GKw
 -- >     ]
 coproduct :: [Grammar g a b] -> Grammar g a b
 coproduct = sconcat . NE.fromList
+
+coproduct'
+  :: forall g a b t.
+     (Typeable b) =>
+     [Grammar g (a :- t) (b :- t)]
+  -> Grammar g (a :- t) (b :- t)
+coproduct' = foldr (:<>:) catchAll
+  where
+    r :: Proxy b
+    r = Proxy
+    typeName = tyConName . typeRepTyCon . typeRep $ r
+    catchAll =
+      embedPrism      typeName (stackPrism undefined (const Nothing)) >>>
+      embedParsePrism typeName (stackPrism undefined (const Nothing))
 
 -- | Construct pair from two top elements of stack
 pair :: Grammar g (b :- a :- t) ((a, b) :- t)

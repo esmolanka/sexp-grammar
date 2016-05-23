@@ -65,7 +65,10 @@ Grammar types diagram:
 -}
 
 module Language.SexpGrammar
-  ( Grammar
+  ( Sexp (..)
+  , Sexp.Atom (..)
+  , Sexp.Kw (..)
+  , Grammar
   , SexpG
   , SexpG_
   -- * Combinators
@@ -76,21 +79,24 @@ module Language.SexpGrammar
   , push
   , pushForget
   , module Language.SexpGrammar.Combinators
-  -- * TemplateHaskell helpers
-  , grammarFor
   -- * Grammar types
   , SexpGrammar
   , AtomGrammar
   , SeqGrammar
   , PropGrammar
-  -- * Parsing and printing
-  , parseFromString
-  , parseFromFile
-  , prettyToText
-  , prettyToFile
-  -- ** Low-level printing and parsing
+  -- * Decoding and encoding (machine-oriented)
+  , decode
+  , decodeWith
+  , encode
+  , encodeWith
+  -- * Parsing and printing (human-oriented)
   , parse
-  , gen
+  , parseWith
+  , encodePretty
+  , encodePrettyWith
+  -- * Parsing and encoding to Sexp
+  , parseSexp
+  , genSexp
   -- * Typeclass for Sexp grammars
   , SexpIso (..)
   -- * Re-exported from stack-prism
@@ -98,35 +104,86 @@ module Language.SexpGrammar
   , (:-) (..)
   ) where
 
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
-import Data.StackPrism
+import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.TH
+import Data.StackPrism
+
+import Language.Sexp (Sexp)
+import qualified Language.Sexp as Sexp
+
 import Language.SexpGrammar.Base
-import Language.SexpGrammar.Combinators
 import Language.SexpGrammar.Class
+import Language.SexpGrammar.Combinators
+import Language.SexpGrammar.Parser (runR)
 
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy.IO as T
-import Language.Sexp (parseSexp, printSexp)
+----------------------------------------------------------------------
+-- Sexp interface
 
-parseFromString :: SexpG a -> String -> Either String a
-parseFromString g input =
-  parseSexp "<string>" input >>= parse g
+-- | Run grammar in parsing direction
+parseSexp :: SexpG a -> Sexp -> Either String a
+parseSexp g = runR (runParse g)
+{-# INLINE parseSexp #-}
 
-parseFromFile :: SexpG a -> FilePath -> IO (Either String a)
-parseFromFile g fn = do
-  str <- readFile fn
-  return $ parseSexp fn str >>= parse g
+-- | Run grammar in generating direction
+genSexp :: SexpG a -> a -> Either String Sexp
+genSexp g = runR (runGen g)
+{-# INLINE genSexp #-}
 
-prettyToText :: SexpG a -> a -> Either String Text
-prettyToText g =
-  fmap printSexp . gen g
+----------------------------------------------------------------------
+-- ByteString interface (machine-oriented)
 
-prettyToFile :: FilePath -> SexpG a -> a -> IO (Either String ())
-prettyToFile fn g a = do
-  case gen g a of
-    Left msg -> return $ Left msg
-    Right s  -> Right <$> T.writeFile fn (printSexp s)
+-- | Deserialize a value from a lazy 'ByteString'. The input must
+-- contain exactly one S-expression. Comments are ignored.
+decode :: SexpIso a => ByteString -> Either String a
+decode =
+  decodeWith sexpIso
+{-# INLINE decode #-}
+
+-- | Like 'decode' but uses specified grammar.
+decodeWith :: SexpG a -> ByteString -> Either String a
+decodeWith g input =
+  Sexp.decode input >>= parseSexp g
+{-# INLINE decodeWith #-}
+
+
+-- | Serialize a value as a lazy 'ByteString' with a non-formatted S-expression
+encode :: SexpIso a => a -> Either String ByteString
+encode =
+  encodeWith sexpIso
+{-# INLINE encode #-}
+
+-- | Like 'encode' but uses specified grammar.
+encodeWith :: SexpG a -> a -> Either String ByteString
+encodeWith g =
+  fmap Sexp.encode . genSexp g
+{-# INLINE encodeWith #-}
+
+----------------------------------------------------------------------
+-- ByteString interface (human-oriented)
+
+-- | Parse a value from 'ByteString'. The input must contain exactly
+-- one S-expression. Unlike 'decode' it takes an additional argument
+-- with a file name which is being parsed. It is used for error
+-- messages.
+parse :: SexpIso a => FilePath -> ByteString -> Either String a
+parse fn =
+  parseWith sexpIso fn
+{-# INLINE parse #-}
+
+-- | Like 'parse' but uses specified grammar.
+parseWith :: SexpG a -> FilePath -> ByteString -> Either String a
+parseWith g fn input =
+  Sexp.parseSexp fn input >>= parseSexp g
+{-# INLINE parseWith #-}
+
+-- | Pretty-prints a value serialized to a lazy 'ByteString'.
+encodePretty :: SexpIso a => a -> Either String ByteString
+encodePretty =
+  encodePrettyWith sexpIso
+{-# INLINE encodePretty #-}
+
+-- | Like 'encodePretty' but uses specified grammar.
+encodePrettyWith :: SexpG a -> a -> Either String ByteString
+encodePrettyWith g =
+  fmap Sexp.prettySexp . genSexp g
+{-# INLINE encodePrettyWith #-}

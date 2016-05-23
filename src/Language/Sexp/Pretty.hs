@@ -1,41 +1,47 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Language.Sexp.Pretty
-  ( printSexp
-  , printSexps
+  ( prettySexp
+  , prettySexps
   ) where
 
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as Lazy
-import Data.Text (Text)
+import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Scientific
-
+import qualified Data.Text.Lazy as Lazy
+import Data.Text.Lazy.Encoding (encodeUtf8)
 import Text.PrettyPrint.Leijen.Text
 
 import Language.Sexp.Types
 
-text' :: Text -> Doc
-text' = text . Lazy.fromStrict
-
-ppKw :: Kw -> Doc
-ppKw (Kw kw) = colon <> text' kw
+instance Pretty Kw where
+  pretty (Kw s) = colon <> text (Lazy.fromStrict s)
 
 ppAtom :: Atom -> Doc
 ppAtom (AtomBool a)    = if a then "#t" else "#f"
 ppAtom (AtomInt a)     = integer a
-ppAtom (AtomReal a)    = text'. T.pack . formatScientific Generic Nothing $ a
+ppAtom (AtomReal a)    = text . Lazy.pack . formatScientific Generic Nothing $ a
 ppAtom (AtomString a)  = pretty (show a)
-ppAtom (AtomSymbol a)  = text' a
-ppAtom (AtomKeyword k) = ppKw k
+ppAtom (AtomSymbol a)  = text . Lazy.fromStrict $ a
+ppAtom (AtomKeyword k) = pretty k
+
+instance Pretty Atom where
+  pretty = ppAtom
 
 ppSexp :: Sexp -> Doc
-ppSexp (Atom   _ a) = ppAtom a
+ppSexp (Atom   _ a)  = ppAtom a
 ppSexp (Vector _ ss) = brackets (align $ sep (map ppSexp ss))
-ppSexp (Quoted _ a) = squote <> ppSexp a
+ppSexp (Quoted _ a)  = squote <> ppSexp a
 ppSexp (List   _ ss) = parens (align $ sep (map ppSexp ss))
 
-printSexp :: Sexp -> Lazy.Text
-printSexp = displayT . renderPretty 0.5 75 . ppSexp
+instance Pretty Sexp where
+  pretty = ppSexp
 
-printSexps :: [Sexp] -> Lazy.Text
-printSexps = displayT . renderPretty 0.5 75 . vsep . map ppSexp
+-- | Pretty-print a Sexp to a ByteString
+prettySexp :: Sexp -> ByteString
+prettySexp = encodeUtf8 . displayT . renderPretty 0.5 75 . ppSexp
+
+-- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
+prettySexps :: [Sexp] -> ByteString
+prettySexps = encodeUtf8 . displayT . renderPretty 0.5 75 . vcat . punctuate (line <> line) . map ppSexp

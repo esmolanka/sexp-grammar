@@ -1,5 +1,5 @@
 name:                sexp-grammar
-version:             1.1.1
+version:             1.1.2
 license:             BSD3
 license-file:        LICENSE
 author:              Eugene Smolanka, Sergey Vinokurov
@@ -21,57 +21,62 @@ source-repository head
   type: git
   location: https://github.com/esmolanka/sexp-grammar
 
-flag dev
-  description: whether to build library in development mode with strict checks
-  default:     False
-  manual:      True
-
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
-  if flag(dev)
-    ghc-options:       -Werror
   exposed-modules:
     Language.Sexp
+    Language.Sexp.Encode
+    Language.Sexp.Pretty
     Language.Sexp.Utils
     Language.SexpGrammar
+    Language.SexpGrammar.TH
+    Language.SexpGrammar.Generic
 
   other-modules:
     Data.InvertibleGrammar
+    Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH
+    Data.StackPrism
+    Data.StackPrism.ReverseGeneric
     Data.StackPrism.ReverseTH
-    Language.Sexp.Token
     Language.Sexp.Lexer
-    Language.Sexp.Types
     Language.Sexp.Parser
-    Language.Sexp.Pretty
+    Language.Sexp.Token
+    Language.Sexp.Types
     Language.SexpGrammar.Base
     Language.SexpGrammar.Class
     Language.SexpGrammar.Combinators
+    Language.SexpGrammar.Parser
 
   build-depends:
       array
     , base >=4.7 && <5
+    , bytestring
     , containers
     , mtl >=2.1
+    , profunctors
     , scientific
     , semigroups
-    , stack-prism
     , split
+    , tagged
     , template-haskell
+    , transformers
     , text
     , wl-pprint-text
+
+  build-tools: alex, happy
 
 test-suite sexp-grammar-test
   type:              exitcode-stdio-1.0
   build-depends:
       QuickCheck
     , base
+    , bytestring
     , scientific
     , semigroups
     , sexp-grammar
-    , stack-prism
     , tasty
     , tasty-hunit
     , tasty-quickcheck
