@@ -1,6 +1,10 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Data.InvertibleGrammar.TH where
 
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
 import Data.InvertibleGrammar
 import Data.Maybe
 import Language.Haskell.TH as TH
@@ -19,8 +23,7 @@ import Language.Haskell.TH as TH
 
      will expand into
 
-     > fooGrammar = GenPrism "Foo" $
-     >  stackPrism
+     > fooGrammar = PartialIso "Foo"
      >   (\(c :- b :- a :- t) -> Foo a b c :- t)
      >   (\case { Foo a b c :- t -> Just $ c :- b :- a :- t; _ -> Nothing })
 
