@@ -75,8 +75,9 @@ module Language.SexpGrammar
   -- * Combinators
   -- ** Primitive grammars
   , iso
-  , embedPrism
-  , embedParsePrism
+  , osi
+  , partialIso
+  , partialOsi
   , push
   , pushForget
   , module Language.SexpGrammar.Combinators

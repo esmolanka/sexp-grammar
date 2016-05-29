@@ -63,7 +63,7 @@ grammarFor constructorName = do
           else Just $ TH.match wildP (normalB [e| Nothing |]) []
         ]
 
-  [e| GenPrism $(stringE (show constructorName)) $fFunc $gFunc |]
+  [e| PartialIso $(stringE (show constructorName)) $fFunc $gFunc |]
 
 
 {- | Build prisms and corresponding grammars for all data constructors of given

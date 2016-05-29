@@ -46,7 +46,7 @@ with
   -> Grammar g s (a :- t)
 with g =
   let PrismList (P prism) = mkRevPrismList
-  in GenPrism (conName (undefined :: m c f e)) (forward prism) (backward prism) . g
+  in PartialIso (conName (undefined :: m c f e)) (fwd prism) (bkwd prism) . g
 
 type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
   (:++) (a ': as) bs = a ': (as :++ bs)
@@ -101,7 +101,7 @@ instance
 
 instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t where
   match' (P prism) (With g rest) =
-    (g $ GenPrism (conName (undefined :: m c f e)) (forward prism) (backward prism), rest)
+    (g $ PartialIso (conName (undefined :: m c f e)) (fwd prism) (bkwd prism), rest)
 
 
 -- | Derive a list of stack prisms. For more information on the shape of a
@@ -116,12 +116,12 @@ stackPrism :: (a -> b) -> (b -> Maybe a) -> StackPrism a b
 stackPrism f g = dimap (\b -> maybe (Left b) Right (g b)) (either pure (fmap f)) . right'
 
 -- | Apply a prism in forward direction.
-forward :: StackPrism a b -> a -> b
-forward l = runIdentity #. unTagged #. l .# Tagged .# Identity
+fwd :: StackPrism a b -> a -> b
+fwd l = runIdentity #. unTagged #. l .# Tagged .# Identity
 
 -- | Apply a prism in backward direction.
-backward :: StackPrism a b -> b -> Maybe a
-backward l = getFirst #. getConst #. l (Const #. First #. Just)
+bkwd :: StackPrism a b -> b -> Maybe a
+bkwd l = getFirst #. getConst #. l (Const #. First #. Just)
 
 -- | Convenient shorthand for a 'PrismList' indexed by a type and its generic
 -- representation.

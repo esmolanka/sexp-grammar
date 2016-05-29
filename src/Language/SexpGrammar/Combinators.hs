@@ -181,8 +181,8 @@ coproduct' = foldr (:<>:) catchAll
     r = Proxy
     typeName = tyConName . typeRepTyCon . typeRep $ r
     catchAll =
-      embedPrism      typeName undefined (const Nothing) >>>
-      embedParsePrism typeName undefined (const Nothing)
+      partialIso typeName undefined (const Nothing) >>>
+      partialOsi typeName undefined (const Nothing)
 
 -- | Construct pair from two top elements of stack
 pair :: Grammar g (b :- a :- t) ((a, b) :- t)

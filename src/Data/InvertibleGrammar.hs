@@ -13,8 +13,9 @@ module Data.InvertibleGrammar
   ( Grammar (..)
   , (:-) (..)
   , iso
-  , embedPrism
-  , embedParsePrism
+  , osi
+  , partialIso
+  , partialOsi
   , push
   , pushForget
   , InvertibleGrammar(..)
@@ -34,14 +35,14 @@ import Control.Monad.Error
 import Data.Semigroup
 
 data Grammar g t t' where
-  -- Embed a prism which can fail during generation
-  GenPrism :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g a b
+  -- Partial isomorphism
+  PartialIso :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g a b
 
-  -- Embed a prism which can fail during parsing
-  ParsePrism :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g a b
-
-  -- Embed an isomorphism that never fails
+  -- Total isomorphism
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
+
+  -- Run a grammar in the opposite direction
+  Flip :: Grammar g a b -> Grammar g b a
 
   -- Grammar composition
   (:.:) :: Grammar g b c -> Grammar g a b -> Grammar g a c
@@ -69,81 +70,63 @@ iso f' g' = Iso f g
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
 
--- | Make a grammar from a prism which can fail during generation
-embedPrism :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g (a :- t) (b :- t)
-embedPrism prismName f' g' = GenPrism prismName f g
+-- | Make a grammar from a total isomorphism on top element of stack (flipped)
+osi :: (b -> a) -> (a -> b) -> Grammar g (a :- t) (b :- t)
+osi f' g' = Iso g f
+  where
+    f (a :- t) = f' a :- t
+    g (b :- t) = g' b :- t
+
+-- | Make a grammar from a partial isomorphism which can fail during backward
+-- run
+partialIso :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g (a :- t) (b :- t)
+partialIso prismName f' g' = PartialIso prismName f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
--- | Make a grammar from a prism which can fail during parsing
-embedParsePrism :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g (a :- t) (b :- t)
-embedParsePrism prismName f' g' = ParsePrism prismName f g
+-- | Make a grammar from a partial isomorphism which can fail during forward run
+partialOsi :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g (a :- t) (b :- t)
+partialOsi prismName f' g' = Flip $ PartialIso prismName f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
--- | Unconditionally push given value on stack, i.e. it does not
--- consume anything on parsing. However such grammar expects the same
--- value as given one on stack during generation.
+-- | Unconditionally push given value on stack, i.e. it does not consume
+-- anything on parsing. However such grammar expects the same value as given one
+-- on the stack during backward run.
 push :: (Eq a) => a -> Grammar g t (a :- t)
-push a = GenPrism "push" f g
+push a = PartialIso "push" f g
   where
     f t = a :- t
     g (a' :- t) = if a == a' then Just t else Nothing
 
--- | Same as 'push' except it does not check the value on stack during
--- generation. Potentially unsafe as it \"forgets\" some data.
+-- | Same as 'push' except it does not check the value on stack during backward
+-- run. Potentially unsafe as it \"forgets\" some data.
 pushForget :: a -> Grammar g t (a :- t)
-pushForget a = GenPrism "pushForget" f g
+pushForget a = Iso f g
   where
     f t = a :- t
-    g (_ :- t) = Just t
+    g (_ :- t) = t
 
 class InvertibleGrammar m g where
-  parseWithGrammar :: g a b -> (a -> m b)
-  genWithGrammar   :: g a b -> (b -> m a)
+  forward  :: g a b -> (a -> m b)
+  backward :: g a b -> (b -> m a)
 
-instance
-  ( Monad m
-  , MonadPlus m
-  , MonadError String m
-  , InvertibleGrammar m g
-  ) => InvertibleGrammar m (Grammar g) where
+instance (Monad m, MonadPlus m, MonadError String m, InvertibleGrammar m g) => InvertibleGrammar m (Grammar g) where
 
-  parseWithGrammar (Iso f _) =
-    return . f
+  forward (Iso f _)              = return . f
+  forward (PartialIso _ f _)     = return . f
+  forward (Flip g)               = backward g
+  forward (g :.: f)              = forward g <=< forward f
+  forward (f :<>: g)             = \x -> forward f x `mplus` forward g x
+  forward (Inject g)             = forward g
+  {-# INLINE forward #-}
 
-  parseWithGrammar (GenPrism _ f _) =
-    return . f
-
-  parseWithGrammar (ParsePrism name _ g) =
-    maybe (throwError $ "cannot parse " ++ name) return . g
-
-  parseWithGrammar (g :.: f) =
-    parseWithGrammar g <=< parseWithGrammar f
-
-  parseWithGrammar (f :<>: g) = \x ->
-    parseWithGrammar f x `mplus` parseWithGrammar g x
-
-  parseWithGrammar (Inject g) =
-    parseWithGrammar g
-
-
-  genWithGrammar (Iso _ g) =
-    return . g
-
-  genWithGrammar (GenPrism name _ g) =
-    maybe (throwError $ "cannot generate " ++ name) return . g
-
-  genWithGrammar (ParsePrism _ f _) =
-    return . f
-
-  genWithGrammar (g :.: f) =
-    genWithGrammar g >=> genWithGrammar f
-
-  genWithGrammar (f :<>: g) = \x ->
-    genWithGrammar f x `mplus` genWithGrammar g x
-
-  genWithGrammar (Inject g) =
-    genWithGrammar g
+  backward (Iso _ g)             = return . g
+  backward (PartialIso name _ g) = maybe (throwError $ "fail to perform " ++ name) return . g
+  backward (Flip g)              = forward g
+  backward (g :.: f)             = backward g >=> backward f
+  backward (f :<>: g)            = \x -> backward f x `mplus` backward g x
+  backward (Inject g)            = backward g
+  {-# INLINE backward #-}
