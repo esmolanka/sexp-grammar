@@ -60,10 +60,10 @@ grammarFor constructorName = do
           _matchConsructor = conP realConstructorName (map varP (reverse vs))
       gBody = foldr (\v acc -> [e| $(varE v) :- $acc |]) (varE t) vs
       gFunc = lamCaseE $ catMaybes
-        [ Just $ TH.match gPat (normalB [e| Just $ $gBody |]) []
+        [ Just $ TH.match gPat (normalB [e| Right ($gBody) |]) []
         , if single
           then Nothing
-          else Just $ TH.match wildP (normalB [e| Nothing |]) []
+          else Just $ TH.match wildP (normalB [e| Left $ "expected " ++ $(stringE (show constructorName)) |]) []
         ]
 
   [e| PartialIso $(stringE (show constructorName)) $fFunc $gFunc |]

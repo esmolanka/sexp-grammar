@@ -22,11 +22,6 @@ module Language.SexpGrammar.Base
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
-#if MIN_VERSION_mtl(2, 2, 0)
-import Control.Monad.Except
-#else
-import Control.Monad.Error
-#endif
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -35,6 +30,7 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Map as M
 import Data.Map (Map)
+import Data.InvertibleGrammar.Monad
 
 import Text.PrettyPrint.Leijen.Text (Pretty(..), hsep, displayT, renderPretty)
 
@@ -52,10 +48,10 @@ type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
 -- consumes nothing but generates some Sexp.
 type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
 
-throwErrorPos :: (MonadError String m, MonadReader Position m) => String -> m a
+throwErrorPos :: (MonadContextError () (GrammarError ()) m, MonadReader Position m) => String -> m a
 throwErrorPos msg = do
   Position line col <- ask
-  throwError $ concat
+  throwInContext $ \ctx -> GrammarError ctx $ concat
     [ show line, ":", show col, ": " ++ msg
     ]
 
@@ -67,9 +63,9 @@ data SexpGrammar a b where
   GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
   GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
 
-unexpectedSexpError :: (MonadError String m) => String -> Sexp -> m a
+unexpectedSexpError :: (MonadContextError () (GrammarError ()) m) => String -> Sexp -> m a
 unexpectedSexpError expected sexp =
-  throwError $ concat
+  throwInContext $ \ctx -> GrammarError ctx $ concat
     [ show line, ":", show col, ": expected "
     , expected, ", but got: ", display sexp
     ]
@@ -78,7 +74,7 @@ unexpectedSexpError expected sexp =
 
 instance
   ( MonadPlus m
-  , MonadError String m
+  , MonadContextError () (GrammarError ()) m
   ) => InvertibleGrammar m SexpGrammar where
   forward (GAtom g) (s :- t) =
     case s of
@@ -121,19 +117,19 @@ data AtomGrammar a b where
   GSymbol  :: AtomGrammar (Atom :- t) (Text :- t)
   GKeyword :: AtomGrammar (Atom :- t) (Kw :- t)
 
-unexpectedAtomError :: (MonadReader Position m, MonadError String m) => Atom -> Atom -> m a
+unexpectedAtomError :: (MonadReader Position m, MonadContextError () (GrammarError ()) m) => Atom -> Atom -> m a
 unexpectedAtomError expected atom = do
   pos <- ask
   unexpectedSexpError (display $ Atom pos expected) (Atom pos atom)
 
-unexpectedAtomTypeError :: (MonadReader Position m, MonadError String m) => String -> Atom -> m a
+unexpectedAtomTypeError :: (MonadReader Position m, MonadContextError () (GrammarError ()) m) => String -> Atom -> m a
 unexpectedAtomTypeError expected atom = do
   pos <- ask
   unexpectedSexpError ("atom of type " ++ expected) (Atom pos atom)
 
 instance
   ( MonadPlus m
-  , MonadError String m
+  , MonadContextError () (GrammarError ()) m
   , MonadReader Position m
   ) => InvertibleGrammar m AtomGrammar where
   forward (GSym sym') (atom :- t) =
@@ -190,11 +186,11 @@ instance
 -----------------------------------------------------------------------
 -- Sequence grammar
 
-parseSequence :: (MonadError String m, MonadReader Position m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
+parseSequence :: (MonadContextError () (GrammarError ()) m, MonadReader Position m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
 parseSequence xs g t = do
   (a, SeqCtx rest) <- runStateT (forward g t) (SeqCtx xs)
   unless (null rest) $
-    throwError $ "unexpected leftover elements: " ++ display (hsep (map pretty rest))
+    throwInContext $ \ctx -> GrammarError ctx $ "unexpected leftover elements: " ++ display (hsep (map pretty rest))
   return a
 
 data SeqGrammar a b where
@@ -213,7 +209,7 @@ instance
   ( MonadPlus m
   , MonadState SeqCtx m
   , MonadReader Position m
-  , MonadError String m
+  , MonadContextError () (GrammarError ()) m
   ) => InvertibleGrammar m SeqGrammar where
   forward (GElem g) t = do
     xs <- gets getItems
@@ -287,7 +283,7 @@ instance
   ( MonadPlus m
   , MonadState PropCtx m
   , MonadReader Position m
-  , MonadError String m
+  , MonadContextError () (GrammarError ()) m
   ) => InvertibleGrammar m PropGrammar where
   forward (GProp kwd g) t = do
     ps <- gets getProps
@@ -322,7 +318,7 @@ instance
     return t'
 
 runParse
-  :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  :: (Functor m, MonadPlus m, MonadContextError () (GrammarError ()) m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> Sexp
   -> m a
@@ -330,7 +326,7 @@ runParse gram input =
   (\(x :- _) -> x) <$> forward gram (input :- ())
 
 runGen
-  :: (Functor m, MonadPlus m, MonadError String m, InvertibleGrammar m g)
+  :: (Functor m, MonadPlus m, MonadContextError () (GrammarError ()) m, InvertibleGrammar m g)
   => Grammar g (Sexp :- ()) (a :- ())
   -> a
   -> m Sexp

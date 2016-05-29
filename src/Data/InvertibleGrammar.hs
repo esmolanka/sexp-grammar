@@ -19,6 +19,7 @@ module Data.InvertibleGrammar
   , push
   , pushForget
   , InvertibleGrammar(..)
+  , GrammarError (..)
   ) where
 
 import Prelude hiding ((.), id)
@@ -27,16 +28,12 @@ import Control.Applicative
 #endif
 import Control.Category
 import Control.Monad
-#if MIN_VERSION_mtl(2, 2, 0)
-import Control.Monad.Except
-#else
-import Control.Monad.Error
-#endif
 import Data.Semigroup
+import Data.InvertibleGrammar.Monad
 
 data Grammar g t t' where
   -- Partial isomorphism
-  PartialIso :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g a b
+  PartialIso :: String -> (a -> b) -> (b -> Either String a) -> Grammar g a b
 
   -- Total isomorphism
   Iso :: (a -> b) -> (b -> a) -> Grammar g a b
@@ -79,14 +76,14 @@ osi f' g' = Iso g f
 
 -- | Make a grammar from a partial isomorphism which can fail during backward
 -- run
-partialIso :: String -> (a -> b) -> (b -> Maybe a) -> Grammar g (a :- t) (b :- t)
+partialIso :: String -> (a -> b) -> (b -> Either String a) -> Grammar g (a :- t) (b :- t)
 partialIso prismName f' g' = PartialIso prismName f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
 -- | Make a grammar from a partial isomorphism which can fail during forward run
-partialOsi :: String -> (b -> a) -> (a -> Maybe b) -> Grammar g (a :- t) (b :- t)
+partialOsi :: String -> (b -> a) -> (a -> Either String b) -> Grammar g (a :- t) (b :- t)
 partialOsi prismName f' g' = Flip $ PartialIso prismName f g
   where
     f (a :- t) = f' a :- t
@@ -99,7 +96,9 @@ push :: (Eq a) => a -> Grammar g t (a :- t)
 push a = PartialIso "push" f g
   where
     f t = a :- t
-    g (a' :- t) = if a == a' then Just t else Nothing
+    g (a' :- t)
+      | a == a' = Right t
+      | otherwise = Left "unexpected element"
 
 -- | Same as 'push' except it does not check the value on stack during backward
 -- run. Potentially unsafe as it \"forgets\" some data.
@@ -113,8 +112,21 @@ class InvertibleGrammar m g where
   forward  :: g a b -> (a -> m b)
   backward :: g a b -> (b -> m a)
 
-instance (Monad m, MonadPlus m, MonadError String m, InvertibleGrammar m g) => InvertibleGrammar m (Grammar g) where
+data GrammarError pos =
+  GrammarError pos String
 
+instance Ord pos => Semigroup (GrammarError pos) where
+  GrammarError pos str <> GrammarError pos' str'
+    | pos > pos' = GrammarError pos str
+    | pos < pos' = GrammarError pos' str'
+    | otherwise  = GrammarError pos $ str ++ "\n" ++ str'
+
+instance
+  ( Monad m
+  , MonadPlus m
+  , MonadContextError pos (GrammarError pos) m
+  , InvertibleGrammar m g
+  ) => InvertibleGrammar m (Grammar g) where
   forward (Iso f _)              = return . f
   forward (PartialIso _ f _)     = return . f
   forward (Flip g)               = backward g
@@ -124,7 +136,7 @@ instance (Monad m, MonadPlus m, MonadError String m, InvertibleGrammar m g) => I
   {-# INLINE forward #-}
 
   backward (Iso _ g)             = return . g
-  backward (PartialIso name _ g) = maybe (throwError $ "fail to perform " ++ name) return . g
+  backward (PartialIso name _ g) = either (\msg -> throwInContext $ \ctx -> GrammarError ctx $ name ++ ": " ++ msg) return . g
   backward (Flip g)              = forward g
   backward (g :.: f)             = backward g >=> backward f
   backward (f :<>: g)            = \x -> backward f x `mplus` backward g x

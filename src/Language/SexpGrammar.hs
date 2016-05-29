@@ -105,6 +105,7 @@ module Language.SexpGrammar
 
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Monad
 
 import Language.Sexp (Sexp)
 import qualified Language.Sexp as Sexp
@@ -112,19 +113,24 @@ import qualified Language.Sexp as Sexp
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
 import Language.SexpGrammar.Combinators
-import Language.SexpGrammar.Parser (runR)
 
 ----------------------------------------------------------------------
 -- Sexp interface
 
 -- | Run grammar in parsing direction
 parseSexp :: SexpG a -> Sexp -> Either String a
-parseSexp g = runR (runParse g)
+parseSexp g a =
+  case runContextError (runParse g a) () of
+    Left (GrammarError _ str) -> Left str
+    Right a -> Right a
 {-# INLINE parseSexp #-}
 
 -- | Run grammar in generating direction
 genSexp :: SexpG a -> a -> Either String Sexp
-genSexp g = runR (runGen g)
+genSexp g a =
+  case runContextError (runGen g a) () of
+    Left (GrammarError _ str) -> Left str
+    Right a -> Right a
 {-# INLINE genSexp #-}
 
 ----------------------------------------------------------------------

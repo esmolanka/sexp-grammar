@@ -46,7 +46,8 @@ with
   -> Grammar g s (a :- t)
 with g =
   let PrismList (P prism) = mkRevPrismList
-  in PartialIso (conName (undefined :: m c f e)) (fwd prism) (bkwd prism) . g
+      name = conName (undefined :: m c f e)
+  in PartialIso name (fwd prism) (maybe (Left $ "expected " ++ name) Right . bkwd prism) . g
 
 type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
   (:++) (a ': as) bs = a ': (as :++ bs)
@@ -101,7 +102,10 @@ instance
 
 instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t where
   match' (P prism) (With g rest) =
-    (g $ PartialIso (conName (undefined :: m c f e)) (fwd prism) (bkwd prism), rest)
+    let name = conName (undefined :: m c f e)
+        p = fwd prism
+        q = maybe (Left $ "expected " ++ name) Right . bkwd prism
+    in (g $ PartialIso name p q, rest)
 
 
 -- | Derive a list of stack prisms. For more information on the shape of a
