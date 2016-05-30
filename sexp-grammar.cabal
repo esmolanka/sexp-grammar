@@ -39,6 +39,7 @@ library
     Data.InvertibleGrammar.Monad
     Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH
+    Control.Monad.ContextError
     Language.Sexp.Lexer
     Language.Sexp.Parser
     Language.Sexp.Token

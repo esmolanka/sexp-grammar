@@ -120,16 +120,16 @@ import Language.SexpGrammar.Combinators
 -- | Run grammar in parsing direction
 parseSexp :: SexpG a -> Sexp -> Either String a
 parseSexp g a =
-  case runContextError (runParse g a) () of
-    Left (GrammarError _ str) -> Left str
+  case runContextError (runParse g a) initPropagation of
+    Left (GrammarError _ mismatch) -> Left $ show mismatch
     Right a -> Right a
 {-# INLINE parseSexp #-}
 
 -- | Run grammar in generating direction
 genSexp :: SexpG a -> a -> Either String Sexp
 genSexp g a =
-  case runContextError (runGen g a) () of
-    Left (GrammarError _ str) -> Left str
+  case runContextError (runGen g a) initPropagation of
+    Left (GrammarError _ mismatch) -> Left $ show mismatch
     Right a -> Right a
 {-# INLINE genSexp #-}
 

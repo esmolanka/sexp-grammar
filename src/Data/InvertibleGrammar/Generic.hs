@@ -26,11 +26,13 @@ import Prelude hiding ((.), id)
 import Control.Category ((.))
 import Control.Applicative
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Monad
 import Data.Profunctor (Choice(..))
 import Data.Profunctor.Unsafe
 import Data.Functor.Identity
 import Data.Monoid (First(..))
 import Data.Tagged
+import Data.Set (singleton)
 import GHC.Generics
 
 with
@@ -47,7 +49,7 @@ with
 with g =
   let PrismList (P prism) = mkRevPrismList
       name = conName (undefined :: m c f e)
-  in PartialIso name (fwd prism) (maybe (Left $ "expected " ++ name) Right . bkwd prism) . g
+  in PartialIso name (fwd prism) (maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism) . g
 
 type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
   (:++) (a ': as) bs = a ': (as :++ bs)
@@ -104,7 +106,7 @@ instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t 
   match' (P prism) (With g rest) =
     let name = conName (undefined :: m c f e)
         p = fwd prism
-        q = maybe (Left $ "expected " ++ name) Right . bkwd prism
+        q = maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism
     in (g $ PartialIso name p q, rest)
 
 

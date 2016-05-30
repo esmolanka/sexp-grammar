@@ -6,7 +6,9 @@ module Data.InvertibleGrammar.TH where
 import Control.Applicative
 #endif
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Monad
 import Data.Maybe
+import Data.Set (singleton)
 import Language.Haskell.TH as TH
 
 
@@ -63,7 +65,7 @@ grammarFor constructorName = do
         [ Just $ TH.match gPat (normalB [e| Right ($gBody) |]) []
         , if single
           then Nothing
-          else Just $ TH.match wildP (normalB [e| Left $ "expected " ++ $(stringE (show constructorName)) |]) []
+          else Just $ TH.match wildP (normalB [e| Left $ Mismatch (singleton $(stringE (show constructorName))) Nothing |]) []
         ]
 
   [e| PartialIso $(stringE (show constructorName)) $fFunc $gFunc |]
