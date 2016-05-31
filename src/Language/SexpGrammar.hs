@@ -119,12 +119,14 @@ import Language.SexpGrammar.Combinators
 
 -- | Run grammar in parsing direction
 parseSexp :: SexpG a -> Sexp -> Either String a
-parseSexp g a = runGrammarMonad (runParse g a)
+parseSexp g a = runGrammarMonad Sexp.dummyPos showPos (runParse g a)
+  where
+    showPos (Sexp.Position line col) = show line ++ ":" ++ show col
 {-# INLINE parseSexp #-}
 
 -- | Run grammar in generating direction
 genSexp :: SexpG a -> a -> Either String Sexp
-genSexp g a = runGrammarMonad (runGen g a)
+genSexp g a = runGrammarMonad Sexp.dummyPos (const "*") (runGen g a)
 {-# INLINE genSexp #-}
 
 ----------------------------------------------------------------------

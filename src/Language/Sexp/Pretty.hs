@@ -3,7 +3,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Language.Sexp.Pretty
-  ( prettySexp
+  ( prettySexp'
+  , prettySexp
   , prettySexps
   ) where
 
@@ -38,9 +39,14 @@ ppSexp (List   _ ss) = parens (align $ sep (map ppSexp ss))
 instance Pretty Sexp where
   pretty = ppSexp
 
+-- | Pretty-print a Sexp to a Text
+prettySexp' :: Sexp -> Lazy.Text
+prettySexp' = displayT . renderPretty 0.5 75 . ppSexp
+{-# INLINE prettySexp' #-}
+
 -- | Pretty-print a Sexp to a ByteString
 prettySexp :: Sexp -> ByteString
-prettySexp = encodeUtf8 . displayT . renderPretty 0.5 75 . ppSexp
+prettySexp = encodeUtf8 . prettySexp'
 
 -- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
 prettySexps :: [Sexp] -> ByteString

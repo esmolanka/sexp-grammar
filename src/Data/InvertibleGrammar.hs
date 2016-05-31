@@ -115,7 +115,7 @@ class InvertibleGrammar m g where
 instance
   ( Monad m
   , MonadPlus m
-  , MonadContextError Propagation GrammarError m
+  , MonadContextError (Propagation p) (GrammarError p) m
   , InvertibleGrammar m g
   ) => InvertibleGrammar m (Grammar g) where
   forward (Iso f _)           = return . f
