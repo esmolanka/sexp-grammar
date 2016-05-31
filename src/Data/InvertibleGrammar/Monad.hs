@@ -34,6 +34,7 @@ instance Eq (Propagation p) where
 instance Ord (Propagation p) where
   compare (Propagation as _) (Propagation bs _) =
     reverse as `compare` reverse bs
+  {-# INLINE compare #-}
 
 data Mismatch = Mismatch
   { mismatchExpected :: Set String
@@ -49,13 +50,16 @@ runGrammarMonad initPos showPos m =
 
 renderMismatch :: String -> Mismatch -> String
 renderMismatch pos (Mismatch (S.toList -> expected) got) =
-  pos ++ ": " ++
-    case (expected, got) of
-      ([], Nothing) -> "Unexpected error happened"
-      ([], Just got') -> "Got unexpected " ++ got'
-      (_:_, Nothing) -> "Expected " ++ intercalate ", " expected
-      (_:_, Just got') -> "Expected " ++ intercalate ", " expected ++
-                          "\nGot unexpected " ++ got'
+  unlines $
+    [ pos ++ ": mismatch:"
+    ] ++ case (expected, got) of
+           ([], Nothing)    -> [ "unknown error happened" ]
+           ([], Just got')  -> [ "unexpected: " ++ got' ]
+           (_:_, Nothing)   -> [ "expected: " ++ intercalate ", " expected ]
+           (_:_, Just got') -> [ "expected: " ++ intercalate ", " expected
+                               , "     got: " ++ got'
+                               ]
+
 
 data GrammarError p = GrammarError (Propagation p) Mismatch
   deriving (Show)
@@ -73,6 +77,7 @@ dive :: MonadContextError (Propagation p) e m => m a -> m a
 dive =
   localContext $ \(Propagation xs pos) ->
     Propagation (0 : xs) pos
+{-# INLINE dive #-}
 
 step :: MonadContextError (Propagation p) e m => m ()
 step =
@@ -82,12 +87,14 @@ step =
           (x : xs) -> succ x : xs
           [] -> [0]
       }
+{-# INLINE step #-}
 
 locate :: MonadContextError (Propagation p) e m => p -> m ()
 locate pos =
   modifyContext $ \propagation ->
     propagation { pPos = pos }
-
+{-# INLINE locate #-}
 
 grammarError :: MonadContextError (Propagation p) (GrammarError p) m => Mismatch -> m a
 grammarError mismatch = throwInContext (\ctx -> GrammarError ctx mismatch)
+{-# INLINE grammarError #-}

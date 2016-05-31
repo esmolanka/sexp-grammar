@@ -200,7 +200,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
     Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     G.parseSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
-    (Left ("0:0: Expected atom of type bool\nGot unexpected 10") :: Either String (Foo Bool Bool))
+    (Left ("0:0: mismatch:\nexpected: atom of type bool\n     got: 10\n") :: Either String (Foo Bool Bool))
   ]
 
 testArithExpr :: ArithExpr

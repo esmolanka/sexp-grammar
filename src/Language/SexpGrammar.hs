@@ -126,7 +126,7 @@ parseSexp g a = runGrammarMonad Sexp.dummyPos showPos (runParse g a)
 
 -- | Run grammar in generating direction
 genSexp :: SexpG a -> a -> Either String Sexp
-genSexp g a = runGrammarMonad Sexp.dummyPos (const "*") (runGen g a)
+genSexp g a = runGrammarMonad Sexp.dummyPos (const "***") (runGen g a)
 {-# INLINE genSexp #-}
 
 ----------------------------------------------------------------------
