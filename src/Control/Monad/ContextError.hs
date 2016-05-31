@@ -36,7 +36,7 @@ import Control.Monad.Trans.Writer.Strict as Strict (WriterT, mapWriterT)
 
 import Control.Monad.State  (MonadState (..))
 import Control.Monad.Reader (MonadReader (..))
--- import Control.Monad.Writer (MonadWriter (..))
+import Control.Monad.Writer (MonadWriter (..))
 
 import Data.Functor.Identity
 import Data.Semigroup
@@ -97,19 +97,19 @@ instance MonadState s m => MonadState s (ContextErrorT c e m) where
   put = lift . put
   state = lift . state
 
--- instance MonadWriter w m => MonadWriter w (ContextErrorT c e m) where
---   writer = lift . writer
---   tell = lift . tell
---   listen m = ContextErrorT $ \c err ret -> do
---     res <- listen (unContextErrorT m c)
---     case res of
---       (Right a, w) -> ret (a, w)
---       (Left e, _) -> err e
---   pass m = ContextErrorT $ \c err ret -> pass $ do
---     res <- runContextErrorT m c
---     case res of
---       Right (a, f) -> liftM (\b -> (b, f)) $ ret a
---       Left e -> liftM (\b -> (b, id)) $ err e
+instance MonadWriter w m => MonadWriter w (ContextErrorT c e m) where
+  writer = lift . writer
+  tell = lift . tell
+  listen m = ContextErrorT $ \c err ret -> do
+    (res, w) <- listen (unContextErrorT m c (\e -> return $ Left e) (\c a -> return $ Right (c, a)))
+    case res of
+      Left e -> err e
+      Right (c, a) -> ret c (a, w)
+  pass m = ContextErrorT $ \c err ret -> pass $ do
+    res <- unContextErrorT m c (\e -> return $ Left e) (\c a -> return $ Right (c, a))
+    case res of
+      Right (c, (a, f)) -> liftM (\b -> (b, f)) $ ret c a
+      Left e -> liftM (\b -> (b, id)) $ err e
 
 instance MonadReader r m => MonadReader r (ContextErrorT c e m) where
   ask = lift ask
