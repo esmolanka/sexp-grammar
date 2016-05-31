@@ -86,7 +86,10 @@ instance Monad (ContextErrorT c e m) where
 
 instance (Semigroup e) => MonadPlus (ContextErrorT c e m) where
   mzero = empty
+  {-# INLINE mzero #-}
+
   mplus = (<|>)
+  {-# INLINE mplus #-}
 
 instance MonadTrans (ContextErrorT c e) where
   lift act = ContextErrorT $ \c _ ret -> act >>= ret c
@@ -101,14 +104,14 @@ instance MonadWriter w m => MonadWriter w (ContextErrorT c e m) where
   writer = lift . writer
   tell = lift . tell
   listen m = ContextErrorT $ \c err ret -> do
-    (res, w) <- listen (unContextErrorT m c (\e -> return $ Left e) (\c a -> return $ Right (c, a)))
+    (res, w) <- listen (unContextErrorT m c (return . Left) (curry (return . Right)))
     case res of
       Left e -> err e
-      Right (c, a) -> ret c (a, w)
+      Right (c', a) -> ret c' (a, w)
   pass m = ContextErrorT $ \c err ret -> pass $ do
-    res <- unContextErrorT m c (\e -> return $ Left e) (\c a -> return $ Right (c, a))
+    res <- unContextErrorT m c (return . Left) (curry (return . Right))
     case res of
-      Right (c, (a, f)) -> liftM (\b -> (b, f)) $ ret c a
+      Right (c', (a, f)) -> liftM (\b -> (b, f)) $ ret c' a
       Left e -> liftM (\b -> (b, id)) $ err e
 
 instance MonadReader r m => MonadReader r (ContextErrorT c e m) where
@@ -125,7 +128,6 @@ class (Monad m) => MonadContextError c e m | m -> c e where
   askContext     :: m c
   localContext  :: (c -> c) -> m a -> m a
   modifyContext   :: (c -> c) -> m ()
-
 
 instance Monad m =>
          MonadContextError c e (ContextErrorT c e m) where
