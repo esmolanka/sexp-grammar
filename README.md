@@ -1,6 +1,8 @@
 sexp-grammar
 ============
 
+[![Build Status](https://travis-ci.org/esmolanka/sexp-grammar.svg?branch=master)](https://travis-ci.org/esmolanka/sexp-grammar)
+
 Invertible syntax library for serializing and deserializing Haskell
 structures into S-expressions. Just write a grammar once and get
 both parser and pretty-printer, for free.
