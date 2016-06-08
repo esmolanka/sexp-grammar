@@ -10,7 +10,7 @@ import Prelude hiding ((.), id)
 import Control.Arrow
 import Control.Category
 import qualified Data.ByteString.Lazy.Char8 as B8
-import Data.Data (Data)
+import Data.Data (Data, Typeable)
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.TH
