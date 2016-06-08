@@ -32,7 +32,7 @@ data Prim
   = SquareRoot
   | Factorial
   | Fibonacci
-    deriving (Eq, Enum, Bounded, Data, Show)
+    deriving (Show, Eq, Enum, Bounded, Data, Typeable)
 
 return []
 
