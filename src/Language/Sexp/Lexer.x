@@ -83,9 +83,10 @@ via :: (a -> Token) -> (T.Text -> a) -> AlexPosn -> B8.ByteString -> LocatedBy A
 via ftok f pos str =
   L pos . ftok . f  . TL.toStrict . decodeUtf8 $ str
 
-lexSexp :: FilePath -> B8.ByteString -> [LocatedBy Position Token]
-lexSexp f = map (mapPosition fixPos) . alexScanTokens
+lexSexp :: Position -> B8.ByteString -> [LocatedBy Position Token]
+lexSexp (Position fn line1 col1) = map (mapPosition fixPos) . alexScanTokens
   where
-    fixPos (AlexPn _ l c) = Position l c
+    fixPos (AlexPn _ l c) | l == 1    = Position fn line1 (col1 + c)
+                          | otherwise = Position fn (pred l + line1) c
 
 }

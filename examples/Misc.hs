@@ -33,15 +33,16 @@ data Person = Person
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso =
     -- Combinator 'with' matches the single constructor of a datatype to a grammar
-    with $                  -- pops b, pops a, applies a to Pair,
+    with $ \_Pair ->        -- pops b, pops a, applies a to Pair,
                             -- apply b to (Pair a):                      (Pair a b :- t)
     list (                  -- begin list
       el sexpIso >>>        -- consume and push first element to stack:  (a :- t)
       el sexpIso            -- consume and push second element to stack: (b :- a :- t)
-    )
+    ) >>> _Pair
 
 instance SexpIso Person where
-  sexpIso = with $
+  sexpIso = with $ \_Person ->
+    _Person .
     list (
       el (sym "person") >>>
       el string'        >>>

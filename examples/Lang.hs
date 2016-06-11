@@ -65,7 +65,7 @@ newtype Ident = Ident String
     deriving (Eq, Ord, Show, Generic)
 
 instance SexpIso Ident where
-  sexpIso = with symbol'
+  sexpIso = with (\ident -> ident . symbol')
 
 data Func
   = Prim Prim

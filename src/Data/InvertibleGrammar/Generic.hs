@@ -35,6 +35,9 @@ import Data.Tagged
 import Data.Set (singleton)
 import GHC.Generics
 
+-- | Provide a data constructor/stack isomorphism to a grammar working on
+-- stacks. Works for types with one data constructor. For sum types use 'match'
+-- and 'Coproduct'.
 with
   :: forall a b s t g c d f.
      ( Generic a
@@ -44,22 +47,17 @@ with
      , StackPrismLhs f t ~ b
      , Constructor c
      ) =>
-     Grammar g s b
+     (Grammar g b (a :- t) -> Grammar g s (a :- t))
   -> Grammar g s (a :- t)
 with g =
   let PrismList (P prism) = mkRevPrismList
       name = conName (undefined :: m c f e)
-  in PartialIso name (fwd prism) (maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism) . g
+  in g (PartialIso
+         name
+         (fwd prism)
+         (maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism))
 
-type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
-  (:++) (a ': as) bs = a ': (as :++ bs)
-  (:++) '[] bs = bs
-
-type family Coll (f :: * -> *) (t :: *) :: [*] where
-  Coll (M1 D c f) t = Coll f t
-  Coll (f :+: g)  t = Coll f t :++ Coll g t
-  Coll (M1 C c f) t = '[StackPrismLhs f t]
-
+-- | Combine all grammars provided in 'Coproduct' list into a single grammar.
 match
   :: ( Generic a
      , MkPrismList (Rep a)
@@ -70,13 +68,29 @@ match
   -> Grammar g s (a :- t)
 match = fst . match' mkRevPrismList
 
+-- | Heterogenous list of grammars, each one matches a data constructor of type
+-- @a@. 'With' is used to provide a data constructor/stack isomorphism to a
+-- grammar working on stacks. 'End' ends the list of matches.
 data Coproduct g s bs a t where
+
   With
     :: (Grammar g b (a :- t) -> Grammar g s (a :- t))
     -> Coproduct g s bs a t
     -> Coproduct g s (b ': bs) a t
 
   End :: Coproduct g s '[] a t
+
+----------------------------------------------------------------------
+-- Machinery
+
+type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
+  (:++) (a ': as) bs = a ': (as :++ bs)
+  (:++) '[] bs = bs
+
+type family Coll (f :: * -> *) (t :: *) :: [*] where
+  Coll (M1 D c f) t = Coll f t
+  Coll (f :+: g)  t = Coll f t :++ Coll g t
+  Coll (M1 C c f) t = '[StackPrismLhs f t]
 
 type family Trav (t :: * -> *) (l :: [*]) :: [*] where
   Trav (M1 D c f) lst = Trav f lst
@@ -108,6 +122,10 @@ instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t 
         p = fwd prism
         q = maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism
     in (g $ PartialIso name p q, rest)
+
+
+-- NB. The following machinery is heavily based on
+-- https://github.com/MedeaMelana/stack-prism/blob/master/Data/StackPrism/Generic.hs
 
 
 -- | Derive a list of stack prisms. For more information on the shape of a

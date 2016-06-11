@@ -16,19 +16,22 @@ import Data.Scientific
 import Data.Text (Text)
 import Text.PrettyPrint.Leijen.Text (Pretty (..), int, colon, (<>))
 
+-- | File position
 data Position =
-  Position {-# UNPACK #-} !Int {-# UNPACK #-} !Int
+  Position !FilePath {-# UNPACK #-} !Int {-# UNPACK #-} !Int
   deriving (Show, Ord, Eq)
 
 dummyPos :: Position
-dummyPos = Position 0 0
+dummyPos = Position "<no location information>" 1 0
 
 instance Pretty Position where
-  pretty (Position line col) = int line <> colon <> int col
+  pretty (Position fn line col) = pretty fn <> colon <> int line <> colon <> int col
 
+-- | Keyword newtype wrapper to distinguish keywords from symbols
 newtype Kw = Kw { unKw :: Text }
   deriving (Show, Eq, Ord)
 
+-- | Sexp atom types
 data Atom
   = AtomBool Bool
   | AtomInt Integer
@@ -38,6 +41,7 @@ data Atom
   | AtomKeyword Kw
     deriving (Show, Eq, Ord)
 
+-- | Sexp ADT
 data Sexp
   = Atom   {-# UNPACK #-} !Position !Atom
   | List   {-# UNPACK #-} !Position [Sexp]
@@ -45,9 +49,10 @@ data Sexp
   | Quoted {-# UNPACK #-} !Position Sexp
     deriving (Show, Eq, Ord)
 
-{-# INLINE getPos #-}
+-- | Get position of Sexp element
 getPos :: Sexp -> Position
 getPos (Atom p _)   = p
 getPos (Quoted p _) = p
 getPos (Vector p _) = p
 getPos (List p _)   = p
+{-# INLINE getPos #-}

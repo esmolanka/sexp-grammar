@@ -40,7 +40,7 @@ data Prim
 instance SexpIso Prim
 
 instance SexpIso Ident where
-  sexpIso = with symbol'
+  sexpIso = with (\ident -> ident . symbol')
 
 instance SexpIso Expr where
   sexpIso = match
@@ -74,5 +74,3 @@ test str g = either error id $ do
 
 -- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Mul (Lit 2) (Mul (Lit 2) (Lit 2))),"(cond 1 (+ 42 10) (* 2 (* 2 2)))")
-
-

@@ -28,18 +28,18 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
 import GHC.Generics
 
-import Language.Sexp as Sexp
+import Language.Sexp as Sexp hiding (parseSexp')
 import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
 import Language.SexpGrammar.TH hiding (match)
 
-pattern List' xs   = List (Position 0 0) xs
-pattern Bool' x    = Atom (Position 0 0) (AtomBool x)
-pattern Int' x     = Atom (Position 0 0) (AtomInt x)
-pattern Keyword' x = Atom (Position 0 0) (AtomKeyword x)
-pattern Real' x    = Atom (Position 0 0) (AtomReal x)
-pattern String' x  = Atom (Position 0 0) (AtomString x)
-pattern Symbol' x  = Atom (Position 0 0) (AtomSymbol x)
+pattern List' xs   = List (Position "<no location information>" 1 0) xs
+pattern Bool' x    = Atom (Position "<no location information>" 1 0) (AtomBool x)
+pattern Int' x     = Atom (Position "<no location information>" 1 0) (AtomInt x)
+pattern Keyword' x = Atom (Position "<no location information>" 1 0) (AtomKeyword x)
+pattern Real' x    = Atom (Position "<no location information>" 1 0) (AtomReal x)
+pattern String' x  = Atom (Position "<no location information>" 1 0) (AtomString x)
+pattern Symbol' x  = Atom (Position "<no location information>" 1 0) (AtomSymbol x)
 
 stripPos :: Sexp -> Sexp
 stripPos (Atom _ x)    = Atom dummyPos x
@@ -95,7 +95,7 @@ instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso = $(grammarFor 'Pair) . list (el sexpIso >>> el sexpIso)
 
 pairGenericIso :: SexpG a -> SexpG b -> SexpG (Pair a b)
-pairGenericIso a b = with (list (el a >>> el b))
+pairGenericIso a b = with (\pair -> pair . list (el a >>> el b))
 
 instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
   sexpIso = sconcat
@@ -200,7 +200,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
     Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     G.parseSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
-    (Left ("0:0: mismatch:\nexpected: atom of type bool\n     got: 10\n") :: Either String (Foo Bool Bool))
+    (Left ("<no location information>:1:0: mismatch:\nexpected: atom of type bool\n     got: 10\n") :: Either String (Foo Bool Bool))
   ]
 
 testArithExpr :: ArithExpr
