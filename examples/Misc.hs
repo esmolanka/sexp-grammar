@@ -11,10 +11,10 @@ import Prelude hiding ((.), id)
 
 import Control.Category
 import qualified Data.ByteString.Lazy.Char8 as B8
-import Data.InvertibleGrammar.Generic
 
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
+import Language.SexpGrammar.Generic
 
 import GHC.Generics
 
