@@ -30,19 +30,30 @@ ppAtom (AtomKeyword k) = pretty k
 instance Pretty Atom where
   pretty = ppAtom
 
+ppList :: [Sexp] -> Doc
+ppList ls =
+  align $ case ls of
+    [] ->
+      empty
+    a : [] ->
+      ppSexp a
+    a : b : [] ->
+      ppSexp a <+> ppSexp b
+    a : rest@(_ : _ : _) ->
+      ppSexp a <+> group (nest 2 (vsep (map ppSexp rest)))
+
 ppSexp :: Sexp -> Doc
 ppSexp (Atom   _ a)  = ppAtom a
-ppSexp (Vector _ ss) = brackets (align $ sep (map ppSexp ss))
+ppSexp (List   _ ss) = parens $ ppList ss
+ppSexp (Vector _ ss) = brackets $ ppList ss
 ppSexp (Quoted _ a)  = squote <> ppSexp a
-ppSexp (List   _ ss) = parens (align $ sep (map ppSexp ss))
 
 instance Pretty Sexp where
   pretty = ppSexp
 
 -- | Pretty-print a Sexp to a Text
 prettySexp' :: Sexp -> Lazy.Text
-prettySexp' = displayT . renderPretty 0.5 75 . ppSexp
-{-# INLINE prettySexp' #-}
+prettySexp' = displayT . renderPretty 0.75 79 . ppSexp
 
 -- | Pretty-print a Sexp to a ByteString
 prettySexp :: Sexp -> ByteString
@@ -50,4 +61,4 @@ prettySexp = encodeUtf8 . prettySexp'
 
 -- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
 prettySexps :: [Sexp] -> ByteString
-prettySexps = encodeUtf8 . displayT . renderPretty 0.5 75 . vcat . punctuate (line <> line) . map ppSexp
+prettySexps = encodeUtf8 . displayT . renderPretty 0.75 79 . vcat . punctuate (line <> line) . map ppSexp
