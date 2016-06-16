@@ -14,7 +14,6 @@ module Control.Monad.ContextError
   , MonadContextError (..)
   ) where
 
-
 #if MIN_VERSION_mtl(2, 2, 0)
 import Control.Monad.Except
 #else

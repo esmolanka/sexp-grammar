@@ -5,6 +5,7 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -20,6 +21,9 @@ module Data.InvertibleGrammar
   , pushForget
   , InvertibleGrammar(..)
   , GrammarError (..)
+  , Mismatch
+  , expected
+  , unexpected
   ) where
 
 import Prelude hiding ((.), id)
@@ -98,7 +102,7 @@ push a = PartialIso "push" f g
     f t = a :- t
     g (a' :- t)
       | a == a' = Right t
-      | otherwise = Left $ Mismatch mempty (Just "unexpected element")
+      | otherwise = Left $ unexpected "pushed element"
 
 -- | Same as 'push' except it does not check the value on stack during backward
 -- run. Potentially unsafe as it \"forgets\" some data.

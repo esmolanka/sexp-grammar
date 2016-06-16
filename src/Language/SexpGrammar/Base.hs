@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -30,7 +31,6 @@ import qualified Data.Map as M
 import Data.Monoid
 #endif
 import Data.Scientific
-import Data.Set (singleton)
 import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 
@@ -46,20 +46,20 @@ type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
 -- consumes nothing but generates some Sexp.
 type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
 
-unexpected :: (MonadContextError (Propagation Position) (GrammarError Position) m) => String -> m a
-unexpected msg = grammarError $ Mismatch mempty (Just msg)
+unexpectedStr :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text -> m a
+unexpectedStr msg = grammarError $ unexpected msg
 
-unexpectedSexp :: (MonadContextError (Propagation Position) (GrammarError Position) m) => String -> Sexp -> m a
-unexpectedSexp expected sexp =
-  grammarError $ Mismatch (singleton expected) (Just $ Lazy.unpack $ prettySexp' sexp)
+unexpectedSexp :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text -> Sexp -> m a
+unexpectedSexp exp got =
+  grammarError $ expected exp `mappend` unexpected (Lazy.toStrict $ prettySexp' got)
 
 unexpectedAtom :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Atom -> Atom -> m a
 unexpectedAtom expected atom = do
-  unexpectedSexp (Lazy.unpack $ prettySexp' (Atom dummyPos expected)) (Atom dummyPos atom)
+  unexpectedSexp (Lazy.toStrict $ prettySexp' (Atom dummyPos expected)) (Atom dummyPos atom)
 
-unexpectedAtomType :: (MonadContextError (Propagation Position) (GrammarError Position) m) => String -> Atom -> m a
+unexpectedAtomType :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text-> Atom -> m a
 unexpectedAtomType expected atom = do
-  unexpectedSexp ("atom of type " ++ expected) (Atom dummyPos atom)
+  unexpectedSexp ("atom of type " `mappend` expected) (Atom dummyPos atom)
 
 
 ----------------------------------------------------------------------
@@ -176,8 +176,8 @@ parseSequence :: (MonadContextError (Propagation Position) (GrammarError Positio
 parseSequence xs g t = do
   (a, SeqCtx rest) <- runStateT (forward g t) (SeqCtx xs)
   unless (null rest) $
-    unexpected $ "leftover elements: " ++
-      (Lazy.unpack $ Lazy.unwords $ map prettySexp' rest)
+    unexpectedStr $ "leftover elements: " `mappend`
+      (Lazy.toStrict $ Lazy.unwords $ map prettySexp' rest)
   return a
 
 data SeqGrammar a b where
@@ -201,7 +201,7 @@ instance
     step
     xs <- gets getItems
     case xs of
-      []    -> unexpected "end of sequence"
+      []    -> unexpectedStr "end of sequence"
       x:xs' -> do
         modify $ \s -> s { getItems = xs' }
         forward g (x :- t)
@@ -224,16 +224,16 @@ instance
     props <- go xs M.empty
     (res, PropCtx ctx) <- runStateT (forward g t) (PropCtx props)
     when (not $ M.null ctx) $
-      unexpected $ "property-list keys: " ++
-        (Lazy.unpack $ Lazy.unwords $
+      unexpectedStr $ "property-list keys: " `mappend`
+        (Lazy.toStrict $ Lazy.unwords $
           map (prettySexp' . Atom dummyPos . AtomKeyword) (M.keys ctx))
     return res
     where
       go [] props = return props
       go (Atom _ (AtomKeyword kwd):x:xs) props = step >> go xs (M.insert kwd x props)
       go other _ =
-        unexpected $ "malformed property-list: " ++
-          (Lazy.unpack $ Lazy.unwords $ map prettySexp' other)
+        unexpectedStr $ "malformed property-list: " `mappend`
+          (Lazy.toStrict $ Lazy.unwords $ map prettySexp' other)
 
   backward (GElem g) t = do
     step
@@ -282,8 +282,11 @@ instance
   forward (GProp kwd g) t = do
     ps <- gets getProps
     case M.lookup kwd ps of
-      Nothing -> unexpected $
-        "key " ++ (Lazy.unpack . prettySexp' . Atom dummyPos . AtomKeyword $ kwd) ++ " not found"
+      Nothing -> unexpectedStr $
+        mconcat [ "key "
+                , Lazy.toStrict . prettySexp' . Atom dummyPos . AtomKeyword $ kwd
+                , " not found"
+                ]
       Just x  -> do
         put (PropCtx $ M.delete kwd ps)
         forward g $ x :- t

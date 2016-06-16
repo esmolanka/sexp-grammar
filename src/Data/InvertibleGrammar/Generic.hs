@@ -23,16 +23,18 @@ module Data.InvertibleGrammar.Generic
   ) where
 
 import Prelude hiding ((.), id)
-import Control.Category ((.))
+
 import Control.Applicative
+import Control.Category ((.))
+
+import Data.Functor.Identity
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Monad
+import Data.Monoid (First(..))
 import Data.Profunctor (Choice(..))
 import Data.Profunctor.Unsafe
-import Data.Functor.Identity
-import Data.Monoid (First(..))
 import Data.Tagged
-import Data.Set (singleton)
+import Data.Text (pack)
+
 import GHC.Generics
 
 -- | Provide a data constructor/stack isomorphism to a grammar working on
@@ -55,7 +57,7 @@ with g =
   in g (PartialIso
          name
          (fwd prism)
-         (maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism))
+         (maybe (Left $ expected (pack name)) Right . bkwd prism))
 
 -- | Combine all grammars provided in 'Coproduct' list into a single grammar.
 match
@@ -120,13 +122,11 @@ instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t 
   match' (P prism) (With g rest) =
     let name = conName (undefined :: m c f e)
         p = fwd prism
-        q = maybe (Left $ Mismatch (singleton name) Nothing) Right . bkwd prism
+        q = maybe (Left $ expected (pack name)) Right . bkwd prism
     in (g $ PartialIso name p q, rest)
-
 
 -- NB. The following machinery is heavily based on
 -- https://github.com/MedeaMelana/stack-prism/blob/master/Data/StackPrism/Generic.hs
-
 
 -- | Derive a list of stack prisms. For more information on the shape of a
 -- 'PrismList', please see the documentation below.

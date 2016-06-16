@@ -94,6 +94,9 @@ module Language.SexpGrammar
   -- * Parsing and encoding to Sexp
   , parseSexp
   , genSexp
+  , Mismatch
+  , expected
+  , unexpected
   -- * Typeclass for Sexp grammars
   , SexpIso (..)
   ) where

@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ViewPatterns     #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Data.InvertibleGrammar.Monad
   ( module Control.Monad.ContextError
@@ -10,15 +11,22 @@ module Data.InvertibleGrammar.Monad
   , runGrammarMonad
   , Propagation
   , GrammarError (..)
-  , Mismatch (..)
+  , Mismatch
+  , expected
+  , unexpected
   ) where
 
 import Control.Applicative
+import Control.Monad.ContextError
+
+import Data.Semigroup
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.List (intercalate)
-import Data.Semigroup
-import Control.Monad.ContextError
+import Data.Text (Text)
+import qualified Data.Text.Lazy as TL
+
+import Text.PrettyPrint.Leijen.Text
+  (Pretty, pretty, text, vsep, indent, fillSep, punctuate, comma, (<+>))
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0]
@@ -30,16 +38,43 @@ data Propagation p = Propagation
 
 instance Eq (Propagation p) where
   Propagation xs _ == Propagation ys _ = xs == ys
+  {-# INLINE (==) #-}
 
 instance Ord (Propagation p) where
   compare (Propagation as _) (Propagation bs _) =
     reverse as `compare` reverse bs
   {-# INLINE compare #-}
 
+-- | Data type to encode mismatches during parsing or generation, kept abstract.
+-- It is suggested to use 'expected' and 'unexpected' constructors to build a
+-- mismatch report.
 data Mismatch = Mismatch
-  { mismatchExpected :: Set String
-  , mismatchGot :: Maybe String
+  { mismatchExpected :: Set Text
+  , mismatchGot :: Maybe Text
   } deriving (Show, Eq)
+
+-- | Construct a mismatch report with specified expectation. Can be appended
+-- to other expectations and 'unexpected' reports to clarify a mismatch.
+expected :: Text -> Mismatch
+expected a = Mismatch (S.singleton a) Nothing
+
+-- | Construct a mismatch report with information what has been occurred during
+-- processing but is not expected.
+unexpected :: Text -> Mismatch
+unexpected a = Mismatch S.empty (Just a)
+
+instance Semigroup Mismatch where
+  m <> m' =
+    Mismatch
+      (mismatchExpected m <> mismatchExpected m')
+      (mismatchGot m <|> mismatchGot m')
+  {-# INLINE (<>) #-}
+
+instance Monoid Mismatch where
+  mempty = Mismatch mempty mempty
+  {-# INLINE mempty #-}
+  mappend = (<>)
+  {-# INLINE mappend #-}
 
 runGrammarMonad :: p -> (p -> String) -> ContextError (Propagation p) (GrammarError p) a -> Either String a
 runGrammarMonad initPos showPos m =
@@ -48,18 +83,25 @@ runGrammarMonad initPos showPos m =
       Left $ renderMismatch (showPos (pPos p)) mismatch
     Right a -> Right a
 
-renderMismatch :: String -> Mismatch -> String
-renderMismatch pos (Mismatch (S.toList -> expected) got) =
-  unlines $
-    [ pos ++ ": mismatch:"
-    ] ++ case (expected, got) of
-           ([], Nothing)    -> [ "unknown error happened" ]
-           ([], Just got')  -> [ "unexpected: " ++ got' ]
-           (_:_, Nothing)   -> [ "expected: " ++ intercalate ", " expected ]
-           (_:_, Just got') -> [ "expected: " ++ intercalate ", " expected
-                               , "     got: " ++ got'
-                               ]
+instance Pretty Mismatch where
+  pretty (Mismatch (S.toList -> []) Nothing) =
+    text "unknown mismatch occurred"
+  pretty (Mismatch (S.toList -> expected) got) =
+    vsep [ ppExpected expected
+         , ppGot got
+         ]
+    where
+      ppExpected []  = mempty
+      ppExpected xs  = text "expected:" <+> fillSep (punctuate comma $ map (text . TL.fromStrict) xs)
+      ppGot Nothing  = mempty
+      ppGot (Just a) = text "     got:" <+> text (TL.fromStrict a)
 
+renderMismatch :: String -> Mismatch -> String
+renderMismatch pos mismatch =
+  show $ vsep
+    [ pretty pos `mappend` ":" <+> "mismatch:"
+    , indent 2 $ pretty mismatch
+    ]
 
 data GrammarError p = GrammarError (Propagation p) Mismatch
   deriving (Show)
@@ -68,10 +110,8 @@ instance Semigroup (GrammarError p) where
   GrammarError pos m <> GrammarError pos' m'
     | pos > pos' = GrammarError pos m
     | pos < pos' = GrammarError pos' m'
-    | otherwise  = GrammarError pos $
-      Mismatch
-        (mismatchExpected m <> mismatchExpected m')
-        (mismatchGot m <|> mismatchGot m')
+    | otherwise  = GrammarError pos (m <> m')
+  {-# INLINE (<>) #-}
 
 dive :: MonadContextError (Propagation p) e m => m a -> m a
 dive =
@@ -96,5 +136,7 @@ locate pos =
 {-# INLINE locate #-}
 
 grammarError :: MonadContextError (Propagation p) (GrammarError p) m => Mismatch -> m a
-grammarError mismatch = throwInContext (\ctx -> GrammarError ctx mismatch)
+grammarError mismatch =
+  throwInContext $ \ctx ->
+    GrammarError ctx mismatch
 {-# INLINE grammarError #-}
