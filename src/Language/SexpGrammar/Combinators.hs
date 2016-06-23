@@ -30,6 +30,7 @@ module Language.SexpGrammar.Combinators
   , (.:)
   , (.:?)
   -- ** Utility grammars
+  , position
   , pair
   , unpair
   , swap
@@ -146,6 +147,11 @@ sym = Inject . GAtom . Inject . GSym
 -- | Define a grammar for a constant keyword
 kw :: Kw -> SexpG_
 kw = Inject . GAtom . Inject . GKw
+
+-- | Get position of Sexp. Doesn't consume Sexp and doesn't have any
+-- effect on backward run.
+position :: Grammar SexpGrammar (Sexp :- t) (Position :- Sexp :- t)
+position = Inject GPos
 
 ----------------------------------------------------------------------
 -- Special combinators

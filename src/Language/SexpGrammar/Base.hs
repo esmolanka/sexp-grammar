@@ -66,6 +66,7 @@ unexpectedAtomType expected atom = do
 -- Top-level grammar
 
 data SexpGrammar a b where
+  GPos  :: SexpGrammar (Sexp :- t) (Position :- Sexp :- t)
   GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
   GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
   GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
@@ -74,6 +75,9 @@ instance
   ( MonadPlus m
   , MonadContextError (Propagation Position) (GrammarError Position) m
   ) => InvertibleGrammar m SexpGrammar where
+  forward GPos (s :- t) =
+    return (getPos s :- s :- t)
+
   forward (GAtom g) (s :- t) =
     case s of
       Atom p a    -> dive $ locate p >> forward g (a :- t)
@@ -88,6 +92,9 @@ instance
     case s of
       Vector p xs -> dive $ locate p >> parseSequence xs g t
       other       -> locate (getPos other) >> unexpectedSexp "vector" other
+
+  backward GPos (_ :- s :- t) =
+    return (s :- t)
 
   backward (GAtom g) t = do
     (a :- t') <- dive $ backward g t
