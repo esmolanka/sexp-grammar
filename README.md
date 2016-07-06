@@ -7,7 +7,9 @@ Invertible syntax library for serializing and deserializing Haskell structures
 into S-expressions. Just write a grammar once and get both parser and
 pretty-printer, for free.
 
-The package is heavily inspired by the paper
+**WARNING: highly unstable and experimental software. Not intended for production**
+
+The approach used in `sexp-grammar` is inspired by the paper
 [Invertible syntax descriptions: Unifying parsing and pretty printing]
 (http://www.informatik.uni-marburg.de/~rendel/unparse/) and a similar
 implementation of invertible grammar approach for JSON, library by Martijn van
@@ -26,7 +28,7 @@ data Person = Person
   } deriving (Show, Generic)
 
 personGrammar :: SexpG Person
-personGrammar = with $                -- Person is isomorphic to
+personGrammar = with $                -- Person is isomorphic to:
   list (                              -- a list with
     el (sym "person") >>>             -- a symbol "person",
     el string'        >>>             -- a string, and
@@ -35,8 +37,8 @@ personGrammar = with $                -- Person is isomorphic to
       Kw "age"     .:? int))          -- an optional keyword :age with int value.
 ```
 
-So now we can use `personGrammar` to parse S-expressions to `Person`
-record and pretty-print records of `Person` type back to S-expression:
+So now we can use `personGrammar` to parse S-expressions to records of type
+`Person` and pretty-print records of type `Person` back to S-expressions:
 
 ```haskell
 ghci> import Language.SexpGrammar
@@ -44,7 +46,7 @@ ghci> import qualified Data.ByteString.Lazy.Char8 as B8
 ghci> person <- either error id . decodeWith personGrammar . B8.pack <$> getLine
 (person "John Doe" :address "42 Whatever str." :age 25)
 ghci> person
-Right (Person {pName = "John Doe", pAddress = "42 Whatever str.", pAge = Just 25})
+Person {pName = "John Doe", pAddress = "42 Whatever str.", pAge = Just 25}
 ghci> either print B8.putStrLn . encodeWith personGrammar $ person
 (person "John Doe" :address "42 Whatever str." :age 25)
 ```
