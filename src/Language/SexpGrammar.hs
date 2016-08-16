@@ -102,6 +102,7 @@ module Language.SexpGrammar
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Monad
 
@@ -132,12 +133,12 @@ genSexp g a =
 
 -- | Deserialize a value from a lazy 'ByteString'. The input must
 -- contain exactly one S-expression. Comments are ignored.
-decode :: SexpIso a => ByteString -> Either String a
+decode :: SexpIso a => TL.Text -> Either String a
 decode =
   decodeWith sexpIso
 
 -- | Like 'decode' but uses specified grammar.
-decodeWith :: SexpG a -> ByteString -> Either String a
+decodeWith :: SexpG a -> TL.Text -> Either String a
 decodeWith g input =
   Sexp.decode input >>= parseSexp g
 
@@ -159,21 +160,21 @@ encodeWith g =
 -- one S-expression. Unlike 'decode' it takes an additional argument
 -- with a file name which is being parsed. It is used for error
 -- messages.
-decodeNamed :: SexpIso a => FilePath -> ByteString -> Either String a
+decodeNamed :: SexpIso a => FilePath -> TL.Text -> Either String a
 decodeNamed fn =
   decodeNamedWith sexpIso fn
 
 -- | Like 'decodeNamed' but uses specified grammar.
-decodeNamedWith :: SexpG a -> FilePath -> ByteString -> Either String a
+decodeNamedWith :: SexpG a -> FilePath -> TL.Text -> Either String a
 decodeNamedWith g fn input =
   Sexp.parseSexp fn input >>= parseSexp g
 
 -- | Pretty-prints a value serialized to a lazy 'ByteString'.
-encodePretty :: SexpIso a => a -> Either String ByteString
+encodePretty :: SexpIso a => a -> Either String TL.Text
 encodePretty =
   encodePrettyWith sexpIso
 
 -- | Like 'encodePretty' but uses specified grammar.
-encodePrettyWith :: SexpG a -> a -> Either String ByteString
+encodePrettyWith :: SexpG a -> a -> Either String TL.Text
 encodePrettyWith g =
   fmap Sexp.prettySexp . genSexp g

@@ -40,6 +40,7 @@ library
     Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH
     Control.Monad.ContextError
+    Language.Sexp.LexerInterface
     Language.Sexp.Lexer
     Language.Sexp.Parser
     Language.Sexp.Token
@@ -71,13 +72,13 @@ test-suite sexp-grammar-test
   build-depends:
       QuickCheck
     , base
-    , bytestring
     , scientific
     , semigroups
     , sexp-grammar
     , tasty
     , tasty-hunit
     , tasty-quickcheck
+    , text
   main-is:           Main.hs
   hs-source-dirs:    test
   default-language:  Haskell2010
@@ -91,6 +92,7 @@ benchmark sexp-grammar-bench
     , scientific
     , semigroups
     , sexp-grammar
+    , text
   main-is:           Main.hs
   hs-source-dirs:    bench
   default-language:  Haskell2010
