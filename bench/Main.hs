@@ -9,8 +9,8 @@ import Prelude hiding ((.), id)
 
 import Control.Arrow
 import Control.Category
-import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Data (Data, Typeable)
+import qualified Data.Text.Lazy as TL
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.TH
@@ -69,11 +69,11 @@ parseExpr = parseSexp sexpIso
 genExpr :: Expr -> Either String Sexp
 genExpr = genSexp sexpIso
 
-expr :: B8.ByteString -> Expr
+expr :: TL.Text -> Expr
 expr = either error id . decode
 
-benchCases :: [(String, B8.ByteString)]
-benchCases = map (\a -> ("expression " ++ take 40 (B8.unpack a) ++ "...", a))
+benchCases :: [(String, TL.Text)]
+benchCases = map (\a -> ("expression " ++ take 40 (TL.unpack a) ++ "...", a))
   [ "(+ 1 20)"
   , "(+ (+ 2 20) 0)"
   , "(+ (+ 3 20) (+ 10 20))"

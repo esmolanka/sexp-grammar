@@ -36,7 +36,7 @@ import qualified Data.Text.Lazy as Lazy
 
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Monad
-import Language.Sexp.Pretty (prettySexp')
+import Language.Sexp.Pretty (prettySexp)
 import Language.Sexp.Types
 
 -- | Grammar which matches Sexp to a value of type a and vice versa.
@@ -51,11 +51,11 @@ unexpectedStr msg = grammarError $ unexpected msg
 
 unexpectedSexp :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text -> Sexp -> m a
 unexpectedSexp exp got =
-  grammarError $ expected exp `mappend` unexpected (Lazy.toStrict $ prettySexp' got)
+  grammarError $ expected exp `mappend` unexpected (Lazy.toStrict $ prettySexp got)
 
 unexpectedAtom :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Atom -> Atom -> m a
 unexpectedAtom expected atom = do
-  unexpectedSexp (Lazy.toStrict $ prettySexp' (Atom dummyPos expected)) (Atom dummyPos atom)
+  unexpectedSexp (Lazy.toStrict $ prettySexp (Atom dummyPos expected)) (Atom dummyPos atom)
 
 unexpectedAtomType :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text-> Atom -> m a
 unexpectedAtomType expected atom = do
@@ -184,7 +184,7 @@ parseSequence xs g t = do
   (a, SeqCtx rest) <- runStateT (forward g t) (SeqCtx xs)
   unless (null rest) $
     unexpectedStr $ "leftover elements: " `mappend`
-      (Lazy.toStrict $ Lazy.unwords $ map prettySexp' rest)
+      (Lazy.toStrict $ Lazy.unwords $ map prettySexp rest)
   return a
 
 data SeqGrammar a b where
@@ -233,14 +233,14 @@ instance
     when (not $ M.null ctx) $
       unexpectedStr $ "property-list keys: " `mappend`
         (Lazy.toStrict $ Lazy.unwords $
-          map (prettySexp' . Atom dummyPos . AtomKeyword) (M.keys ctx))
+          map (prettySexp . Atom dummyPos . AtomKeyword) (M.keys ctx))
     return res
     where
       go [] props = return props
       go (Atom _ (AtomKeyword kwd):x:xs) props = step >> go xs (M.insert kwd x props)
       go other _ =
         unexpectedStr $ "malformed property-list: " `mappend`
-          (Lazy.toStrict $ Lazy.unwords $ map prettySexp' other)
+          (Lazy.toStrict $ Lazy.unwords $ map prettySexp other)
 
   backward (GElem g) t = do
     step
@@ -291,7 +291,7 @@ instance
     case M.lookup kwd ps of
       Nothing -> unexpectedStr $
         mconcat [ "key "
-                , Lazy.toStrict . prettySexp' . Atom dummyPos . AtomKeyword $ kwd
+                , Lazy.toStrict . prettySexp . Atom dummyPos . AtomKeyword $ kwd
                 , " not found"
                 ]
       Just x  -> do

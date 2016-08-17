@@ -52,13 +52,13 @@ instance Pretty Sexp where
   pretty = ppSexp
 
 -- | Pretty-print a Sexp to a Text
-prettySexp' :: Sexp -> Lazy.Text
-prettySexp' = displayT . renderPretty 0.75 79 . ppSexp
+prettySexp :: Sexp -> Lazy.Text
+prettySexp = displayT . renderPretty 0.75 79 . ppSexp
 
 -- | Pretty-print a Sexp to a ByteString
-prettySexp :: Sexp -> ByteString
-prettySexp = encodeUtf8 . prettySexp'
+prettySexp' :: Sexp -> ByteString
+prettySexp' = encodeUtf8 . prettySexp
 
 -- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
-prettySexps :: [Sexp] -> ByteString
-prettySexps = encodeUtf8 . displayT . renderPretty 0.75 79 . vcat . punctuate (line <> line) . map ppSexp
+prettySexps :: [Sexp] -> Lazy.Text
+prettySexps = displayT . renderPretty 0.75 79 . vcat . punctuate (line <> line) . map ppSexp

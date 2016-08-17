@@ -19,7 +19,7 @@ import Control.Applicative
 #endif
 
 import Control.Category
-import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.Text.Lazy as TL
 import Data.Scientific
 import Data.Semigroup
 import Test.QuickCheck ()
@@ -48,7 +48,7 @@ stripPos (Vector _ xs) = Vector dummyPos $ map stripPos xs
 stripPos (Quoted _ x)  = Quoted dummyPos $ stripPos x
 
 parseSexp' :: String -> Either String Sexp
-parseSexp' input = stripPos <$> Sexp.decode (B8.pack input)
+parseSexp' input = stripPos <$> Sexp.decode (TL.pack input)
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord, Generic)
@@ -145,6 +145,23 @@ lexerTests = testGroup "Lexer tests"
     parseSexp' "-123" @?= Right (Int' (- 123))
   , testCase "+123.4e5 is a floating number" $
     parseSexp' "+123.4e5" @?= Right (Real' (read "+123.4e5" :: Scientific))
+  , testCase "comments" $
+    parseSexp' ";; hello, world\n   123" @?= Right (Int' 123)
+  , testCase "cyrillic characters in comments" $
+    parseSexp' ";; привет!\n   123" @?= Right (Int' 123)
+  , testCase "unicode math in comments" $
+    parseSexp' ";; Γ ctx\n;; ----- Nat-formation\n;; Γ ⊦ Nat : Type\nfoobar" @?=
+      Right (Symbol' "foobar")
+  , testCase "symbol" $
+    parseSexp' "hello-world" @?= Right (Symbol' "hello-world")
+  , testCase "cyrillic symbol" $
+    parseSexp' "привет-мир" @?= Right (Symbol' "привет-мир")
+  , testCase "string with arabic characters" $
+    parseSexp' "\"ي الخاطفة الجديدة، مع, بلديهم\"" @?=
+    Right (String' "ي الخاطفة الجديدة، مع, بلديهم")
+  , testCase "string with japanese characters" $
+    parseSexp' "\"媯綩 づ竤バ り姥娩ぎょひ\"" @?=
+    Right (String' "媯綩 づ竤バ り姥娩ぎょひ")
   ]
 
 grammarTests :: TestTree

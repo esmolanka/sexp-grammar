@@ -1,5 +1,6 @@
 {
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns   #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing     #-}
 {-# OPTIONS_GHC -fno-warn-tabs               #-}
@@ -16,19 +17,26 @@ import Data.Text.Read
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import qualified Data.ByteString.Lazy.Char8 as B8
+
+import Language.Sexp.LexerInterface
 import Language.Sexp.Token
 import Language.Sexp.Types (Position (..))
+
 }
 
-%wrapper "posn-bytestring"
-
 $whitechar   = [\ \t\n\r\f\v]
+$unispace    = \x01
+$whitespace  = [$whitechar $unispace]
+
+$uninonspace = \x02
+$uniany      = [$unispace $uninonspace]
+@any         = (. | $uniany)
 
 $digit       = 0-9
 $hex         = [0-9 A-F a-f]
 $alpha       = [a-z A-Z]
 
-$graphic     = [$alpha $digit \!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~ \(\)\,\;\[\]\`\{\} \:\"\'\_]
+$graphic     = [$alpha $digit \!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~ \(\)\,\;\[\]\`\{\} \:\"\'\_ $uninonspace]
 
 @intnum      = [\-\+]? $digit+
 @scinum      = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
@@ -37,15 +45,15 @@ $charesc     = [abfnrtv\\\"]
 @escape      = \\ ($charesc | $digit+ | x $hex+)
 @string      = $graphic # [\"\\] | " " | @escape
 
-$idinitial   = [$alpha \!\$\%\&\*\/\<\=\>\?\~\_\^\.\+\-]
-$idsubseq    = [$idinitial $digit \:]
+$idinitial   = [$alpha \!\$\%\&\*\/\<\=\>\?\~\_\^\.\+\- $uninonspace]
+$idsubseq    = [$idinitial $digit \: $uninonspace]
 @identifier  = $idinitial $idsubseq*
 @keyword     = ":" $idsubseq+
 
 :-
 
-$whitechar+        ;
-";".*              ;
+$whitespace+       ;
+";" @any*          ;
 "("                { just TokLParen       }
 ")"                { just TokRParen       }
 "["                { just TokLBracket     }
@@ -63,6 +71,8 @@ $whitechar+        ;
 
 {
 
+type AlexAction = LineCol -> TL.Text -> LocatedBy LineCol Token
+
 readInteger :: T.Text -> Integer
 readInteger str =
   case signed decimal str of
@@ -75,18 +85,45 @@ readString :: T.Text -> T.Text
 readString =
   T.pack . read . T.unpack
 
-just :: Token -> AlexPosn -> B8.ByteString -> LocatedBy AlexPosn Token
+just :: Token -> AlexAction
 just tok pos _ =
   L pos tok
 
-via :: (a -> Token) -> (T.Text -> a) -> AlexPosn -> B8.ByteString -> LocatedBy AlexPosn Token
+via :: (a -> Token) -> (T.Text -> a) -> AlexAction
 via ftok f pos str =
-  L pos . ftok . f  . TL.toStrict . decodeUtf8 $ str
+  L pos . ftok . f . TL.toStrict $str
 
-lexSexp :: Position -> B8.ByteString -> [LocatedBy Position Token]
-lexSexp (Position fn line1 col1) = map (mapPosition fixPos) . alexScanTokens
+alexScanTokens :: AlexInput -> [LocatedBy LineCol Token]
+alexScanTokens input =
+  case alexScan input defaultCode of
+    AlexEOF -> []
+    AlexError (AlexInput {aiInput, aiLineCol = LineCol line col}) ->
+      error $ "Lexical error at line " ++ show line ++ " column " ++ show col ++
+        ". Remaining input: " ++ TL.unpack (TL.take 1000 aiInput)
+    AlexSkip input _ -> alexScanTokens input
+    AlexToken input' tokLen action ->
+      action (aiLineCol input) inputText : alexScanTokens input'
+      where
+        -- It is safe to take token length from input because every byte Alex
+        -- sees corresponds to exactly one character, even if character is a
+        -- Unicode one that occupies several bytes. We do character translation
+        -- in LexerInterface.alexGetByte function so that all unicode characters
+        -- occupy single byte.
+        --
+        -- On the other hand, taking N characters from Text will take N valid
+        -- characters, not N bytes.
+        --
+        -- Thus, we're good.
+        inputText = TL.take (fromIntegral tokLen) $ aiInput input
   where
-    fixPos (AlexPn _ l c) | l == 1    = Position fn line1 (col1 + c)
-                          | otherwise = Position fn (pred l + line1) c
+    defaultCode :: Int
+    defaultCode = 0
+
+lexSexp :: Position -> TL.Text -> [LocatedBy Position Token]
+lexSexp (Position fn line1 col1) =
+  map (mapPosition fixPos) . alexScanTokens . mkAlexInput
+  where
+    fixPos (LineCol l c) | l == 1    = Position fn line1 (col1 + c)
+                         | otherwise = Position fn (pred l + line1) c
 
 }
