@@ -1,15 +1,19 @@
 {-# LANGUAGE CPP             #-}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE TemplateHaskell #-}
+
 module Data.InvertibleGrammar.TH where
 
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
+import Data.Foldable (toList)
 import Data.InvertibleGrammar
 import Data.Maybe
 import Data.Text (pack)
 import Language.Haskell.TH as TH
-
+import Data.Set (Set)
+import qualified Data.Set as S
 
 {- | Build a prism and the corresponding grammar that will match on the
      given constructor and convert it to reverse sequence of :- stacks.
@@ -35,7 +39,13 @@ import Language.Haskell.TH as TH
 -}
 grammarFor :: Name -> ExpQ
 grammarFor constructorName = do
+#if defined(__GLASGOW_HASKELL__)
+# if __GLASGOW_HASKELL__ <= 710
   DataConI realConstructorName _typ parentName _fixity <- reify constructorName
+# else
+  DataConI realConstructorName _typ parentName <- reify constructorName
+# endif
+#endif
   TyConI dataDef <- reify parentName
 
   let Just (single, constructorInfo) = do
@@ -82,42 +92,61 @@ grammarFor constructorName = do
 -}
 match :: Name -> ExpQ
 match tyName = do
-  names <- map constructorName . extractConstructors <$> reify tyName
+  names  <- concatMap (toList . constructorNames) <$> (extractConstructors =<< reify tyName)
   argTys <- mapM (\_ -> newName "a") names
   let grammars = map (\(con, arg) -> [e| $(varE arg) $(grammarFor con) |]) (zip names argTys)
   lamE (map varP argTys) (foldr1 (\e1 e2 -> [e| $e1 :<>: $e2 |]) grammars)
   where
-    extractConstructors :: Info -> [Con]
-    extractConstructors info =
-      case info of
-        TyConI (DataD _ _ _ cons _) -> cons
-        TyConI (NewtypeD _ _ _ con _) -> [con]
-        _ -> error "Type name is expected"
+    extractConstructors :: Info -> Q [Con]
+    extractConstructors (TyConI dataDef) =
+      case constructors dataDef of
+        Just (_, cs) -> pure cs
+        Nothing      -> fail $ "Data type " ++ show tyName ++ " defines no constructors"
+    extractConstructors _ =
+      fail $ "Data definition expected for name " ++ show tyName
 
 ----------------------------------------------------------------------
 -- Utils
 
 constructors :: Dec -> Maybe (Bool, [Con])
-constructors (DataD _ _ _ cs _)   = Just (length cs == 1, cs)
-constructors (NewtypeD _ _ _ c _) = Just (True, [c])
-constructors _                    = Nothing
+#if defined(__GLASGOW_HASKELL__)
+# if __GLASGOW_HASKELL__ <= 710
+constructors (DataD _ _ _ cs _)     = Just (length cs == 1, cs)
+constructors (NewtypeD _ _ _ c _)   = Just (True, [c])
+# else
+constructors (DataD _ _ _ _ cs _)   = Just (length cs == 1, cs)
+constructors (NewtypeD _ _ _ _ c _) = Just (True, [c])
+# endif
+#endif
+constructors _                      = Nothing
 
 findConstructor :: Name -> [Con] -> Maybe Con
-findConstructor _ [] = Nothing
+findConstructor _    [] = Nothing
 findConstructor name (c:cs)
-  | constructorName c == name = Just c
-  | otherwise = findConstructor name cs
+  | name `S.member` constructorNames c = Just c
+  | otherwise                          = findConstructor name cs
 
-constructorName :: Con -> Name
-constructorName con =
-  case con of
-    NormalC name _ -> name
-    RecC name _ -> name
-    InfixC _ name _ -> name
-    ForallC _ _ con' -> constructorName con'
+constructorNames :: Con -> Set Name
+constructorNames = \case
+  NormalC name _   -> S.singleton name
+  RecC name _      -> S.singleton name
+  InfixC _ name _  -> S.singleton name
+  ForallC _ _ con' -> constructorNames con'
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
+  GadtC cs _ _     -> S.fromList cs
+  RecGadtC cs _ _  -> S.fromList cs
+#endif
 
 fieldTypes :: Con -> [Type]
-fieldTypes (NormalC _ fieldTypes) = map snd fieldTypes
-fieldTypes (RecC _ fieldTypes) = map (\(_, _, t) ->t) fieldTypes
-fieldTypes (InfixC (_,a) _b (_,b)) = [a, b]
-fieldTypes (ForallC _ _ con') = fieldTypes con'
+fieldTypes = \case
+  NormalC _ fieldTypes  -> map extractType fieldTypes
+  RecC _ fieldTypes     -> map extractType' fieldTypes
+  InfixC (_,a) _b (_,b) -> [a, b]
+  ForallC _ _ con'      -> fieldTypes con'
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
+  GadtC _ fs _          -> map extractType fs
+  RecGadtC _ fs _       -> map extractType' fs
+#endif
+  where
+    extractType (_, t) = t
+    extractType' (_, _, t) = t
