@@ -1,13 +1,11 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
 
 module Language.Sexp.Token where
 
 import Data.Text (Text)
-import Data.Text.Lazy (pack, fromStrict)
 import Data.Scientific
-import Text.PrettyPrint.Leijen.Text
+import Data.Text.Prettyprint.Doc
 
 data Token
   = TokLParen          -- (
@@ -45,10 +43,10 @@ instance Pretty Token where
   pretty TokRBracket    = "right bracket '['"
   pretty TokQuote       = "quote \"'\""
   pretty TokHash        = "hash '#'"
-  pretty (TokSymbol s)  = "symbol" <+> dquote <> text (fromStrict s) <> dquote
-  pretty (TokKeyword k) = "keyword" <+> dquote <> text (fromStrict k) <> dquote
-  pretty (TokInt     n) = "integer" <+> integer n
-  pretty (TokReal    n) = "real number" <+> text (pack (show n))
-  pretty (TokStr     s) = "string" <+> text (pack (show s))
+  pretty (TokSymbol s)  = "symbol" <+> dquote <> pretty s <> dquote
+  pretty (TokKeyword k) = "keyword" <+> dquote <> pretty k <> dquote
+  pretty (TokInt     n) = "integer" <+> pretty n
+  pretty (TokReal    n) = "real number" <+> pretty (show n)
+  pretty (TokStr     s) = "string" <+> pretty (show s)
   pretty (TokBool    b) = "boolean" <+> if b then "#t" else "#f"
-  pretty (TokUnknown u) = "unknown lexeme" <+> text (pack (show u))
+  pretty (TokUnknown u) = "unknown lexeme" <+> pretty (show u)

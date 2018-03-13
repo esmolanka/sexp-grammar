@@ -55,6 +55,7 @@ library
     , bytestring
     , containers
     , mtl >=2.1
+    , prettyprinter
     , profunctors
     , scientific
     , semigroups
@@ -63,7 +64,6 @@ library
     , template-haskell
     , transformers
     , text
-    , wl-pprint-text
 
   build-tools: alex, happy
 

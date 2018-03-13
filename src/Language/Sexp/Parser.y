@@ -16,10 +16,10 @@ import Data.Text (Text)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Scientific
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as B8
 
-import Text.PrettyPrint.Leijen.Text
+import Data.Text.Prettyprint.Doc
+import qualified Data.Text.Prettyprint.Doc.Render.String as Render
 
 import Language.Sexp.Token
 import Language.Sexp.Lexer
@@ -97,6 +97,6 @@ parseError toks = case toks of
   [] ->
     Left "EOF: Unexpected end of file"
   (L pos tok : _) ->
-    Left $ Lazy.unpack . displayT . renderPretty 0.8 80 $
+    Left $ Render.renderString . layoutPretty (LayoutOptions (AvailablePerLine 80 0.8)) $
       pretty pos <> colon <+> "Unexpected token:" <+> pretty tok
 }

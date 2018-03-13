@@ -23,10 +23,9 @@ import Data.Semigroup
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
-import qualified Data.Text.Lazy as TL
 
-import Text.PrettyPrint.Leijen.Text
-  (Pretty, pretty, text, vsep, indent, fillSep, punctuate, comma, (<+>))
+import Data.Text.Prettyprint.Doc
+  (Pretty, pretty, vsep, indent, fillSep, punctuate, comma, (<+>))
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0]
@@ -85,16 +84,16 @@ runGrammarMonad initPos showPos m =
 
 instance Pretty Mismatch where
   pretty (Mismatch (S.toList -> []) Nothing) =
-    text "unknown mismatch occurred"
+    "unknown mismatch occurred"
   pretty (Mismatch (S.toList -> expected) got) =
     vsep [ ppExpected expected
          , ppGot got
          ]
     where
       ppExpected []  = mempty
-      ppExpected xs  = text "expected:" <+> fillSep (punctuate comma $ map (text . TL.fromStrict) xs)
+      ppExpected xs  = "expected:" <+> fillSep (punctuate comma $ map pretty xs)
       ppGot Nothing  = mempty
-      ppGot (Just a) = text "     got:" <+> text (TL.fromStrict a)
+      ppGot (Just a) = "     got:" <+> pretty a
 
 renderMismatch :: String -> Mismatch -> String
 renderMismatch pos mismatch =

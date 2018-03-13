@@ -11,7 +11,7 @@ module Language.Sexp.Types
 
 import Data.Scientific
 import Data.Text (Text)
-import Text.PrettyPrint.Leijen.Text (Pretty (..), int, colon, (<>))
+import Data.Text.Prettyprint.Doc (Pretty (..), colon, (<>))
 
 -- | File position
 data Position =
@@ -22,7 +22,8 @@ dummyPos :: Position
 dummyPos = Position "<no location information>" 1 0
 
 instance Pretty Position where
-  pretty (Position fn line col) = pretty fn <> colon <> int line <> colon <> int col
+  pretty (Position fn line col) =
+    pretty fn <> colon <> pretty line <> colon <> pretty col
 
 -- | Keyword newtype wrapper to distinguish keywords from symbols
 newtype Kw = Kw { unKw :: Text }
