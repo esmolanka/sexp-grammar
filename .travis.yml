@@ -56,7 +56,7 @@ matrix:
     compiler: ": #stack ghc-8.0.1"
     addons: {apt: {packages: [ghc-8.0.1], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--stack-yaml stack-8.2.yaml"
+  - env: BUILD=stack ARGS="--stack-yaml stack.yaml"
     compiler: ": #stack ghc-8.2.2"
     addons: {apt: {packages: [ghc-8.2.2], sources: [hvr-ghc]}}
 
