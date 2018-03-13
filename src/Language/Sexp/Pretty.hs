@@ -12,29 +12,30 @@ import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Scientific
 import qualified Data.Text.Lazy as Lazy
 import Data.Text.Lazy.Encoding (encodeUtf8)
-import Text.PrettyPrint.Leijen.Text
+import Data.Text.Prettyprint.Doc
+import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
 
 import Language.Sexp.Types
 
 instance Pretty Kw where
-  pretty (Kw s) = colon <> text (Lazy.fromStrict s)
+  pretty (Kw s) = colon <> pretty s
 
-ppAtom :: Atom -> Doc
+ppAtom :: Atom -> Doc ann
 ppAtom (AtomBool a)    = if a then "#t" else "#f"
-ppAtom (AtomInt a)     = integer a
-ppAtom (AtomReal a)    = text . Lazy.pack . formatScientific Generic Nothing $ a
+ppAtom (AtomInt a)     = pretty a
+ppAtom (AtomReal a)    = pretty $ formatScientific Generic Nothing $ a
 ppAtom (AtomString a)  = pretty (show a)
-ppAtom (AtomSymbol a)  = text . Lazy.fromStrict $ a
+ppAtom (AtomSymbol a)  = pretty a
 ppAtom (AtomKeyword k) = pretty k
 
 instance Pretty Atom where
   pretty = ppAtom
 
-ppList :: [Sexp] -> Doc
+ppList :: [Sexp] -> Doc ann
 ppList ls =
   align $ case ls of
     [] ->
-      empty
+      mempty
     a : [] ->
       ppSexp a
     a : b : [] ->
@@ -42,7 +43,7 @@ ppList ls =
     a : rest@(_ : _ : _) ->
       ppSexp a <+> group (nest 2 (vsep (map ppSexp rest)))
 
-ppSexp :: Sexp -> Doc
+ppSexp :: Sexp -> Doc ann
 ppSexp (Atom   _ a)  = ppAtom a
 ppSexp (List   _ ss) = parens $ ppList ss
 ppSexp (Vector _ ss) = brackets $ ppList ss
@@ -53,7 +54,7 @@ instance Pretty Sexp where
 
 -- | Pretty-print a Sexp to a Text
 prettySexp :: Sexp -> Lazy.Text
-prettySexp = displayT . renderPretty 0.75 79 . ppSexp
+prettySexp = renderDoc . ppSexp
 
 -- | Pretty-print a Sexp to a ByteString
 prettySexp' :: Sexp -> ByteString
@@ -61,4 +62,7 @@ prettySexp' = encodeUtf8 . prettySexp
 
 -- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
 prettySexps :: [Sexp] -> Lazy.Text
-prettySexps = displayT . renderPretty 0.75 79 . vcat . punctuate (line <> line) . map ppSexp
+prettySexps = renderDoc . vcat . punctuate (line <> line) . map ppSexp
+
+renderDoc :: Doc ann -> Lazy.Text
+renderDoc = Render.renderLazy . layoutPretty (LayoutOptions (AvailablePerLine 79 0.75))
