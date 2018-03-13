@@ -9,6 +9,7 @@ module Language.Sexp.Pretty
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.Monoid as Monoid
 import Data.Scientific
 import qualified Data.Text.Lazy as Lazy
 import Data.Text.Lazy.Encoding (encodeUtf8)
@@ -35,7 +36,7 @@ ppList :: [Sexp] -> Doc ann
 ppList ls =
   align $ case ls of
     [] ->
-      mempty
+      Monoid.mempty
     a : [] ->
       ppSexp a
     a : b : [] ->
