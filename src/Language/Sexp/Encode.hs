@@ -5,7 +5,7 @@ module Language.Sexp.Encode
   ) where
 
 import Data.List (intersperse)
-import Data.Monoid
+import Data.Monoid as Monoid
 import Data.Scientific
 import Data.Text.Encoding (encodeUtf8)
 import Data.ByteString.Lazy (ByteString)
@@ -28,7 +28,7 @@ bSexp :: Sexp -> Builder
 bSexp (Atom   _ a)  = bAtom a
 bSexp (List   _ ss) = char8 '(' <> sep (map bSexp ss) <> char8 ')'
 bSexp (Vector _ ss) = char8 '[' <> sep (map bSexp ss) <> char8 ']'
-bSexp (Quoted _ a)  = char8 '\'' <> bSexp a
+bSexp (Quoted _ a)  = char8 '\'' Monoid.<> bSexp a
 
 -- | Quickly encode Sexp to non-indented ByteString
 encode :: Sexp -> ByteString

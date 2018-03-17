@@ -19,7 +19,7 @@ module Data.InvertibleGrammar.Monad
 import Control.Applicative
 import Control.Monad.ContextError
 
-import Data.Semigroup
+import Data.Semigroup as Semi
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -65,7 +65,7 @@ unexpected a = Mismatch S.empty (Just a)
 instance Semigroup Mismatch where
   m <> m' =
     Mismatch
-      (mismatchExpected m <> mismatchExpected m')
+      (mismatchExpected m Semi.<> mismatchExpected m')
       (mismatchGot m <|> mismatchGot m')
   {-# INLINE (<>) #-}
 

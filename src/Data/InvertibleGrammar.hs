@@ -32,7 +32,7 @@ import Control.Applicative
 #endif
 import Control.Category
 import Control.Monad
-import Data.Semigroup
+import Data.Semigroup as Semi
 import Data.InvertibleGrammar.Monad
 
 data Grammar g t t' where
@@ -58,7 +58,7 @@ instance Category (Grammar c) where
   id = Iso id id
   (.) x y = x :.: y
 
-instance Semigroup (Grammar c t1 t2) where
+instance Semi.Semigroup (Grammar c t1 t2) where
   (<>) = (:<>:)
 
 data h :- t = h :- t deriving (Eq, Show, Functor)

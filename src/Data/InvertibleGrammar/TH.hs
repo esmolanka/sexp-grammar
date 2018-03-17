@@ -132,7 +132,7 @@ constructorNames = \case
   RecC name _      -> S.singleton name
   InfixC _ name _  -> S.singleton name
   ForallC _ _ con' -> constructorNames con'
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
+#if MIN_VERSION_template_haskell(2, 11, 0)
   GadtC cs _ _     -> S.fromList cs
   RecGadtC cs _ _  -> S.fromList cs
 #endif
