@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module Language.SexpGrammar.Base
   ( SexpGrammar (..)
@@ -25,8 +26,6 @@ import Control.Applicative
 #endif
 import Control.Monad.State
 
-import Data.Map (Map)
-import qualified Data.Map as M
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid
 #endif
@@ -227,20 +226,19 @@ instance
 
   forward (GProps g) t = do
     xs <- gets getItems
-    modify $ \s -> s { getItems = [] }
-    props <- go xs M.empty
-    (res, PropCtx ctx) <- runStateT (forward g t) (PropCtx props)
-    when (not $ M.null ctx) $
+    (rest, props) <- go xs []
+    modify $ \s -> s { getItems = rest }
+    (res, PropCtx ctx) <- runStateT (forward g t) (PropCtx (reverse props))
+    when (not $ null ctx) $
       unexpectedStr $ "property-list keys: " `mappend`
         (Lazy.toStrict $ Lazy.unwords $
-          map (prettySexp . Atom dummyPos . AtomKeyword) (M.keys ctx))
+          map (prettySexp . Atom dummyPos . AtomKeyword) (map fst ctx))
     return res
     where
-      go [] props = return props
-      go (Atom _ (AtomKeyword kwd):x:xs) props = step >> go xs (M.insert kwd x props)
-      go other _ =
-        unexpectedStr $ "malformed property-list: " `mappend`
-          (Lazy.toStrict $ Lazy.unwords $ map prettySexp other)
+      go :: [Sexp] -> [(Kw, Sexp)] -> m ([Sexp], [(Kw, Sexp)])
+      go [] props = return ([], props)
+      go (Atom _ (AtomKeyword kwd):x:xs) props = step >> go xs ((kwd, x) : props)
+      go other props = return (other, props)
 
   backward (GElem g) t = do
     step
@@ -262,10 +260,11 @@ instance
 
   backward (GProps g) t = do
     step
-    (t', PropCtx props) <- runStateT (backward g t) (PropCtx M.empty)
-    let plist = foldr (\(name, sexp) acc -> Atom dummyPos (AtomKeyword name) : sexp : acc) [] (M.toList props)
-    put $ SeqCtx plist
+    (t', PropCtx props) <- runStateT (backward g t) (PropCtx [])
+    let plist = foldr (\(name, sexp) acc -> Atom dummyPos (AtomKeyword name) : sexp : acc) [] props
+    modify (\(SeqCtx rest) -> SeqCtx $ plist ++ rest)
     return t'
+
 
 ----------------------------------------------------------------------
 -- Property list grammar
@@ -279,7 +278,16 @@ data PropGrammar a b where
            -> Grammar SexpGrammar (Sexp :- t) (a :- t)
            -> PropGrammar t (Maybe a :- t)
 
-newtype PropCtx = PropCtx { getProps :: Map Kw Sexp }
+newtype PropCtx = PropCtx { getProps :: [(Kw, Sexp)] }
+
+popKey :: forall k v. Eq k => k -> [(k, v)] -> Maybe (v, [(k, v)])
+popKey k' alist = go [] alist
+  where
+    go :: [(k, v)] -> [(k, v)] -> Maybe (v, [(k, v)])
+    go acc (x@(k, v) : xs)
+      | k == k' = Just (v, reverse acc ++ xs)
+      | otherwise = go (x:acc) xs
+    go _ [] = Nothing
 
 instance
   ( MonadPlus m
@@ -288,30 +296,30 @@ instance
   ) => InvertibleGrammar m PropGrammar where
   forward (GProp kwd g) t = do
     ps <- gets getProps
-    case M.lookup kwd ps of
+    case popKey kwd ps of
       Nothing -> unexpectedStr $
         mconcat [ "key "
                 , Lazy.toStrict . prettySexp . Atom dummyPos . AtomKeyword $ kwd
                 , " not found"
                 ]
-      Just x  -> do
-        put (PropCtx $ M.delete kwd ps)
+      Just (x, rest) -> do
+        put (PropCtx rest)
         forward g $ x :- t
 
   forward (GOptProp kwd g) t = do
     ps <- gets getProps
-    case M.lookup kwd ps of
+    case popKey kwd ps of
       Nothing ->
         return (Nothing :- t)
-      Just x  -> do
-        put (PropCtx $ M.delete kwd ps)
+      Just (x, rest)  -> do
+        put (PropCtx rest)
         (a :- t') <- forward g (x :- t)
         return (Just a :- t')
 
 
   backward (GProp kwd g) t = do
     x :- t' <- backward g t
-    modify $ \ps -> ps { getProps = M.insert kwd x (getProps ps) }
+    modify $ \ps -> ps { getProps = (kwd, x) : getProps ps }
     return t'
 
   backward (GOptProp _ _) (Nothing :- t) = do
@@ -319,11 +327,17 @@ instance
 
   backward (GOptProp kwd g) (Just x :- t) = do
     x' :- t' <- backward g (x :- t)
-    modify $ \ps -> ps { getProps = M.insert kwd x' (getProps ps) }
+    modify $ \ps -> ps { getProps = (kwd, x') : getProps ps }
     return t'
 
+----------------------------------------------------------------------
+
 runParse
-  :: (Functor m, MonadPlus m, MonadContextError (Propagation Position) (GrammarError Position) m, InvertibleGrammar m g)
+  :: ( Functor m
+     , MonadPlus m
+     , MonadContextError (Propagation Position) (GrammarError Position) m
+     , InvertibleGrammar m g
+     )
   => Grammar g (Sexp :- ()) (a :- ())
   -> Sexp
   -> m a
@@ -331,7 +345,11 @@ runParse gram input =
   (\(x :- _) -> x) <$> forward gram (input :- ())
 
 runGen
-  :: (Functor m, MonadPlus m, MonadContextError (Propagation Position) (GrammarError Position) m, InvertibleGrammar m g)
+  :: ( Functor m
+     , MonadPlus m
+     , MonadContextError (Propagation Position) (GrammarError Position) m
+     , InvertibleGrammar m g
+     )
   => Grammar g (Sexp :- ()) (a :- ())
   -> a
   -> m Sexp
