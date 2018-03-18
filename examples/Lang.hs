@@ -17,10 +17,12 @@ import Prelude hiding ((.), id)
 import Control.Category
 import Control.Monad.Reader
 import Data.Data (Data)
-import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.Text.Lazy as T
 import qualified Data.Map as M
 import qualified Data.Set as S
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid
+#endif
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
 import Data.Foldable (foldl)
 #endif
@@ -214,8 +216,8 @@ inline env e = runReader (cata alg e) env
 
 test :: String -> String
 test str = either error id $ do
-  e <- decode (B8.pack str)
-  either error (return . B8.unpack) (encodePretty (partialEval e))
+  e <- decode (T.pack str)
+  either error (return . T.unpack) (encodePretty (partialEval e))
 
 -- λ> test "(let foo (/ 42 2) (let bar (* foo 1.5 baz) (if 0 foo (+ 1 bar))))"
 -- "(+ 1 (* 21 1.5 baz))"

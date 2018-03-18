@@ -10,7 +10,7 @@ module ExprTH2 where
 import Prelude hiding ((.), id)
 
 import Control.Category
-import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.Text.Lazy as T
 import Data.Data (Data)
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
@@ -37,7 +37,8 @@ data Prim
 
 return []
 
-instance SexpIso Prim
+instance SexpIso Prim where
+  sexpIso = enum
 
 instance SexpIso Ident where
   sexpIso = $(match ''Ident)
@@ -65,9 +66,9 @@ instance SexpIso Expr where
 
 test :: String -> SexpG a -> (a, String)
 test str g = either error id $ do
-  e <- decodeWith g (B8.pack str)
+  e <- decodeWith g (T.pack str)
   sexp' <- genSexp g e
-  return (e, B8.unpack (Sexp.encode sexp'))
+  return (e, T.unpack (Sexp.prettySexp sexp'))
 
 -- λ> test "(cond :pred 1 :true (+ 42 10) :false (* 2 (* 2 2)))" (sexpIso :: SexpG Expr)
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Just (Mul (Lit 2) (Mul (Lit 2) (Lit 2)))),"(cond :false (* 2 (* 2 2)) :pred 1 :true (+ 42 10))")

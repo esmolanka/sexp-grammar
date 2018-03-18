@@ -10,7 +10,7 @@ module Misc where
 import Prelude hiding ((.), id)
 
 import Control.Category
-import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.Text.Lazy as T
 
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
@@ -64,6 +64,6 @@ foobarSexp =
 
 test :: String -> SexpG a -> (a, String)
 test str g = either error id $ do
-  e <- decodeWith g (B8.pack str)
+  e <- decodeWith g (T.pack str)
   sexp' <- genSexp g e
-  return (e, B8.unpack (Sexp.encode sexp'))
+  return (e, T.unpack (Sexp.prettySexp sexp'))
