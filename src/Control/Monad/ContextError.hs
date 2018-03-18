@@ -14,7 +14,7 @@ module Control.Monad.ContextError
   , MonadContextError (..)
   ) where
 
-#if MIN_VERSION_mtl(2, 2, 0)
+#if MIN_VERSION_mtl(2,2,0)
 import Control.Monad.Except
 #else
 import Control.Monad.Error
@@ -23,7 +23,6 @@ import Control.Monad.Error
 import Control.Applicative
 import Control.Monad.Trans.Cont as Cont (ContT, liftLocal)
 import Control.Monad.Trans.Identity (IdentityT, mapIdentityT)
-import Control.Monad.Trans.List (ListT, mapListT)
 import Control.Monad.Trans.Maybe (MaybeT, mapMaybeT)
 import Control.Monad.Trans.Reader (ReaderT, mapReaderT)
 import qualified Control.Monad.Trans.RWS.Lazy as Lazy (RWST, mapRWST)
@@ -38,7 +37,9 @@ import Control.Monad.Reader (MonadReader (..))
 import Control.Monad.Writer (MonadWriter (..))
 
 import Data.Functor.Identity
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
+#endif
 
 ----------------------------------------------------------------------
 -- Monad
@@ -168,13 +169,6 @@ instance MonadContextError c e m =>
     throwInContext = lift . throwInContext
     askContext = lift askContext
     localContext = mapIdentityT . localContext
-    modifyContext = lift . modifyContext
-
-instance MonadContextError c e m =>
-         MonadContextError c e (ListT m) where
-    throwInContext = lift . throwInContext
-    askContext = lift askContext
-    localContext = mapListT . localContext
     modifyContext = lift . modifyContext
 
 instance MonadContextError c e m =>
