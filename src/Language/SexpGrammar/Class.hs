@@ -1,4 +1,3 @@
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -12,7 +11,6 @@ import Control.Category
 
 import Data.InvertibleGrammar.TH
 import qualified Data.List.NonEmpty as NE
-import Data.Data
 import Data.Map (Map)
 import Data.Scientific
 import Data.Set (Set)
@@ -26,9 +24,6 @@ import Language.SexpGrammar.Combinators
 
 class SexpIso a where
   sexpIso :: SexpG a
-
-  default sexpIso :: (Enum a, Bounded a, Eq a, Data a) => SexpG a
-  sexpIso = enum
 
 instance SexpIso Bool where
   sexpIso = bool

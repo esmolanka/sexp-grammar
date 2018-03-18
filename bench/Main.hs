@@ -11,7 +11,6 @@ import Control.Arrow
 import Control.Category
 import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
-import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.TH
 
@@ -36,7 +35,8 @@ data Prim
 
 return []
 
-instance SexpIso Prim
+instance SexpIso Prim where
+  sexpIso = enum
 
 instance SexpIso Ident where
   sexpIso = $(match ''Ident)
