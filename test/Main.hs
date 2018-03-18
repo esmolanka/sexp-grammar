@@ -6,11 +6,12 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
-module Main where
+module Main (main) where
 
 import Prelude hiding ((.), id)
 
@@ -53,11 +54,19 @@ parseSexp' input = stripPos <$> Sexp.decode (TL.pack input)
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord, Generic)
 
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Pair a b) where
+  arbitrary = Pair <$> arbitrary <*> arbitrary
+
 data Foo a b = Bar a b
              | Baz a b
   deriving (Show, Eq, Ord, Generic)
 
-data Rint = Rint Int
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Foo a b) where
+  arbitrary =
+    frequency
+      [ (1, Bar <$> arbitrary <*> arbitrary)
+      , (1, Baz <$> arbitrary <*> arbitrary)
+      ]
 
 data ArithExpr =
     Lit Int
@@ -75,21 +84,6 @@ instance Arbitrary ArithExpr where
           n <- choose (0, 7)
           Mul <$> vectorOf n arbitrary)
     ]
-
-arithExprTHProp :: ArithExpr -> Bool
-arithExprTHProp expr =
-  (G.genSexp arithExprGrammar expr >>= G.parseSexp arithExprGrammar :: Either String ArithExpr)
-  ==
-  Right expr
-  where
-    arithExprGrammar :: Grammar SexpGrammar (Sexp :- t) (ArithExpr :- t)
-    arithExprGrammar = sexpIso
-
-arithExprGenericsProp :: ArithExpr -> Bool
-arithExprGenericsProp expr =
-  (G.genSexp arithExprGenericIso expr >>= G.parseSexp arithExprGenericIso :: Either String ArithExpr)
-  ==
-  Right expr
 
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso = $(grammarFor 'Pair) . list (el sexpIso >>> el sexpIso)
@@ -109,11 +103,13 @@ fooGenericIso a b = match
   $ With (\baz -> baz . list (el (sym "baz") >>> el a >>> el b))
   $ End
 
-instance SexpIso ArithExpr where
-  sexpIso = sconcat
+
+arithExprTHIso :: SexpG ArithExpr
+arithExprTHIso =
+  sconcat
     [ $(grammarFor 'Lit) . int
-    , $(grammarFor 'Add) . list (el (sym "+") >>> el sexpIso >>> el sexpIso)
-    , $(grammarFor 'Mul) . list (el (sym "*") >>> rest sexpIso)
+    , $(grammarFor 'Add) . list (el (sym "+") >>> el arithExprTHIso >>> el arithExprTHIso)
+    , $(grammarFor 'Mul) . list (el (sym "*") >>> rest arithExprTHIso)
     ]
 
 arithExprGenericIso :: SexpG ArithExpr
@@ -125,6 +121,39 @@ arithExprGenericIso = expr
       $ With (\add -> add . list (el (sym "+") >>> el expr >>> el expr))
       $ With (\mul -> mul . list (el (sym "*") >>> rest expr))
       $ End
+
+
+data Person = Person
+  { pName     :: String
+  , pAge      :: Int
+  , pAddress  :: String
+  , pChildren :: [Person]
+  } deriving (Show, Eq, Generic)
+
+
+instance Arbitrary Person where
+  arbitrary =
+    Person
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> frequency
+            [ (6, pure [])
+            , (4, vectorOf 1 arbitrary)
+            , (2, vectorOf 2 arbitrary)
+            , (1, vectorOf 3 arbitrary)
+            ]
+
+personGenericIso :: SexpG Person
+personGenericIso = with
+  (\person ->
+     list (
+      el (sym "person") >>>
+      el string' >>>
+      props (
+       Kw "age" .: int >>>
+       Kw "address" .: string') >>>
+      rest personGenericIso) >>> person)
 
 ----------------------------------------------------------------------
 -- Test cases
@@ -229,19 +258,29 @@ testArithExprSexp = List' [Symbol' "+", Int' 0, List' [Symbol' "*"]]
 parseTests :: TestTree
 parseTests = testGroup "parse tests"
   [ testCase "(+ 0 (*))" $
-    Right testArithExpr @=? G.parseSexp sexpIso testArithExprSexp
+      Right testArithExpr @=? G.parseSexp arithExprGenericIso testArithExprSexp
   ]
 
 genTests :: TestTree
 genTests = testGroup "gen tests"
   [ testCase "(+ 0 (*))" $
-    Right testArithExprSexp @=? G.genSexp sexpIso testArithExpr
+      Right testArithExprSexp @=? G.genSexp arithExprGenericIso testArithExpr
   ]
+
+
+genParseIdentityProp :: forall a. (Eq a) => SexpG a -> a -> Bool
+genParseIdentityProp iso expr =
+  (G.genSexp iso expr >>= G.parseSexp iso :: Either String a)
+  ==
+  Right expr
 
 parseGenTests :: TestTree
 parseGenTests = testGroup "parse . gen == id"
-  [ QC.testProperty "ArithExprs TH" arithExprTHProp
-  , QC.testProperty "ArithExprs Generics" arithExprGenericsProp
+  [ QC.testProperty "ArithExprs/TH" (genParseIdentityProp arithExprTHIso)
+  , QC.testProperty "ArithExprs/Generics" (genParseIdentityProp arithExprGenericIso)
+  , QC.testProperty "Pair Int String" (genParseIdentityProp (pairGenericIso int string'))
+  , QC.testProperty "Foo (Foo Int String) (Pair String Int)" (genParseIdentityProp (fooGenericIso (fooGenericIso int string') (pairGenericIso string' int)))
+  , QC.testProperty "Person" (genParseIdentityProp personGenericIso)
   ]
 
 main :: IO ()
