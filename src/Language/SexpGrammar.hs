@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP        #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE RankNTypes    #-}
+{-# LANGUAGE TypeOperators #-}
 
 {- |
 
@@ -64,8 +65,6 @@ module Language.SexpGrammar
   , Sexp.Atom (..)
   , Sexp.Kw (..)
   , Grammar
-  , SexpG
-  , SexpG_
   , (:-) (..)
   -- * Combinators
   -- ** Primitive grammars
@@ -75,12 +74,7 @@ module Language.SexpGrammar
   , partialOsi
   , push
   , pushForget
-  , module Language.SexpGrammar.Combinators
-  -- * Grammar types
-  , SexpGrammar
-  , AtomGrammar
-  , SeqGrammar
-  , PropGrammar
+  , module Language.SexpGrammar.Base
   -- * Decoding and encoding (machine-oriented)
   , decode
   , decodeWith
@@ -106,25 +100,24 @@ import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Monad
 
-import Language.Sexp (Sexp)
+import Language.Sexp (Sexp, Position)
 import qualified Language.Sexp as Sexp
 
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
-import Language.SexpGrammar.Combinators
 
 ----------------------------------------------------------------------
 -- Sexp interface
 
 -- | Run grammar in parsing direction
-parseSexp :: SexpG a -> Sexp -> Either String a
+parseSexp :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> Sexp -> Either String a
 parseSexp g a =
   runGrammarMonad Sexp.dummyPos showPos (runParse g a)
   where
     showPos (Sexp.Position fn line col) = fn ++ ":" ++ show line ++ ":" ++ show col
 
 -- | Run grammar in generating direction
-genSexp :: SexpG a -> a -> Either String Sexp
+genSexp :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String Sexp
 genSexp g a =
   runGrammarMonad Sexp.dummyPos (const "<no location information>") (runGen g a)
 
@@ -138,7 +131,7 @@ decode =
   decodeWith sexpIso
 
 -- | Like 'decode' but uses specified grammar.
-decodeWith :: SexpG a -> TL.Text -> Either String a
+decodeWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> TL.Text -> Either String a
 decodeWith g input =
   Sexp.decode input >>= parseSexp g
 
@@ -149,7 +142,7 @@ encode =
   encodeWith sexpIso
 
 -- | Like 'encode' but uses specified grammar.
-encodeWith :: SexpG a -> a -> Either String ByteString
+encodeWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String ByteString
 encodeWith g =
   fmap Sexp.encode . genSexp g
 
@@ -165,7 +158,7 @@ decodeNamed fn =
   decodeNamedWith sexpIso fn
 
 -- | Like 'decodeNamed' but uses specified grammar.
-decodeNamedWith :: SexpG a -> FilePath -> TL.Text -> Either String a
+decodeNamedWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> FilePath -> TL.Text -> Either String a
 decodeNamedWith g fn input =
   Sexp.parseSexp fn input >>= parseSexp g
 
@@ -175,6 +168,6 @@ encodePretty =
   encodePrettyWith sexpIso
 
 -- | Like 'encodePretty' but uses specified grammar.
-encodePrettyWith :: SexpG a -> a -> Either String TL.Text
+encodePrettyWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String TL.Text
 encodePrettyWith g =
   fmap Sexp.prettySexp . genSexp g

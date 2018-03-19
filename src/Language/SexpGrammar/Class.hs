@@ -9,6 +9,7 @@ import Prelude hiding ((.), id)
 import Control.Arrow
 import Control.Category
 
+import Data.InvertibleGrammar
 import Data.InvertibleGrammar.TH
 import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
@@ -20,10 +21,9 @@ import qualified Data.Set as Set
 
 import Language.Sexp.Types
 import Language.SexpGrammar.Base
-import Language.SexpGrammar.Combinators
 
 class SexpIso a where
-  sexpIso :: SexpG a
+  sexpIso :: Grammar Position (Sexp :- t) (a :- t)
 
 instance SexpIso Bool where
   sexpIso = bool
@@ -44,7 +44,10 @@ instance SexpIso Text where
   sexpIso = string
 
 instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
-  sexpIso = pair . vect (el sexpIso >>> el sexpIso)
+  sexpIso =
+    list (el sexpIso >>> el (sym ".") >>> el sexpIso) >>>
+    swap >>>
+    Flip pair
 
 instance (Ord k, SexpIso k, SexpIso v) => SexpIso (Map k v) where
   sexpIso = iso Map.fromList Map.toList . list (el sexpIso)
@@ -63,7 +66,8 @@ instance (SexpIso a) => SexpIso [a] where
 
 instance (SexpIso a) => SexpIso (NE.NonEmpty a) where
   sexpIso =
+    list (el sexpIso >>> rest sexpIso) >>>
+    swap >>>
+    Flip pair >>>
     iso (\(x,xs) -> x NE.:| xs )
-        (\(x NE.:| xs) -> (x, xs)) .
-    pair .
-    list (el sexpIso >>> rest sexpIso)
+        (\(x NE.:| xs) -> (x, xs))

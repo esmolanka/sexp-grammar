@@ -47,7 +47,6 @@ library
     Language.Sexp.Types
     Language.SexpGrammar.Base
     Language.SexpGrammar.Class
-    Language.SexpGrammar.Combinators
 
   build-depends:
       array

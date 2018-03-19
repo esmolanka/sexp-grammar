@@ -41,7 +41,7 @@ import GHC.Generics
 -- stacks. Works for types with one data constructor. For sum types use 'match'
 -- and 'Coproduct'.
 with
-  :: forall a b s t g c d f.
+  :: forall a b s t c d f p.
      ( Generic a
      , MkPrismList (Rep a)
      , MkStackPrism f
@@ -49,8 +49,8 @@ with
      , StackPrismLhs f t ~ b
      , Constructor c
      ) =>
-     (Grammar g b (a :- t) -> Grammar g s (a :- t))
-  -> Grammar g s (a :- t)
+     (Grammar p b (a :- t) -> Grammar p s (a :- t))
+  -> Grammar p s (a :- t)
 with g =
   let PrismList (P prism) = mkRevPrismList
       name = conName (undefined :: m c f e)
@@ -66,21 +66,21 @@ match
      , Match (Rep a) bs t
      , bs ~ Coll (Rep a) t
      ) =>
-     Coproduct g s bs a t
-  -> Grammar g s (a :- t)
+     Coproduct p s bs a t
+  -> Grammar p s (a :- t)
 match = fst . match' mkRevPrismList
 
 -- | Heterogenous list of grammars, each one matches a data constructor of type
 -- @a@. 'With' is used to provide a data constructor/stack isomorphism to a
 -- grammar working on stacks. 'End' ends the list of matches.
-data Coproduct g s bs a t where
+data Coproduct p s bs a t where
 
   With
-    :: (Grammar g b (a :- t) -> Grammar g s (a :- t))
-    -> Coproduct g s bs a t
-    -> Coproduct g s (b ': bs) a t
+    :: (Grammar p b (a :- t) -> Grammar p s (a :- t))
+    -> Coproduct p s bs a t
+    -> Coproduct p s (b ': bs) a t
 
-  End :: Coproduct g s '[] a t
+  End :: Coproduct p s '[] a t
 
 ----------------------------------------------------------------------
 -- Machinery
@@ -101,9 +101,9 @@ type family Trav (t :: * -> *) (l :: [*]) :: [*] where
 
 class Match (f :: * -> *) bs t where
   match' :: PrismList f a
-         -> Coproduct g s bs a t
-         -> ( Grammar g s (a :- t)
-            , Coproduct g s (Trav f bs) a t
+         -> Coproduct p s bs a t
+         -> ( Grammar p s (a :- t)
+            , Coproduct p s (Trav f bs) a t
             )
 
 instance (Match f bs t, Trav f bs ~ '[]) => Match (M1 D c f) bs t where

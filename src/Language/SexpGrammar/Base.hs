@@ -9,276 +9,185 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
-module Language.SexpGrammar.Base
-  ( SexpGrammar (..)
-  , AtomGrammar (..)
-  , SeqGrammar (..)
-  , PropGrammar (..)
-  , runParse
-  , runGen
-  , SexpG
-  , SexpG_
-  , module Data.InvertibleGrammar
-  ) where
+{-# LANGUAGE LambdaCase            #-}
 
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
-import Control.Monad.State
+module Language.SexpGrammar.Base where
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid
-#endif
-import Data.Scientific
+import Control.Category ((>>>))
+import Data.Data
 import Data.Text (Text)
-import qualified Data.Text.Lazy as Lazy
-
+import qualified Data.Text as TS
+import qualified Data.Text.Lazy as TL
+import Data.Scientific
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Monad
+import Data.InvertibleGrammar.Monad (ContextError, Propagation, GrammarError)
 import Language.Sexp.Pretty (prettySexp)
 import Language.Sexp.Types
+import Language.Sexp.Utils (lispifyName)
 
--- | Grammar which matches Sexp to a value of type a and vice versa.
-type SexpG a = forall t. Grammar SexpGrammar (Sexp :- t) (a :- t)
+ppBrief :: Sexp -> Text
+ppBrief = TL.toStrict . \case
+  atom@Atom{} ->
+    prettySexp atom
+  other ->
+    let pp = prettySexp other
+    in if TL.length pp > 25
+       then TL.take 25 pp <> "..."
+       else pp
 
--- | Grammar which pattern matches Sexp and produces nothing, or
--- consumes nothing but generates some Sexp.
-type SexpG_ = forall t. Grammar SexpGrammar (Sexp :- t) t
+----------------------------------------------------------------------
 
-unexpectedStr :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text -> m a
-unexpectedStr msg = grammarError $ unexpected msg
+runParse :: Grammar Position (Sexp :- ()) (a :- ()) -> Sexp -> ContextError (Propagation Position) (GrammarError Position) a
+runParse gram input =
+  (\(x :- _) -> x) <$> forward gram (input :- ())
 
-unexpectedSexp :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text -> Sexp -> m a
-unexpectedSexp exp got =
-  grammarError $ expected exp `mappend` unexpected (Lazy.toStrict $ prettySexp got)
+runGen :: Grammar Position (Sexp :- ()) (a :- ()) -> a -> ContextError (Propagation Position) (GrammarError Position) Sexp
+runGen gram input =
+  (\(x :- _) -> x) <$> backward gram (input :- ())
 
-unexpectedAtom :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Atom -> Atom -> m a
-unexpectedAtom expected atom = do
-  unexpectedSexp (Lazy.toStrict $ prettySexp (Atom dummyPos expected)) (Atom dummyPos atom)
+----------------------------------------------------------------------
 
-unexpectedAtomType :: (MonadContextError (Propagation Position) (GrammarError Position) m) => Text-> Atom -> m a
-unexpectedAtomType expected atom = do
-  unexpectedSexp ("atom of type " `mappend` expected) (Atom dummyPos atom)
+position :: Grammar Position (Sexp :- t) (Position :- Sexp :- t)
+position = Iso (\(s :- t) -> getPos s :- s :- t) (\(_ :- s :- t) -> s :- t)
+
+locate :: Grammar Position (Sexp :- t) (Sexp :- t)
+locate =
+  position >>>
+  overHead Locate >>>
+  Iso (\(_ :- t) -> t) (\t -> dummyPos :- t)
+
+atom :: Grammar Position (Sexp :- t) (Atom :- t)
+atom = locate >>> partialOsi "Atom"
+  (Atom dummyPos)
+  (\case
+      Atom _pos a -> Right a
+      other -> Left (expected "atom" <> unexpected (ppBrief other)))
+
+list_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
+list_ = partialOsi "List"
+  (List dummyPos)
+  (\case
+      List _pos a -> Right a
+      other -> Left (expected "list" <> unexpected (ppBrief other)))
+
+
+list :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
+list g = locate >>> list_ >>> Dive (g >>> nil)
+
+
+vector_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
+vector_ = partialOsi "Vector"
+  (Vector dummyPos)
+  (\case
+      Vector _pos a -> Right a
+      other -> Left (expected "vector" <> unexpected (ppBrief other)))
+
+
+vect :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
+vect g = locate >>> vector_ >>> Dive (g >>> nil)
 
 
 ----------------------------------------------------------------------
--- Top-level grammar
 
-data SexpGrammar a b where
-  GPos  :: SexpGrammar (Sexp :- t) (Position :- Sexp :- t)
-  GAtom :: Grammar AtomGrammar (Atom :- t) t' -> SexpGrammar (Sexp :- t) t'
-  GList :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
-  GVect :: Grammar SeqGrammar t            t' -> SexpGrammar (Sexp :- t) t'
-
-instance
-  ( MonadPlus m
-  , MonadContextError (Propagation Position) (GrammarError Position) m
-  ) => InvertibleGrammar m SexpGrammar where
-  forward GPos (s :- t) =
-    return (getPos s :- s :- t)
-
-  forward (GAtom g) (s :- t) =
-    case s of
-      Atom p a    -> dive $ locate p >> forward g (a :- t)
-      other       -> locate (getPos other) >> unexpectedSexp "atom" other
-
-  forward (GList g) (s :- t) = do
-    case s of
-      List p xs   -> dive $ locate p >> parseSequence xs g t
-      other       -> locate (getPos other) >> unexpectedSexp "list" other
-
-  forward (GVect g) (s :- t) = do
-    case s of
-      Vector p xs -> dive $ locate p >> parseSequence xs g t
-      other       -> locate (getPos other) >> unexpectedSexp "vector" other
-
-  backward GPos (_ :- s :- t) =
-    return (s :- t)
-
-  backward (GAtom g) t = do
-    (a :- t') <- dive $ backward g t
-    return (Atom dummyPos a :- t')
-
-  backward (GList g) t = do
-    (t', SeqCtx xs) <- runStateT (dive $ backward g t) (SeqCtx [])
-    return (List dummyPos xs :- t')
-
-  backward (GVect g) t = do
-    (t', SeqCtx xs) <- runStateT (dive $ backward g t) (SeqCtx [])
-    return (Vector dummyPos xs :- t')
-
-----------------------------------------------------------------------
--- Atom grammar
-
-data AtomGrammar a b where
-  GSym     :: Text -> AtomGrammar (Atom :- t) t
-  GKw      :: Kw   -> AtomGrammar (Atom :- t) t
-  GBool    :: AtomGrammar (Atom :- t) (Bool :- t)
-  GInt     :: AtomGrammar (Atom :- t) (Integer :- t)
-  GReal    :: AtomGrammar (Atom :- t) (Scientific :- t)
-  GString  :: AtomGrammar (Atom :- t) (Text :- t)
-  GSymbol  :: AtomGrammar (Atom :- t) (Text :- t)
-  GKeyword :: AtomGrammar (Atom :- t) (Kw :- t)
-
-instance
-  ( MonadPlus m
-  , MonadContextError (Propagation Position) (GrammarError Position) m
-  ) => InvertibleGrammar m AtomGrammar where
-  forward (GSym sym') (atom :- t) =
-    case atom of
-      AtomSymbol sym | sym' == sym -> return t
-      _ -> unexpectedAtom (AtomSymbol sym') atom
-
-  forward (GKw kw') (atom :- t) =
-    case atom of
-      AtomKeyword kw | kw' == kw -> return t
-      _ -> unexpectedAtom (AtomKeyword kw') atom
-
-  forward GBool (atom :- t) =
-    case atom of
-      AtomBool a -> return $ a :- t
-      _          -> unexpectedAtomType "bool" atom
-
-  forward GInt (atom :- t) =
-    case atom of
-      AtomInt a -> return $ a :- t
-      _         -> unexpectedAtomType "int"  atom
-
-  forward GReal (atom :- t) =
-    case atom of
-      AtomReal a -> return $ a :- t
-      _          -> unexpectedAtomType "real" atom
-
-  forward GString (atom :- t) =
-    case atom of
-      AtomString a -> return $ a :- t
-      _            -> unexpectedAtomType "string" atom
-
-  forward GSymbol (atom :- t) =
-    case atom of
-      AtomSymbol a -> return $ a :- t
-      _            -> unexpectedAtomType "symbol" atom
-
-  forward GKeyword (atom :- t) =
-    case atom of
-      AtomKeyword a -> return $ a :- t
-      _             -> unexpectedAtomType "keyword" atom
+el :: Grammar p (a :- t) t' -> Grammar p ([a] :- t) ([a] :- t')
+el g = cons >>> swap >>> Over g >>> Step
 
 
-  backward (GSym sym) t      = return (AtomSymbol sym :- t)
-  backward (GKw kw) t        = return (AtomKeyword kw :- t)
-  backward GBool (a :- t)    = return (AtomBool a :- t)
-  backward GInt (a :- t)     = return (AtomInt a :- t)
-  backward GReal (a :- t)    = return (AtomReal a :- t)
-  backward GString (a :- t)  = return (AtomString a :- t)
-  backward GSymbol (a :- t)  = return (AtomSymbol a :- t)
-  backward GKeyword (a :- t) = return (AtomKeyword a :- t)
-
-
------------------------------------------------------------------------
--- Sequence grammar
-
-parseSequence :: (MonadContextError (Propagation Position) (GrammarError Position) m, InvertibleGrammar (StateT SeqCtx m) g) => [Sexp] -> g a b -> a -> m b
-parseSequence xs g t = do
-  (a, SeqCtx rest) <- runStateT (forward g t) (SeqCtx xs)
-  unless (null rest) $
-    unexpectedStr $ "leftover elements: " `mappend`
-      (Lazy.toStrict $ Lazy.unwords $ map prettySexp rest)
-  return a
-
-data SeqGrammar a b where
-  GElem :: Grammar SexpGrammar (Sexp :- t) t'
-        -> SeqGrammar t t'
-
-  GRest :: Grammar SexpGrammar (Sexp :- t) (a :- t)
-        -> SeqGrammar t ([a] :- t)
-
-  GProps :: Grammar PropGrammar t t'
-         -> SeqGrammar t t'
-
-newtype SeqCtx = SeqCtx { getItems :: [Sexp] }
-
-instance
-  ( MonadPlus m
-  , MonadState SeqCtx m
-  , MonadContextError (Propagation Position) (GrammarError Position) m
-  ) => InvertibleGrammar m SeqGrammar where
-  forward (GElem g) t = do
-    step
-    xs <- gets getItems
-    case xs of
-      []    -> unexpectedStr "end of sequence"
-      x:xs' -> do
-        modify $ \s -> s { getItems = xs' }
-        forward g (x :- t)
-
-  forward (GRest g) t = do
-    xs <- gets getItems
-    modify $ \s -> s { getItems = [] }
-    go xs t
-    where
-      go []     t = return $ [] :- t
-      go (x:xs) t = do
-        step
-        y  :- t'  <- forward g (x :- t)
-        ys :- t'' <- go xs t'
-        return $ (y:ys) :- t''
-
-  forward (GProps g) t = do
-    xs <- gets getItems
-    (rest, props) <- go xs []
-    modify $ \s -> s { getItems = rest }
-    (res, PropCtx ctx) <- runStateT (forward g t) (PropCtx (reverse props))
-    when (not $ null ctx) $
-      unexpectedStr $ "property-list keys: " `mappend`
-        (Lazy.toStrict $ Lazy.unwords $
-          map (prettySexp . Atom dummyPos . AtomKeyword) (map fst ctx))
-    return res
-    where
-      go :: [Sexp] -> [(Kw, Sexp)] -> m ([Sexp], [(Kw, Sexp)])
-      go [] props = return ([], props)
-      go (Atom _ (AtomKeyword kwd):x:xs) props = step >> go xs ((kwd, x) : props)
-      go other props = return (other, props)
-
-  backward (GElem g) t = do
-    step
-    (x :- t') <- backward g t
-    modify $ \s -> s { getItems = x : getItems s }
-    return t'
-
-  backward (GRest g) (ys :- t) = do
-    xs :- t' <- go ys t
-    put (SeqCtx xs)
-    return t'
-    where
-      go []     t = return $ [] :- t
-      go (y:ys) t = do
-        step
-        x  :- t'  <- backward g (y :- t)
-        xs :- t'' <- go ys t'
-        return $ (x : xs) :- t''
-
-  backward (GProps g) t = do
-    step
-    (t', PropCtx props) <- runStateT (backward g t) (PropCtx [])
-    let plist = foldr (\(name, sexp) acc -> Atom dummyPos (AtomKeyword name) : sexp : acc) [] props
-    modify (\(SeqCtx rest) -> SeqCtx $ plist ++ rest)
-    return t'
+rest :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p ([a] :- t) ([a] :- [b] :- t)
+rest g = overHead (Over (unTail g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
 
 
 ----------------------------------------------------------------------
--- Property list grammar
 
-data PropGrammar a b where
-  GProp    :: Kw
-           -> Grammar SexpGrammar (Sexp :- t) (a :- t)
-           -> PropGrammar t (a :- t)
+props' :: Grammar p ([Sexp] :- t) ([Sexp] :- [(Kw, Sexp)] :- t)
+props' = Flip $ PartialIso "properties"
+  (\(rest :- alist :- t) ->
+      (concatMap (\(k, v) -> [Atom dummyPos (AtomKeyword k), v]) alist ++ rest) :- t)
+  (\(lst :- t) ->
+      let (rest, alist) = takePairs lst [] in
+      Right (rest :- alist :- t))
+  where
+    takePairs :: [Sexp] -> [(Kw, Sexp)] -> ([Sexp], [(Kw, Sexp)])
+    takePairs (Atom _ (AtomKeyword k) : v : rest) acc = takePairs rest ((k, v) : acc)
+    takePairs other acc = (other, acc)
 
-  GOptProp :: Kw
-           -> Grammar SexpGrammar (Sexp :- t) (a :- t)
-           -> PropGrammar t (Maybe a :- t)
 
-newtype PropCtx = PropCtx { getProps :: [(Kw, Sexp)] }
+props :: Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar p ([Sexp] :- t) ([Sexp] :- t')
+props g = Dive $ props' >>> Over g >>> swap >>> nil
+
+
+key :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
+key k g = lkp k >>> Step >>> overHead (unTail g) >>> swap
+
+
+keyMay :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
+keyMay k g = lkpMay k >>> Step >>> overHead (Over (unTail g)) >>> swap
+
+
+(.:) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
+(.:) = key
+
+
+(.:?) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
+(.:?) = keyMay
+
+----------------------------------------------------------------------
+-- Utils
+
+pair :: Grammar p ((a, b) :- t) (a :- b :- t)
+pair = Iso
+  (\((a, b) :- t) -> a :- b :- t)
+  (\(a :- b :- t) -> (a, b) :- t)
+
+
+cons :: Grammar p ([a] :- t) (a :- [a] :- t)
+cons = Flip $ PartialIso "element"
+  (\(el :- lst :- t) -> (el:lst) :- t)
+  (\(lst :- t) ->
+      case lst of
+        [] -> Left (expected "list element")
+        (el:rest) -> Right (el :- rest :- t))
+
+
+nil :: Grammar p ([a] :- t) t
+nil = Flip $ PartialIso "end-of-list"
+  (\t -> [] :- t)
+  (\(lst :- t) ->
+      case lst of
+        [] -> Right t
+        (_el:_rest) -> Left (expected "end-of-list"))
+
+
+swap :: Grammar p (a :- b :- t) (b :- a :- t)
+swap = Iso
+  (\(a :- b :- t) -> (b :- a :- t))
+  (\(b :- a :- t) -> (a :- b :- t))
+
+
+dup :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p (a :- t) (b :- a :- t)
+dup g = Iso (\(s :- t) -> s :- s :- t) (\(_ :- s :- t) -> s :- t) >>> overHead (unTail g)
+
+
+lkp :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (v :- [(k, v)] :- t)
+lkp k = Flip $ PartialIso "key"
+  (\(v :- alist :- t) -> ((k, v) : alist) :- t)
+  (\(alist :- t) ->
+     case popKey k alist of
+       Nothing -> Left (expected ("key " <> TS.pack (show k)))
+       Just (v, alist') -> Right (v :- alist' :- t))
+
+
+lkpMay :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (Maybe v :- [(k, v)] :- t)
+lkpMay k = Flip $ PartialIso "key"
+  (\(mv :- alist :- t) ->
+      case mv of
+        Just v -> ((k, v) : alist) :- t
+        Nothing -> alist :- t)
+  (\(alist :- t) ->
+     case popKey k alist of
+       Nothing -> Right (Nothing :- alist :- t)
+       Just (v, alist') -> Right (Just v :- alist' :- t))
+
 
 popKey :: forall k v. Eq k => k -> [(k, v)] -> Maybe (v, [(k, v)])
 popKey k' alist = go [] alist
@@ -289,69 +198,108 @@ popKey k' alist = go [] alist
       | otherwise = go (x:acc) xs
     go _ [] = Nothing
 
-instance
-  ( MonadPlus m
-  , MonadState PropCtx m
-  , MonadContextError (Propagation Position) (GrammarError Position) m
-  ) => InvertibleGrammar m PropGrammar where
-  forward (GProp kwd g) t = do
-    ps <- gets getProps
-    case popKey kwd ps of
-      Nothing -> unexpectedStr $
-        mconcat [ "key "
-                , Lazy.toStrict . prettySexp . Atom dummyPos . AtomKeyword $ kwd
-                , " not found"
-                ]
-      Just (x, rest) -> do
-        put (PropCtx rest)
-        forward g $ x :- t
 
-  forward (GOptProp kwd g) t = do
-    ps <- gets getProps
-    case popKey kwd ps of
-      Nothing ->
-        return (Nothing :- t)
-      Just (x, rest)  -> do
-        put (PropCtx rest)
-        (a :- t') <- forward g (x :- t)
-        return (Just a :- t')
+over :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
+over = Over
+
+overHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
+overHead g =
+  Iso (\(a :- t) -> (t, a)) (\(t, a) -> (a :- t)) >>>
+  Over g >>>
+  Iso (\(t, a) -> (a :- t)) (\(a :- t) -> (t, a))
 
 
-  backward (GProp kwd g) t = do
-    x :- t' <- backward g t
-    modify $ \ps -> ps { getProps = (kwd, x) : getProps ps }
-    return t'
+unTail :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
+unTail g =
+  Iso (\a -> (a :- undefined)) (\(a :- _) -> a) >>>
+  g >>>
+  Iso (\(a :- _) -> a) (\a -> (a :- undefined))
 
-  backward (GOptProp _ _) (Nothing :- t) = do
-    return t
 
-  backward (GOptProp kwd g) (Just x :- t) = do
-    x' :- t' <- backward g (x :- t)
-    modify $ \ps -> ps { getProps = (kwd, x') : getProps ps }
-    return t'
+coproduct :: [Grammar p a b] -> Grammar p a b
+coproduct = foldr1 (<>)
+
+enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)
+enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a) [minBound .. maxBound]
+  where
+    getEnumName :: (Data a) => a -> Text
+    getEnumName = TS.pack . lispifyName . showConstr . toConstr
+
+toDefault :: (Eq a) => a -> Grammar p (Maybe a :- t) (a :- t)
+toDefault def = iso
+  (maybe def id)
+  (\val -> if val == def then Nothing else Just val)
+
 
 ----------------------------------------------------------------------
+-- Atoms
 
-runParse
-  :: ( Functor m
-     , MonadPlus m
-     , MonadContextError (Propagation Position) (GrammarError Position) m
-     , InvertibleGrammar m g
-     )
-  => Grammar g (Sexp :- ()) (a :- ())
-  -> Sexp
-  -> m a
-runParse gram input =
-  (\(x :- _) -> x) <$> forward gram (input :- ())
+bool :: Grammar Position (Sexp :- t) (Bool :- t)
+bool = atom >>> partialOsi "Bool"
+  AtomBool
+  (\case
+      AtomBool b -> Right b
+      other -> Left (expected "bool" <> unexpected (ppBrief $ Atom dummyPos other)))
 
-runGen
-  :: ( Functor m
-     , MonadPlus m
-     , MonadContextError (Propagation Position) (GrammarError Position) m
-     , InvertibleGrammar m g
-     )
-  => Grammar g (Sexp :- ()) (a :- ())
-  -> a
-  -> m Sexp
-runGen gram input =
-  (\(x :- _) -> x) <$> backward gram (input :- ())
+integer :: Grammar Position (Sexp :- t) (Integer :- t)
+integer = atom >>> partialOsi "Integer"
+  AtomInt
+  (\case
+      AtomInt i -> Right i
+      other -> Left (expected "int" <> unexpected (ppBrief $ Atom dummyPos other)))
+
+int :: Grammar Position (Sexp :- t) (Int :- t)
+int = integer >>> iso fromIntegral fromIntegral
+
+real :: Grammar Position (Sexp :- t) (Scientific :- t)
+real = atom >>> partialOsi "Scientific"
+  AtomReal
+  (\case
+      AtomReal r -> Right r
+      other -> Left (expected "real" <> unexpected (ppBrief $ Atom dummyPos other)))
+
+double :: Grammar Position (Sexp :- t) (Double :- t)
+double = real >>> iso toRealFloat fromFloatDigits
+
+string :: Grammar Position (Sexp :- t) (Text :- t)
+string = atom >>> partialOsi "Text"
+  AtomString
+  (\case
+      AtomString s -> Right s
+      other -> Left (expected "string" <> unexpected (ppBrief $ Atom dummyPos other)))
+
+string' :: Grammar Position (Sexp :- t) (String :- t)
+string' = string >>> iso TS.unpack TS.pack
+
+symbol :: Grammar Position (Sexp :- t) (Text :- t)
+symbol = atom >>> partialOsi "Symbol"
+  AtomSymbol
+  (\case
+      AtomSymbol s -> Right s
+      other -> Left (expected "symbol" <> unexpected (ppBrief $ Atom dummyPos other)))
+
+symbol' :: Grammar Position (Sexp :- t) (String :- t)
+symbol' = symbol >>> iso TS.unpack TS.pack
+
+keyword :: Grammar Position (Sexp :- t) (Kw :- t)
+keyword = atom >>> partialOsi "Keyword"
+  AtomKeyword
+  (\case
+      AtomKeyword k -> Right k
+      other -> Left (expected "keyword" <> unexpected (ppBrief $ Atom dummyPos other)))
+
+sym :: Text -> Grammar Position (Sexp :- t) t
+sym s = atom >>> Flip (PartialIso "Symbol"
+  (AtomSymbol s :-)
+  (\(a :- t) ->
+      case a of
+        AtomSymbol s' | s == s' -> Right t
+        other -> Left $ expected ("symbol " <> s) <> unexpected (ppBrief $ Atom dummyPos other)))
+
+kw :: Kw -> Grammar Position (Sexp :- t) t
+kw k = atom >>> Flip (PartialIso "Keyword"
+  (AtomKeyword k :-)
+  (\(a :- t) ->
+      case a of
+        AtomKeyword k' | k == k' -> Right t
+        other -> Left $ expected ("keyword " <> unKw k) <> unexpected (ppBrief $ Atom dummyPos other)))

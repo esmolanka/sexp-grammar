@@ -88,7 +88,7 @@ instance Arbitrary ArithExpr where
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso = $(grammarFor 'Pair) . list (el sexpIso >>> el sexpIso)
 
-pairGenericIso :: SexpG a -> SexpG b -> SexpG (Pair a b)
+pairGenericIso :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Pair a b :- t)
 pairGenericIso a b = with (\pair -> pair . list (el a >>> el b))
 
 instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
@@ -97,14 +97,14 @@ instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
     , $(grammarFor 'Baz) . list (el (sym "baz") >>> el sexpIso >>> el sexpIso)
     ]
 
-fooGenericIso :: SexpG a -> SexpG b -> SexpG (Foo a b)
+fooGenericIso :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Foo a b :- t)
 fooGenericIso a b = match
   $ With (\bar -> bar . list (el (sym "bar") >>> el a >>> el b))
   $ With (\baz -> baz . list (el (sym "baz") >>> el a >>> el b))
   $ End
 
 
-arithExprTHIso :: SexpG ArithExpr
+arithExprTHIso :: Grammar Position (Sexp :- t) (ArithExpr :- t)
 arithExprTHIso =
   sconcat
     [ $(grammarFor 'Lit) . int
@@ -112,10 +112,10 @@ arithExprTHIso =
     , $(grammarFor 'Mul) . list (el (sym "*") >>> rest arithExprTHIso)
     ]
 
-arithExprGenericIso :: SexpG ArithExpr
+arithExprGenericIso :: Grammar Position (Sexp :- t) (ArithExpr :- t)
 arithExprGenericIso = expr
   where
-    expr :: SexpG ArithExpr
+    expr :: Grammar Position (Sexp :- t) (ArithExpr :- t)
     expr = match
       $ With (\lit -> lit . int)
       $ With (\add -> add . list (el (sym "+") >>> el expr >>> el expr))
@@ -144,7 +144,7 @@ instance Arbitrary Person where
             , (1, vectorOf 3 arbitrary)
             ]
 
-personGenericIso :: SexpG Person
+personGenericIso :: Grammar Position (Sexp :- t) (Person :- t)
 personGenericIso = with
   (\person ->
      list (
@@ -246,7 +246,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
     Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     G.parseSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n  expected: atom of type bool\n       got: 10") :: Either String (Foo Bool Bool))
+    (Left ("<no location information>:1:0: mismatch:\n  expected: bool\n       got: 10") :: Either String (Foo Bool Bool))
   ]
 
 testArithExpr :: ArithExpr
@@ -268,7 +268,7 @@ genTests = testGroup "gen tests"
   ]
 
 
-genParseIdentityProp :: forall a. (Eq a) => SexpG a -> a -> Bool
+genParseIdentityProp :: forall a. (Eq a) => (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Bool
 genParseIdentityProp iso expr =
   (G.genSexp iso expr >>= G.parseSexp iso :: Either String a)
   ==

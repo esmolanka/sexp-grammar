@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE TypeOperators      #-}
 
 import Criterion.Main
 
@@ -11,6 +12,7 @@ import Control.Arrow
 import Control.Category
 import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
+import Language.Sexp (Sexp, Position)
 import Language.SexpGrammar
 import Language.SexpGrammar.TH
 
@@ -35,6 +37,8 @@ data Prim
 
 return []
 
+type SexpG a = forall t. Grammar Position (Sexp :- t) (a :- t)
+
 instance SexpIso Prim where
   sexpIso = enum
 
@@ -57,9 +61,10 @@ instance SexpIso Expr where
          (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
           el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
           rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
-          swap >>>                             -- Swap:            prim :- args :- ()
-          push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
-          swap                                 -- Swap:            prim :- "dummy" :- args :- ()
+          over (
+             swap >>>                             -- Swap:            prim :- args :- ()
+             push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
+             swap)                                -- Swap:            prim :- "dummy" :- args :- ()
          ))
 
 
