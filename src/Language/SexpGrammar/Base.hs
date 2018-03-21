@@ -14,25 +14,32 @@
 module Language.SexpGrammar.Base where
 
 import Control.Category ((>>>))
+
 import Data.Data
 import Data.Text (Text)
 import qualified Data.Text as TS
-import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Encoding as TS
+import qualified Data.ByteString.Lazy as BS
 import Data.Scientific
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Monad (ContextError, Propagation, GrammarError)
-import Language.Sexp.Pretty (prettySexp)
+
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
+
+import Language.Sexp.Encode (encode)
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
 
 ppBrief :: Sexp -> Text
-ppBrief = TL.toStrict . \case
+ppBrief = TS.decodeUtf8 . BS.toStrict . \case
   atom@Atom{} ->
-    prettySexp atom
+    encode atom
   other ->
-    let pp = prettySexp other
-    in if TL.length pp > 25
-       then TL.take 25 pp <> "..."
+    let pp = encode other
+    in if BS.length pp > 25
+       then BS.take 25 pp <> "..."
        else pp
 
 ----------------------------------------------------------------------
@@ -134,10 +141,10 @@ keyMay k g = lkpMay k >>> Step >>> overHead (Over (unTail g)) >>> swap
 ----------------------------------------------------------------------
 -- Utils
 
-pair :: Grammar p ((a, b) :- t) (a :- b :- t)
+pair :: Grammar p ((a, b) :- t) (b :- a :- t)
 pair = Iso
-  (\((a, b) :- t) -> a :- b :- t)
-  (\(a :- b :- t) -> (a, b) :- t)
+  (\((a, b) :- t) -> b :- a :- t)
+  (\(b :- a :- t) -> (a, b) :- t)
 
 
 cons :: Grammar p ([a] :- t) (a :- [a] :- t)
@@ -202,6 +209,7 @@ popKey k' alist = go [] alist
 over :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
 over = Over
 
+
 overHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
 overHead g =
   Iso (\(a :- t) -> (t, a)) (\(t, a) -> (a :- t)) >>>
@@ -219,6 +227,7 @@ unTail g =
 coproduct :: [Grammar p a b] -> Grammar p a b
 coproduct = foldr1 (<>)
 
+
 enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)
 enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a) [minBound .. maxBound]
   where
@@ -230,6 +239,9 @@ toDefault def = iso
   (maybe def id)
   (\val -> if val == def then Nothing else Just val)
 
+
+un :: Grammar p a b -> Grammar p b a
+un = Flip
 
 ----------------------------------------------------------------------
 -- Atoms
@@ -302,4 +314,4 @@ kw k = atom >>> Flip (PartialIso "Keyword"
   (\(a :- t) ->
       case a of
         AtomKeyword k' | k == k' -> Right t
-        other -> Left $ expected ("keyword " <> unKw k) <> unexpected (ppBrief $ Atom dummyPos other)))
+        other -> Left $ expected ("keyword :" <> unKw k) <> unexpected (ppBrief $ Atom dummyPos other)))

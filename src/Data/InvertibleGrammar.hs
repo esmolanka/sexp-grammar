@@ -35,7 +35,9 @@ import Control.Applicative
 #endif
 import Control.Category
 import Control.Monad
-import Data.Semigroup as Semi
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 import Data.InvertibleGrammar.Monad
 
 
@@ -55,10 +57,8 @@ instance Category (Grammar p) where
   id = Iso id id
   (.) x y = x :.: y
 
-
-instance Semi.Semigroup (Grammar p a b) where
+instance Semigroup (Grammar p a b) where
   (<>) = (:<>:)
-
 
 data h :- t = h :- t deriving (Eq, Show, Functor, Foldable, Traversable)
 infixr 5 :-
