@@ -61,7 +61,7 @@ instance SexpIso Expr where
          (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
           el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
           rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
-          over (
+          Traverse (
              swap >>>                             -- Swap:            prim :- args :- ()
              push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
              swap)                                -- Swap:            prim :- "dummy" :- args :- ()

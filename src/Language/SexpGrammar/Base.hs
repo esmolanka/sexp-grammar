@@ -13,16 +13,17 @@
 
 module Language.SexpGrammar.Base where
 
-import Control.Category ((>>>))
+import Prelude hiding (id)
+import Control.Category ((>>>), id)
 
+import qualified Data.ByteString.Lazy as BS
 import Data.Data
+import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Monad (ContextError, Propagation, GrammarError)
+import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
 import qualified Data.Text.Encoding as TS
-import qualified Data.ByteString.Lazy as BS
-import Data.Scientific
-import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Monad (ContextError, Propagation, GrammarError)
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
@@ -31,6 +32,7 @@ import Data.Semigroup
 import Language.Sexp.Encode (encode)
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
+
 
 ppBrief :: Sexp -> Text
 ppBrief = TS.decodeUtf8 . BS.toStrict . \case
@@ -42,6 +44,7 @@ ppBrief = TS.decodeUtf8 . BS.toStrict . \case
        then BS.take 25 pp <> "..."
        else pp
 
+
 ----------------------------------------------------------------------
 
 runParse :: Grammar Position (Sexp :- ()) (a :- ()) -> Sexp -> ContextError (Propagation Position) (GrammarError Position) a
@@ -52,26 +55,30 @@ runGen :: Grammar Position (Sexp :- ()) (a :- ()) -> a -> ContextError (Propagat
 runGen gram input =
   (\(x :- _) -> x) <$> backward gram (input :- ())
 
+
 ----------------------------------------------------------------------
 
 position :: Grammar Position (Sexp :- t) (Position :- Sexp :- t)
 position = Iso (\(s :- t) -> getPos s :- s :- t) (\(_ :- s :- t) -> s :- t)
 
+
 locate :: Grammar Position (Sexp :- t) (Sexp :- t)
 locate =
   position >>>
-  overHead Locate >>>
+  Bitraverse Locate id >>>
   Iso (\(_ :- t) -> t) (\t -> dummyPos :- t)
 
+
 atom :: Grammar Position (Sexp :- t) (Atom :- t)
-atom = locate >>> partialOsi "Atom"
+atom = locate >>> partialOsi
   (Atom dummyPos)
   (\case
       Atom _pos a -> Right a
       other -> Left (expected "atom" <> unexpected (ppBrief other)))
 
+
 list_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
-list_ = partialOsi "List"
+list_ = partialOsi
   (List dummyPos)
   (\case
       List _pos a -> Right a
@@ -79,11 +86,11 @@ list_ = partialOsi "List"
 
 
 list :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
-list g = locate >>> list_ >>> Dive (g >>> nil)
+list g = locate >>> list_ >>> Dive (g >>> Flip nil)
 
 
 vector_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
-vector_ = partialOsi "Vector"
+vector_ = partialOsi
   (Vector dummyPos)
   (\case
       Vector _pos a -> Right a
@@ -91,23 +98,23 @@ vector_ = partialOsi "Vector"
 
 
 vect :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
-vect g = locate >>> vector_ >>> Dive (g >>> nil)
+vect g = locate >>> vector_ >>> Dive (g >>> Flip nil)
 
 
 ----------------------------------------------------------------------
 
 el :: Grammar p (a :- t) t' -> Grammar p ([a] :- t) ([a] :- t')
-el g = cons >>> swap >>> Over g >>> Step
+el g = Flip cons >>> Traverse g >>> Step
 
 
 rest :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p ([a] :- t) ([a] :- [b] :- t)
-rest g = overHead (Over (unTail g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
+rest g = Bitraverse (Traverse (unTail g >>> Step)) id >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
 
 
 ----------------------------------------------------------------------
 
-props' :: Grammar p ([Sexp] :- t) ([Sexp] :- [(Kw, Sexp)] :- t)
-props' = Flip $ PartialIso "properties"
+props_ :: Grammar p ([Sexp] :- t) ([Sexp] :- [(Kw, Sexp)] :- t)
+props_ = Flip $ PartialIso
   (\(rest :- alist :- t) ->
       (concatMap (\(k, v) -> [Atom dummyPos (AtomKeyword k), v]) alist ++ rest) :- t)
   (\(lst :- t) ->
@@ -120,15 +127,15 @@ props' = Flip $ PartialIso "properties"
 
 
 props :: Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar p ([Sexp] :- t) ([Sexp] :- t')
-props g = Dive $ props' >>> Over g >>> swap >>> nil
+props g = Dive $ props_ >>> Traverse g >>> swap >>> Flip nil
 
 
 key :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
-key k g = lkp k >>> Step >>> overHead (unTail g) >>> swap
+key k g = lkp k >>> Step >>> Bitraverse (unTail g) id >>> swap
 
 
 keyMay :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
-keyMay k g = lkpMay k >>> Step >>> overHead (Over (unTail g)) >>> swap
+keyMay k g = lkpMay k >>> Step >>> Bitraverse (Traverse (unTail g)) id >>> swap
 
 
 (.:) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
@@ -141,23 +148,23 @@ keyMay k g = lkpMay k >>> Step >>> overHead (Over (unTail g)) >>> swap
 ----------------------------------------------------------------------
 -- Utils
 
-pair :: Grammar p ((a, b) :- t) (b :- a :- t)
+pair :: Grammar p (b :- a :- t) ((a, b) :- t)
 pair = Iso
-  (\((a, b) :- t) -> b :- a :- t)
   (\(b :- a :- t) -> (a, b) :- t)
+  (\((a, b) :- t) -> b :- a :- t)
 
 
-cons :: Grammar p ([a] :- t) (a :- [a] :- t)
-cons = Flip $ PartialIso "element"
-  (\(el :- lst :- t) -> (el:lst) :- t)
+cons :: Grammar p ([a] :- a :- t) ([a] :- t)
+cons = PartialIso
+  (\(lst :- el :- t) -> (el:lst) :- t)
   (\(lst :- t) ->
       case lst of
         [] -> Left (expected "list element")
-        (el:rest) -> Right (el :- rest :- t))
+        (el:rest) -> Right (rest :- el :- t))
 
 
-nil :: Grammar p ([a] :- t) t
-nil = Flip $ PartialIso "end-of-list"
+nil :: Grammar p t ([a] :- t)
+nil = PartialIso
   (\t -> [] :- t)
   (\(lst :- t) ->
       case lst of
@@ -171,12 +178,8 @@ swap = Iso
   (\(b :- a :- t) -> (a :- b :- t))
 
 
-dup :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p (a :- t) (b :- a :- t)
-dup g = Iso (\(s :- t) -> s :- s :- t) (\(_ :- s :- t) -> s :- t) >>> overHead (unTail g)
-
-
 lkp :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (v :- [(k, v)] :- t)
-lkp k = Flip $ PartialIso "key"
+lkp k = Flip $ PartialIso
   (\(v :- alist :- t) -> ((k, v) : alist) :- t)
   (\(alist :- t) ->
      case popKey k alist of
@@ -185,7 +188,7 @@ lkp k = Flip $ PartialIso "key"
 
 
 lkpMay :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (Maybe v :- [(k, v)] :- t)
-lkpMay k = Flip $ PartialIso "key"
+lkpMay k = Flip $ PartialIso
   (\(mv :- alist :- t) ->
       case mv of
         Just v -> ((k, v) : alist) :- t
@@ -206,17 +209,6 @@ popKey k' alist = go [] alist
     go _ [] = Nothing
 
 
-over :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
-over = Over
-
-
-overHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
-overHead g =
-  Iso (\(a :- t) -> (t, a)) (\(t, a) -> (a :- t)) >>>
-  Over g >>>
-  Iso (\(t, a) -> (a :- t)) (\(a :- t) -> (t, a))
-
-
 unTail :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
 unTail g =
   Iso (\a -> (a :- undefined)) (\(a :- _) -> a) >>>
@@ -234,47 +226,50 @@ enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a) [minBound .. maxBo
     getEnumName :: (Data a) => a -> Text
     getEnumName = TS.pack . lispifyName . showConstr . toConstr
 
+
 toDefault :: (Eq a) => a -> Grammar p (Maybe a :- t) (a :- t)
 toDefault def = iso
   (maybe def id)
   (\val -> if val == def then Nothing else Just val)
 
 
-un :: Grammar p a b -> Grammar p b a
-un = Flip
-
 ----------------------------------------------------------------------
 -- Atoms
 
 bool :: Grammar Position (Sexp :- t) (Bool :- t)
-bool = atom >>> partialOsi "Bool"
+bool = atom >>> partialOsi
   AtomBool
   (\case
       AtomBool b -> Right b
       other -> Left (expected "bool" <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 integer :: Grammar Position (Sexp :- t) (Integer :- t)
-integer = atom >>> partialOsi "Integer"
+integer = atom >>> partialOsi
   AtomInt
   (\case
       AtomInt i -> Right i
       other -> Left (expected "int" <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 int :: Grammar Position (Sexp :- t) (Int :- t)
 int = integer >>> iso fromIntegral fromIntegral
 
+
 real :: Grammar Position (Sexp :- t) (Scientific :- t)
-real = atom >>> partialOsi "Scientific"
+real = atom >>> partialOsi
   AtomReal
   (\case
       AtomReal r -> Right r
       other -> Left (expected "real" <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 double :: Grammar Position (Sexp :- t) (Double :- t)
 double = real >>> iso toRealFloat fromFloatDigits
 
+
 string :: Grammar Position (Sexp :- t) (Text :- t)
-string = atom >>> partialOsi "Text"
+string = atom >>> partialOsi
   AtomString
   (\case
       AtomString s -> Right s
@@ -283,33 +278,38 @@ string = atom >>> partialOsi "Text"
 string' :: Grammar Position (Sexp :- t) (String :- t)
 string' = string >>> iso TS.unpack TS.pack
 
+
 symbol :: Grammar Position (Sexp :- t) (Text :- t)
-symbol = atom >>> partialOsi "Symbol"
+symbol = atom >>> partialOsi
   AtomSymbol
   (\case
       AtomSymbol s -> Right s
       other -> Left (expected "symbol" <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 symbol' :: Grammar Position (Sexp :- t) (String :- t)
 symbol' = symbol >>> iso TS.unpack TS.pack
 
+
 keyword :: Grammar Position (Sexp :- t) (Kw :- t)
-keyword = atom >>> partialOsi "Keyword"
+keyword = atom >>> partialOsi
   AtomKeyword
   (\case
       AtomKeyword k -> Right k
       other -> Left (expected "keyword" <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 sym :: Text -> Grammar Position (Sexp :- t) t
-sym s = atom >>> Flip (PartialIso "Symbol"
+sym s = atom >>> Flip (PartialIso
   (AtomSymbol s :-)
   (\(a :- t) ->
       case a of
         AtomSymbol s' | s == s' -> Right t
         other -> Left $ expected ("symbol " <> s) <> unexpected (ppBrief $ Atom dummyPos other)))
 
+
 kw :: Kw -> Grammar Position (Sexp :- t) t
-kw k = atom >>> Flip (PartialIso "Keyword"
+kw k = atom >>> Flip (PartialIso
   (AtomKeyword k :-)
   (\(a :- t) ->
       case a of

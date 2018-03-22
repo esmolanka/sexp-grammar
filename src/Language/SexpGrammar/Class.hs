@@ -46,7 +46,7 @@ instance SexpIso Text where
 instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
   sexpIso =
     list (el sexpIso >>> el (sym ".") >>> el sexpIso) >>>
-    Flip pair
+    pair
 
 instance (Ord k, SexpIso k, SexpIso v) => SexpIso (Map k v) where
   sexpIso = iso Map.fromList Map.toList . list (el sexpIso)
@@ -66,6 +66,6 @@ instance (SexpIso a) => SexpIso [a] where
 instance (SexpIso a) => SexpIso (NE.NonEmpty a) where
   sexpIso =
     list (el sexpIso >>> rest sexpIso) >>>
-    Flip pair >>>
+    pair >>>
     iso (\(x,xs) -> x NE.:| xs )
         (\(x NE.:| xs) -> (x, xs))

@@ -28,7 +28,7 @@ import qualified Data.Set as S
 
      will expand into
 
-     > fooGrammar = PartialIso "Foo"
+     > fooGrammar = PartialIso
      >   (\(c :- b :- a :- t) -> Foo a b c :- t)
      >   (\case { Foo a b c :- t -> Just $ c :- b :- a :- t; _ -> Nothing })
 
@@ -74,10 +74,10 @@ grammarFor constructorName = do
         [ Just $ TH.match gPat (normalB [e| Right ($gBody) |]) []
         , if single
           then Nothing
-          else Just $ TH.match wildP (normalB [e| Left (expected . pack $ $(stringE (show constructorName))) |]) []
+          else Just $ TH.match wildP (normalB [e| Left (expected $ "constructor " <> pack ( $(stringE (show constructorName))) ) |]) []
         ]
 
-  [e| PartialIso $(stringE (show constructorName)) $fFunc $gFunc |]
+  [e| PartialIso $fFunc $gFunc |]
 
 
 {- | Build prisms and corresponding grammars for all data constructors of given

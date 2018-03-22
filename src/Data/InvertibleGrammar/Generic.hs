@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleContexts       #-}
@@ -7,6 +8,7 @@
 {-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
@@ -34,6 +36,9 @@ import Data.Profunctor (Choice(..))
 import Data.Profunctor.Unsafe
 import Data.Tagged
 import Data.Text (pack)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 
 import GHC.Generics
 
@@ -55,9 +60,8 @@ with g =
   let PrismList (P prism) = mkRevPrismList
       name = conName (undefined :: m c f e)
   in g (PartialIso
-         name
          (fwd prism)
-         (maybe (Left $ expected (pack name)) Right . bkwd prism))
+         (maybe (Left $ expected ("constructor " <> pack name)) Right . bkwd prism))
 
 -- | Combine all grammars provided in 'Coproduct' list into a single grammar.
 match
@@ -116,14 +120,14 @@ instance
   match' (p :& q) lst =
     let (gp, rest)  = match' p lst
         (qp, rest') = match' q rest
-    in (gp :<>: qp, rest')
+    in (gp <> qp, rest')
 
 instance (StackPrismLhs f t ~ b, Constructor c) => Match (M1 C c f) (b ': bs) t where
   match' (P prism) (With g rest) =
     let name = conName (undefined :: m c f e)
         p = fwd prism
-        q = maybe (Left $ expected (pack name)) Right . bkwd prism
-    in (g $ PartialIso name p q, rest)
+        q = maybe (Left $ expected ("constructor " <> pack name)) Right . bkwd prism
+    in (g $ PartialIso p q, rest)
 
 -- NB. The following machinery is heavily based on
 -- https://github.com/MedeaMelana/stack-prism/blob/master/Data/StackPrism/Generic.hs
