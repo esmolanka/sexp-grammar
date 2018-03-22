@@ -59,7 +59,13 @@ data Grammar p a b where
 
 instance Category (Grammar p) where
   id = Iso id id
-  (.) x y = x :.: y
+
+  Iso f g        . Iso f' g' = Iso (f . f') (g' . g)
+  PartialIso f g . Iso f' g' = PartialIso (f . f') (fmap g' . g)
+  Iso f g        . PartialIso f' g' = PartialIso (f . f') (g' . g)
+  PartialIso f g . PartialIso f' g' = PartialIso (f . f') (g' <=< g)
+  Flip (PartialIso f g) . Flip (PartialIso f' g') = Flip (PartialIso (f' . f) (g <=< g'))
+  g . h = g :.: h
 
 instance Semigroup (Grammar p a b) where
   (<>) = (:<>:)
