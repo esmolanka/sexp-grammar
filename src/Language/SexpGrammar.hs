@@ -64,7 +64,7 @@ module Language.SexpGrammar
   ( Sexp (..)
   , Sexp.Atom (..)
   , Sexp.Kw (..)
-  , Grammar (Traverse, Bitraverse)
+  , Grammar (..)
   , (:-) (..)
   -- * Combinators
   -- ** Primitive grammars

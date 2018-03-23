@@ -80,8 +80,9 @@ instance Monad (ContextErrorT c e m) where
   {-# INLINE return #-}
 
   ma >>= fb =
-    ContextErrorT $ \c err ret -> unContextErrorT ma c err $ \c' a ->
-      unContextErrorT (fb a) c' err ret
+    ContextErrorT $ \c err ret ->
+      unContextErrorT ma c err $ \c' a ->
+        unContextErrorT (fb a) c' err ret
   {-# INLINE (>>=) #-}
 
 instance (Semigroup e) => MonadPlus (ContextErrorT c e m) where

@@ -59,13 +59,15 @@ runGen gram input =
 ----------------------------------------------------------------------
 
 position :: Grammar Position (Sexp :- t) (Position :- Sexp :- t)
-position = Iso (\(s :- t) -> getPos s :- s :- t) (\(_ :- s :- t) -> s :- t)
+position = Iso
+  (\(s :- t) -> getPos s :- s :- t)
+  (\(_ :- s :- t) -> s :- t)
 
 
 locate :: Grammar Position (Sexp :- t) (Sexp :- t)
 locate =
   position >>>
-  Bitraverse Locate id >>>
+  onHead Locate >>>
   Iso (\(_ :- t) -> t) (\t -> dummyPos :- t)
 
 
@@ -104,11 +106,11 @@ vect g = locate >>> vector_ >>> Dive (g >>> Flip nil)
 ----------------------------------------------------------------------
 
 el :: Grammar p (a :- t) t' -> Grammar p ([a] :- t) ([a] :- t')
-el g = Flip cons >>> Traverse g >>> Step
+el g = Flip cons >>> onTail g >>> Step
 
 
 rest :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p ([a] :- t) ([a] :- [b] :- t)
-rest g = Bitraverse (Traverse (unTail g >>> Step)) id >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
+rest g = onHead (Traverse (unTail g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
 
 
 ----------------------------------------------------------------------
@@ -127,15 +129,15 @@ props_ = Flip $ PartialIso
 
 
 props :: Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar p ([Sexp] :- t) ([Sexp] :- t')
-props g = Dive $ props_ >>> Traverse g >>> swap >>> Flip nil
+props g = Dive $ props_ >>> onTail g >>> swap >>> Flip nil
 
 
 key :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
-key k g = lkp k >>> Step >>> Bitraverse (unTail g) id >>> swap
+key k g = lkp k >>> Step >>> onHead (unTail g) >>> swap
 
 
 keyMay :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
-keyMay k g = lkpMay k >>> Step >>> Bitraverse (Traverse (unTail g)) id >>> swap
+keyMay k g = lkpMay k >>> Step >>> onHead (Traverse (unTail g)) >>> swap
 
 
 (.:) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
@@ -144,6 +146,7 @@ keyMay k g = lkpMay k >>> Step >>> Bitraverse (Traverse (unTail g)) id >>> swap
 
 (.:?) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
 (.:?) = keyMay
+
 
 ----------------------------------------------------------------------
 -- Utils
@@ -217,7 +220,7 @@ unTail g =
 
 
 coproduct :: [Grammar p a b] -> Grammar p a b
-coproduct = foldr1 (<>)
+coproduct = foldl1 (<>)
 
 
 enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)

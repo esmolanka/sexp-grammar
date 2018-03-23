@@ -17,7 +17,7 @@ import GHC.Generics
 
 -- | File position
 data Position =
-  Position !FilePath {-# UNPACK #-} !Int {-# UNPACK #-} !Int
+  Position FilePath {-# UNPACK #-} !Int {-# UNPACK #-} !Int
   deriving (Show, Ord, Eq, Generic)
 
 dummyPos :: Position
@@ -33,12 +33,12 @@ newtype Kw = Kw { unKw :: Text }
 
 -- | Sexp atom types
 data Atom
-  = AtomBool Bool
-  | AtomInt Integer
-  | AtomReal Scientific
-  | AtomString Text
-  | AtomSymbol Text
-  | AtomKeyword Kw
+  = AtomBool    !Bool
+  | AtomInt     !Integer
+  | AtomReal    {-# UNPACK #-} !Scientific
+  | AtomString  {-# UNPACK #-} !Text
+  | AtomSymbol  {-# UNPACK #-} !Text
+  | AtomKeyword {-# UNPACK #-} !Kw
     deriving (Show, Eq, Ord, Generic)
 
 -- | Sexp ADT

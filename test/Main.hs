@@ -20,14 +20,15 @@ import Control.Applicative
 #endif
 
 import Control.Category
-import qualified Data.Text.Lazy as TL
+import qualified Data.Map as M
 import Data.Scientific
 import Data.Semigroup
+import qualified Data.Text.Lazy as TL
+import GHC.Generics
 import Test.QuickCheck ()
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
-import GHC.Generics
 
 import Language.Sexp as Sexp hiding (parseSexp')
 import Language.SexpGrammar as G
@@ -88,7 +89,9 @@ instance Arbitrary ArithExpr where
 instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
   sexpIso = $(grammarFor 'Pair) . list (el sexpIso >>> el sexpIso)
 
-pairGenericIso :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Pair a b :- t)
+pairGenericIso
+  :: (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Pair a b :- t)
 pairGenericIso a b = with (\pair -> pair . list (el a >>> el b))
 
 instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
@@ -97,7 +100,9 @@ instance (SexpIso a, SexpIso b) => SexpIso (Foo a b) where
     , $(grammarFor 'Baz) . list (el (sym "baz") >>> el sexpIso >>> el sexpIso)
     ]
 
-fooGenericIso :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Foo a b :- t)
+fooGenericIso
+  :: (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> (forall t. Grammar Position (Sexp :- t) (b :- t)) -> Grammar Position (Sexp :- t) (Foo a b :- t)
 fooGenericIso a b = match
   $ With (\bar -> bar . list (el (sym "bar") >>> el a >>> el b))
   $ With (\baz -> baz . list (el (sym "baz") >>> el a >>> el b))
@@ -121,7 +126,6 @@ arithExprGenericIso = expr
       $ With (\add -> add . list (el (sym "+") >>> el expr >>> el expr))
       $ With (\mul -> mul . list (el (sym "*") >>> rest expr))
       $ End
-
 
 data Person = Person
   { pName     :: String

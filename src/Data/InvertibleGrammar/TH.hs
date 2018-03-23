@@ -99,7 +99,7 @@ match tyName = do
   names  <- concatMap (toList . constructorNames) <$> (extractConstructors =<< reify tyName)
   argTys <- mapM (\_ -> newName "a") names
   let grammars = map (\(con, arg) -> [e| $(varE arg) $(grammarFor con) |]) (zip names argTys)
-  lamE (map varP argTys) (foldr1 (\e1 e2 -> [e| $e1 :<>: $e2 |]) grammars)
+  lamE (map varP argTys) (foldr1 (\e1 e2 -> [e| $e1 <> $e2 |]) grammars)
   where
     extractConstructors :: Info -> Q [Con]
     extractConstructors (TyConI dataDef) =

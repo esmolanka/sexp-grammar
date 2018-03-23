@@ -1,8 +1,13 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE TemplateHaskell    #-}
 {-# LANGUAGE TypeOperators      #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Main (main) where
 
 import Criterion.Main
 
@@ -10,14 +15,23 @@ import Prelude hiding ((.), id)
 
 import Control.Arrow
 import Control.Category
+import Control.DeepSeq
+import Control.Exception
+
 import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
-import Language.Sexp (Sexp, Position)
+import GHC.Generics (Generic)
+
+import Data.InvertibleGrammar
+
+import Language.Sexp (Sexp, Atom, Kw, Position)
 import Language.SexpGrammar
-import Language.SexpGrammar.TH
+import qualified Language.SexpGrammar.TH as TH
+import qualified Language.SexpGrammar.Generic as G
+import Language.SexpGrammar.Generic (Coproduct(..))
 
 newtype Ident = Ident String
-  deriving (Show)
+  deriving (Show, Eq, Generic)
 
 data Expr
   = Var Ident
@@ -27,13 +41,22 @@ data Expr
   | Inv Expr
   | IfZero Expr Expr (Maybe Expr)
   | Apply [Expr] String Prim -- inconvenient ordering: arguments, useless annotation, identifier
-    deriving (Show)
+    deriving (Show, Eq, Generic)
 
 data Prim
   = SquareRoot
   | Factorial
   | Fibonacci
-    deriving (Show, Eq, Enum, Bounded, Data, Typeable)
+    deriving (Show, Eq, Enum, Bounded, Data, Typeable, Generic)
+
+instance NFData Ident
+instance NFData Prim
+instance NFData Expr
+
+instance NFData Atom
+instance NFData Kw
+instance NFData Position
+instance NFData Sexp
 
 return []
 
@@ -43,61 +66,85 @@ instance SexpIso Prim where
   sexpIso = enum
 
 instance SexpIso Ident where
-  sexpIso = $(match ''Ident)
+  sexpIso = $(TH.match ''Ident)
     (\_Ident -> _Ident . symbol')
 
-instance SexpIso Expr where
-  sexpIso = $(match ''Expr)
-    (\_Var -> _Var . sexpIso)
-    (\_Lit -> _Lit . int)
-    (\_Add -> _Add . list (el (sym "+") >>> el sexpIso >>> el sexpIso))
-    (\_Mul -> _Mul . list (el (sym "*") >>> el sexpIso >>> el sexpIso))
-    (\_Inv -> _Inv . list (el (sym "invert") >>> el sexpIso))
-    (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( Kw "pred"  .:  sexpIso
-                                                         >>> Kw "true"  .:  sexpIso
-                                                         >>> Kw "false" .:? sexpIso )))
-    (\_Apply -> _Apply .              -- Convert prim :- "dummy" :- args :- () to Apply node
-        list
-         (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
-          el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
-          rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
-          Traverse (
-             swap >>>                             -- Swap:            prim :- args :- ()
-             push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
-             swap)                                -- Swap:            prim :- "dummy" :- args :- ()
-         ))
+exprGrammarTH :: SexpG Expr
+exprGrammarTH = go
+  where
+    go :: SexpG Expr
+    go = $(TH.match ''Expr)
+      (\_Var -> _Var . sexpIso)
+      (\_Lit -> _Lit . int)
+      (\_Add -> _Add . list (el (sym "+") >>> el go >>> el go))
+      (\_Mul -> _Mul . list (el (sym "*") >>> el go >>> el go))
+      (\_Inv -> _Inv . list (el (sym "invert") >>> el go))
+      (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( Kw "pred"  .:  go
+                                                           >>> Kw "true"  .:  go
+                                                           >>> Kw "false" .:? go )))
+      (\_Apply -> _Apply .                       -- Convert prim :- "dummy" :- args :- () to Apply node
+          list
+           (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
+            el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+            rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
+            Traverse (
+               swap >>>                          -- Swap:            prim :- args :- ()
+               push "dummy" >>>                  -- Push "dummy":    "dummy" :- prim :- args :- ()
+               swap)                             -- Swap:            prim :- "dummy" :- args :- ()
+           ))
 
+exprGrammarGeneric :: SexpG Expr
+exprGrammarGeneric = go
+  where
+    go :: SexpG Expr
+    go = G.match
+      $ With (\_Var -> _Var . sexpIso)
+      $ With (\_Lit -> _Lit . int)
+      $ With (\_Add -> _Add . list (el (sym "+") >>> el go >>> el go))
+      $ With (\_Mul -> _Mul . list (el (sym "*") >>> el go >>> el go))
+      $ With (\_Inv -> _Inv . list (el (sym "invert") >>> el go))
+      $ With (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( Kw "pred"  .:  go
+                                                                  >>> Kw "true"  .:  go
+                                                                  >>> Kw "false" .:? go )))
+      $ With (\_Apply -> _Apply .                      -- Convert prim :- "dummy" :- args :- () to Apply node
+                list
+                 (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
+                  el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+                  rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
+                  Traverse (
+                     swap >>>                          -- Swap:            prim :- args :- ()
+                     push "dummy" >>>                  -- Push "dummy":    "dummy" :- prim :- args :- ()
+                     swap)                             -- Swap:            prim :- "dummy" :- args :- ()
+                 ))
+      $ End
 
-parseExpr :: Sexp -> Either String Expr
-parseExpr = parseSexp sexpIso
-
-genExpr :: Expr -> Either String Sexp
-genExpr = genSexp sexpIso
 
 expr :: TL.Text -> Expr
-expr = either error id . decode
+expr = either error id . decodeWith exprGrammarTH
 
 benchCases :: [(String, TL.Text)]
-benchCases = map (\a -> ("expression " ++ take 40 (TL.unpack a) ++ "...", a))
+benchCases = map (\a -> ("expression, size " ++ show (TL.length a) ++ " bytes", a))
   [ "(+ 1 20)"
-  , "(+ (+ 2 20) 0)"
-  , "(+ (+ 3 20) (+ 10 20))"
-  , "(+ (+ (+ 4 20) (+ 10 20)) 0)"
-  , "(+ (+ (+ 5 20) (+ 10 20)) (+ 10 20))"
-  , "(+ (+ (+ 6 20) (+ 10 20)) (+ (+ 10 20) 0))"
-  , "(+ (+ (+ 7 20) (+ 10 20)) (+ (+ 10 20) (+ 10 20)))"
   , "(cond :pred (+ 42 x) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ 1 2))))"
-  , "(invert (* (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ 1 2)))))))"
+  , "(invert (* (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ 1 2)))))))"
   ]
 
-benchCases_expr :: [(String, Expr)]
-benchCases_expr = map (second expr) benchCases
-
-benchCases_sexp :: [(String, Sexp)]
-benchCases_sexp = map (second (either error id . genExpr)) benchCases_expr
+mkBenchmark :: String -> TL.Text -> IO Benchmark
+mkBenchmark name str = do
+  expr <- evaluate $ force $ expr str
+  sexp <- evaluate $ force $ either error id (genSexp exprGrammarTH expr)
+  return $ bgroup name
+    [ bench "gen"    $ nf (genSexp exprGrammarTH) expr
+    , bench "genG"   $ nf (genSexp exprGrammarGeneric) expr
+    , bench "parse"  $ nf (parseSexp exprGrammarTH) sexp
+    , bench "parseG" $ nf (parseSexp exprGrammarGeneric) sexp
+    ]
 
 main :: IO ()
-main = defaultMain
-  [ bgroup "generation" . map (\(name, expr) -> bench name $ whnf genExpr expr) $ benchCases_expr
-  , bgroup "parsing" . map (\(name, sexp) -> bench name $ whnf parseExpr sexp) $ benchCases_sexp
-  ]
+main = do
+  cases <- mapM (uncurry mkBenchmark) benchCases
+  defaultMain cases
