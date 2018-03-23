@@ -37,7 +37,7 @@ import Data.Profunctor.Unsafe
 import Data.Tagged
 import Data.Text (pack)
 #if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
+import Data.Semigroup ((<>))
 #endif
 
 import GHC.Generics

@@ -14,6 +14,10 @@ import Data.Text (pack)
 import Language.Haskell.TH as TH
 import Data.Set (Set)
 import qualified Data.Set as S
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup ((<>))
+#endif
+
 
 {- | Build a prism and the corresponding grammar that will match on the
      given constructor and convert it to reverse sequence of :- stacks.

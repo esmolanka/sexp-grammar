@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-
 {-# LANGUAGE LambdaCase            #-}
 
 module Language.SexpGrammar.Base where
@@ -24,6 +23,7 @@ import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
 import qualified Data.Text.Encoding as TS
+
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
