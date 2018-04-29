@@ -5,13 +5,10 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MagicHash             #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -44,18 +41,21 @@ import Control.Monad
 import Data.Bifunctor
 import Data.Bifoldable
 import Data.Bitraversable
+#if !MIN_VERSION_base(4,8,0)
+import Data.Traversable
+import Data.Foldable
+#endif
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
 #endif
 import Data.InvertibleGrammar.Monad
-
--- import Debug.Trace (trace)
+import qualified Debug.Trace
 
 data h :- t = h :- t deriving (Eq, Show, Functor, Foldable, Traversable)
 infixr 5 :-
 
 instance Bifunctor (:-) where
-  bimap f g (a :- b) = (f a :- g b)
+  bimap f g (a :- b) = f a :- g b
 
 instance Bifoldable (:-) where
   bifoldr f g x0 (a :- b) = a `f` (b `g` x0)
@@ -76,8 +76,9 @@ data Grammar p a b where
   Step       :: Grammar p a a
   Locate     :: Grammar p p p
 
-trace :: [Char] -> b -> b
-trace _ b = b
+trace :: String -> a -> a
+trace = if False then Debug.Trace.trace else flip const
+
 
 instance Category (Grammar p) where
   id                                              = Iso id id
@@ -177,6 +178,7 @@ pushForget a = Iso f g
     f t = a :- t
     g (_ :- t) = t
 
+----------------------------------------------------------------------
 
 forward :: Grammar p a b -> a -> ContextError (Propagation p) (GrammarError p) b
 forward (Iso f _)        = return . f
@@ -190,8 +192,6 @@ forward (OnTail g)       = \(a :- b) -> (a :-) <$> forward g b
 forward (Dive g)         = dive . forward g
 forward Step             = \x -> step >> return x
 forward Locate           = \x -> locate x >> return x
-{-# INLINE forward #-}
-
 
 backward :: Grammar p a b -> b -> ContextError (Propagation p) (GrammarError p) a
 backward (Iso _ g)        = return . g
@@ -205,4 +205,3 @@ backward (OnTail g)       = \(a :- b) -> (a :-) <$> backward g b
 backward (Dive g)         = dive . backward g
 backward Step             = \x -> step >> return x
 backward Locate           = \x -> locate x >> return x
-{-# INLINE backward #-}

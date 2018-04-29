@@ -12,18 +12,21 @@
 
 module Language.SexpGrammar.Base where
 
-import Prelude hiding (id)
-import Control.Category ((>>>), id)
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+#endif
+
+import Control.Category ((>>>))
 
 import qualified Data.ByteString.Lazy as BS
 import Data.Data
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Monad (ContextError, Propagation, GrammarError)
+import Data.InvertibleGrammar.Monad (ContextError, Propagation)
+import Data.Maybe (fromMaybe)
 import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
 import qualified Data.Text.Encoding as TS
-
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
@@ -32,7 +35,6 @@ import Data.Semigroup
 import Language.Sexp.Encode (encode)
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
-
 
 ppBrief :: Sexp -> Text
 ppBrief = TS.decodeUtf8 . BS.toStrict . \case
@@ -214,9 +216,9 @@ popKey k' alist = go [] alist
 
 unTail :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
 unTail g =
-  Iso (\a -> (a :- undefined)) (\(a :- _) -> a) >>>
+  Iso (:- undefined) (\(a :- _) -> a) >>>
   g >>>
-  Iso (\(a :- _) -> a) (\a -> (a :- undefined))
+  Iso (\(a :- _) -> a) (:- undefined)
 
 
 coproduct :: [Grammar p a b] -> Grammar p a b
@@ -232,7 +234,7 @@ enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a) [minBound .. maxBo
 
 toDefault :: (Eq a) => a -> Grammar p (Maybe a :- t) (a :- t)
 toDefault def = iso
-  (maybe def id)
+  (fromMaybe def)
   (\val -> if val == def then Nothing else Just val)
 
 

@@ -36,28 +36,6 @@ and the record will pretty-print back into:
 
 > (person "John Doe" :address "42 Whatever str." :age 25)
 
-Grammar types diagram:
-
->     --------------------------------------
->     |              AtomGrammar           |
->     --------------------------------------
->         ^
->         |  atomic grammar combinators
->         v
-> ------------------------------------------------------
-> |                      SexpGrammar                   |
-> ------------------------------------------------------
->         | list, vect     ^              ^
->         v                | el, rest     |
->     ----------------------------------  |
->     |           SeqGrammar           |  |
->     ----------------------------------  | (.:)
->              | props                    | (.:?)
->              v                          |
->          -------------------------------------
->          |             PropGrammar           |
->          -------------------------------------
-
 -}
 
 module Language.SexpGrammar
