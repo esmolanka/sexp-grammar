@@ -1,16 +1,34 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE UndecidableInstances  #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE TypeOperators     #-}
+{-# LANGUAGE LambdaCase        #-}
 
-module Language.SexpGrammar.Base where
+module Language.SexpGrammar.Base
+  ( atom
+  , list
+  , vect
+  , el
+  , rest
+  , props
+  , key
+  , keyMay
+  , (.:)
+  , (.:?)
+  , bool
+  , real
+  , double
+  , int
+  , integer
+  , string
+  , string'
+  , symbol
+  , symbol'
+  , keyword
+  , sym
+  , kw
+  , enum
+  ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
@@ -21,8 +39,7 @@ import Control.Category ((>>>))
 import qualified Data.ByteString.Lazy as BS
 import Data.Data
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Monad (ContextError, Propagation)
-import Data.Maybe (fromMaybe)
+import Data.InvertibleGrammar.Combinators
 import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
@@ -45,18 +62,6 @@ ppBrief = TS.decodeUtf8 . BS.toStrict . \case
     in if BS.length pp > 25
        then BS.take 25 pp <> "..."
        else pp
-
-
-----------------------------------------------------------------------
-
-runParse :: Grammar Position (Sexp :- ()) (a :- ()) -> Sexp -> ContextError (Propagation Position) (GrammarError Position) a
-runParse gram input =
-  (\(x :- _) -> x) <$> forward gram (input :- ())
-
-runGen :: Grammar Position (Sexp :- ()) (a :- ()) -> a -> ContextError (Propagation Position) (GrammarError Position) Sexp
-runGen gram input =
-  (\(x :- _) -> x) <$> backward gram (input :- ())
-
 
 ----------------------------------------------------------------------
 
@@ -112,7 +117,7 @@ el g = Flip cons >>> onTail g >>> Step
 
 
 rest :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p ([a] :- t) ([a] :- [b] :- t)
-rest g = onHead (Traverse (unTail g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
+rest g = onHead (Traverse (sealed g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
 
 
 ----------------------------------------------------------------------
@@ -135,11 +140,11 @@ props g = Dive $ props_ >>> onTail g >>> swap >>> Flip nil
 
 
 key :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
-key k g = lkp k >>> Step >>> onHead (unTail g) >>> swap
+key k g = Flip (insert k) >>> Step >>> onHead (sealed g) >>> swap
 
 
 keyMay :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
-keyMay k g = lkpMay k >>> Step >>> onHead (Traverse (unTail g)) >>> swap
+keyMay k g = Flip (insertMay k) >>> Step >>> onHead (Traverse (sealed g)) >>> swap
 
 
 (.:) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
@@ -148,95 +153,6 @@ keyMay k g = lkpMay k >>> Step >>> onHead (Traverse (unTail g)) >>> swap
 
 (.:?) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
 (.:?) = keyMay
-
-
-----------------------------------------------------------------------
--- Utils
-
-pair :: Grammar p (b :- a :- t) ((a, b) :- t)
-pair = Iso
-  (\(b :- a :- t) -> (a, b) :- t)
-  (\((a, b) :- t) -> b :- a :- t)
-
-
-cons :: Grammar p ([a] :- a :- t) ([a] :- t)
-cons = PartialIso
-  (\(lst :- el :- t) -> (el:lst) :- t)
-  (\(lst :- t) ->
-      case lst of
-        [] -> Left (expected "list element")
-        (el:rest) -> Right (rest :- el :- t))
-
-
-nil :: Grammar p t ([a] :- t)
-nil = PartialIso
-  (\t -> [] :- t)
-  (\(lst :- t) ->
-      case lst of
-        [] -> Right t
-        (_el:_rest) -> Left (expected "end-of-list"))
-
-
-swap :: Grammar p (a :- b :- t) (b :- a :- t)
-swap = Iso
-  (\(a :- b :- t) -> (b :- a :- t))
-  (\(b :- a :- t) -> (a :- b :- t))
-
-
-lkp :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (v :- [(k, v)] :- t)
-lkp k = Flip $ PartialIso
-  (\(v :- alist :- t) -> ((k, v) : alist) :- t)
-  (\(alist :- t) ->
-     case popKey k alist of
-       Nothing -> Left (expected ("key " <> TS.pack (show k)))
-       Just (v, alist') -> Right (v :- alist' :- t))
-
-
-lkpMay :: (Eq k, Show k) => k -> Grammar p ([(k, v)] :- t) (Maybe v :- [(k, v)] :- t)
-lkpMay k = Flip $ PartialIso
-  (\(mv :- alist :- t) ->
-      case mv of
-        Just v -> ((k, v) : alist) :- t
-        Nothing -> alist :- t)
-  (\(alist :- t) ->
-     case popKey k alist of
-       Nothing -> Right (Nothing :- alist :- t)
-       Just (v, alist') -> Right (Just v :- alist' :- t))
-
-
-popKey :: forall k v. Eq k => k -> [(k, v)] -> Maybe (v, [(k, v)])
-popKey k' = go []
-  where
-    go :: [(k, v)] -> [(k, v)] -> Maybe (v, [(k, v)])
-    go acc (x@(k, v) : xs)
-      | k == k' = Just (v, reverse acc ++ xs)
-      | otherwise = go (x:acc) xs
-    go _ [] = Nothing
-
-
-unTail :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
-unTail g =
-  Iso (:- undefined) (\(a :- _) -> a) >>>
-  g >>>
-  Iso (\(a :- _) -> a) (:- undefined)
-
-
-coproduct :: [Grammar p a b] -> Grammar p a b
-coproduct = foldl1 (<>)
-
-
-enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)
-enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a (== a)) [minBound .. maxBound]
-  where
-    getEnumName :: (Data a) => a -> Text
-    getEnumName = TS.pack . lispifyName . showConstr . toConstr
-
-
-toDefault :: (Eq a) => a -> Grammar p (Maybe a :- t) (a :- t)
-toDefault def = iso
-  (fromMaybe def)
-  (\val -> if val == def then Nothing else Just val)
-
 
 ----------------------------------------------------------------------
 -- Atoms
@@ -320,3 +236,12 @@ kw k = atom >>> Flip (PartialIso
       case a of
         AtomKeyword k' | k == k' -> Right t
         other -> Left $ expected ("keyword :" <> unKw k) <> unexpected (ppBrief $ Atom dummyPos other)))
+
+----------------------------------------------------------------------
+-- Special
+
+enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)
+enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a (== a)) [minBound .. maxBound]
+  where
+    getEnumName :: (Data a) => a -> Text
+    getEnumName = TS.pack . lispifyName . showConstr . toConstr

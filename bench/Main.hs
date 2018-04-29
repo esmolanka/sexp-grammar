@@ -22,8 +22,6 @@ import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
 import GHC.Generics (Generic)
 
-import Data.InvertibleGrammar
-
 import Language.Sexp (Sexp, Atom, Kw, Position)
 import Language.SexpGrammar
 import qualified Language.SexpGrammar.TH as TH
@@ -87,9 +85,9 @@ exprGrammarTH = go
            (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
             el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
             rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
-            Traverse (
+            onTail (
                swap >>>                          -- Swap:            prim :- args :- ()
-               push "dummy" >>>                  -- Push "dummy":    "dummy" :- prim :- args :- ()
+               push "dummy" (const True) >>>     -- Push "dummy":    "dummy" :- prim :- args :- ()
                swap)                             -- Swap:            prim :- "dummy" :- args :- ()
            ))
 
@@ -111,9 +109,9 @@ exprGrammarGeneric = go
                  (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
                   el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
                   rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
-                  Traverse (
+                  onTail (
                      swap >>>                          -- Swap:            prim :- args :- ()
-                     push "dummy" >>>                  -- Push "dummy":    "dummy" :- prim :- args :- ()
+                     push "dummy" (const True) >>>     -- Push "dummy":    "dummy" :- prim :- args :- ()
                      swap)                             -- Swap:            prim :- "dummy" :- args :- ()
                  ))
       $ End
@@ -136,12 +134,12 @@ benchCases = map (\a -> ("expression, size " ++ show (TL.length a) ++ " bytes", 
 mkBenchmark :: String -> TL.Text -> IO Benchmark
 mkBenchmark name str = do
   expr <- evaluate $ force $ expr str
-  sexp <- evaluate $ force $ either error id (genSexp exprGrammarTH expr)
+  sexp <- evaluate $ force $ either error id (toSexp exprGrammarTH expr)
   return $ bgroup name
-    [ bench "gen"    $ nf (genSexp exprGrammarTH) expr
-    , bench "genG"   $ nf (genSexp exprGrammarGeneric) expr
-    , bench "parse"  $ nf (parseSexp exprGrammarTH) sexp
-    , bench "parseG" $ nf (parseSexp exprGrammarGeneric) sexp
+    [ bench "gen"    $ nf (toSexp exprGrammarTH) expr
+    , bench "genG"   $ nf (toSexp exprGrammarGeneric) expr
+    , bench "parse"  $ nf (fromSexp exprGrammarTH) sexp
+    , bench "parseG" $ nf (fromSexp exprGrammarGeneric) sexp
     ]
 
 main :: IO ()

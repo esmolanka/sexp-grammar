@@ -27,6 +27,7 @@ library
   ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
     Data.InvertibleGrammar
+    Data.InvertibleGrammar.Combinators
     Language.Sexp
     Language.Sexp.Encode
     Language.Sexp.Pretty
@@ -36,6 +37,7 @@ library
     Language.SexpGrammar.Generic
 
   other-modules:
+    Data.InvertibleGrammar.Base
     Data.InvertibleGrammar.Monad
     Data.InvertibleGrammar.Generic
     Data.InvertibleGrammar.TH

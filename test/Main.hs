@@ -58,8 +58,9 @@ data Pair a b = Pair a b
 instance (Arbitrary a, Arbitrary b) => Arbitrary (Pair a b) where
   arbitrary = Pair <$> arbitrary <*> arbitrary
 
-data Foo a b = Bar a b
-             | Baz a b
+data Foo a b
+  = Bar a b
+  | Baz a b
   deriving (Show, Eq, Ord, Generic)
 
 instance (Arbitrary a, Arbitrary b) => Arbitrary (Foo a b) where
@@ -210,46 +211,46 @@ grammarTests = testGroup "Grammar tests"
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
   [ testCase "bool" $
-    G.parseSexp bool (Bool' True) @?= Right True
+    G.fromSexp bool (Bool' True) @?= Right True
   , testCase "integer" $
-    G.parseSexp integer (Int' (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
+    G.fromSexp integer (Int' (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
   , testCase "int" $
-    G.parseSexp int (Int' 65536) @?= Right 65536
+    G.fromSexp int (Int' 65536) @?= Right 65536
   , testCase "real" $
-    G.parseSexp real (Real' 3.14) @?= Right 3.14
+    G.fromSexp real (Real' 3.14) @?= Right 3.14
   , testCase "double" $
-    G.parseSexp double (Real' 3.14) @?= Right 3.14
+    G.fromSexp double (Real' 3.14) @?= Right 3.14
   , testCase "string" $
-    G.parseSexp string (String' "foo\nbar baz") @?= Right "foo\nbar baz"
+    G.fromSexp string (String' "foo\nbar baz") @?= Right "foo\nbar baz"
   , testCase "string'" $
-    G.parseSexp string' (String' "foo\nbar baz") @?= Right "foo\nbar baz"
+    G.fromSexp string' (String' "foo\nbar baz") @?= Right "foo\nbar baz"
   , testCase "keyword" $
-    G.parseSexp keyword (Keyword' (Kw "foobarbaz")) @?= Right (Kw "foobarbaz")
+    G.fromSexp keyword (Keyword' (Kw "foobarbaz")) @?= Right (Kw "foobarbaz")
   , testCase "symbol" $
-    G.parseSexp symbol (Symbol' "foobarbaz") @?= Right "foobarbaz"
+    G.fromSexp symbol (Symbol' "foobarbaz") @?= Right "foobarbaz"
   , testCase "symbol'" $
-    G.parseSexp symbol' (Symbol' "foobarbaz") @?= Right "foobarbaz"
+    G.fromSexp symbol' (Symbol' "foobarbaz") @?= Right "foobarbaz"
   ]
 
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
   [ testCase "empty list of bools" $
-    G.parseSexp (list (rest bool)) (List' []) @?= Right []
+    G.fromSexp (list (rest bool)) (List' []) @?= Right []
   , testCase "list of bools" $
-    G.parseSexp (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False]) @?=
+    G.fromSexp (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False]) @?=
     Right [True, False, False]
   ]
 
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
-    G.parseSexp sexpIso (List' [Bool' False, Bool' True]) @?=
+    G.fromSexp sexpIso (List' [Bool' False, Bool' True]) @?=
     Right (Pair False True)
   , testCase "sum of products (Bar True 42)" $
-    G.parseSexp sexpIso (List' [Symbol' "bar", Bool' True, Int' 42]) @?=
+    G.fromSexp sexpIso (List' [Symbol' "bar", Bool' True, Int' 42]) @?=
     Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    G.parseSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
+    G.fromSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
     (Left ("<no location information>:1:0: mismatch:\n  expected: bool\n       got: 10") :: Either String (Foo Bool Bool))
   ]
 
@@ -262,19 +263,19 @@ testArithExprSexp = List' [Symbol' "+", Int' 0, List' [Symbol' "*"]]
 parseTests :: TestTree
 parseTests = testGroup "parse tests"
   [ testCase "(+ 0 (*))" $
-      Right testArithExpr @=? G.parseSexp arithExprGenericIso testArithExprSexp
+      Right testArithExpr @=? G.fromSexp arithExprGenericIso testArithExprSexp
   ]
 
 genTests :: TestTree
 genTests = testGroup "gen tests"
   [ testCase "(+ 0 (*))" $
-      Right testArithExprSexp @=? G.genSexp arithExprGenericIso testArithExpr
+      Right testArithExprSexp @=? G.toSexp arithExprGenericIso testArithExpr
   ]
 
 
 genParseIdentityProp :: forall a. (Eq a) => (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Bool
 genParseIdentityProp iso expr =
-  (G.genSexp iso expr >>= G.parseSexp iso :: Either String a)
+  (G.toSexp iso expr >>= G.fromSexp iso :: Either String a)
   ==
   Right expr
 

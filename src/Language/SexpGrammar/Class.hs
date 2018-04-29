@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Language.SexpGrammar.Class where
@@ -10,7 +9,7 @@ import Control.Arrow
 import Control.Category
 
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.TH
+import Data.InvertibleGrammar.Combinators
 import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import Data.Scientific
@@ -21,6 +20,7 @@ import qualified Data.Set as Set
 
 import Language.Sexp.Types
 import Language.SexpGrammar.Base
+import Language.SexpGrammar.Generic
 
 class SexpIso a where
   sexpIso :: Grammar Position (Sexp :- t) (a :- t)
@@ -55,10 +55,10 @@ instance (Ord a, SexpIso a) => SexpIso (Set a) where
   sexpIso = iso Set.fromList Set.toList . list (el sexpIso)
 
 instance (SexpIso a) => SexpIso (Maybe a) where
-  sexpIso = coproduct
-    [ $(grammarFor 'Nothing) . kw (Kw "nil")
-    , $(grammarFor 'Just) . sexpIso
-    ]
+  sexpIso = match
+    $ With (\nothing -> sym "nil" >>> nothing)
+    $ With (\just    -> list (el (sym "just") >>> el sexpIso) >>> just)
+    $ End
 
 instance (SexpIso a) => SexpIso [a] where
   sexpIso = list $ rest sexpIso

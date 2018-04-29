@@ -42,39 +42,35 @@ module Language.SexpGrammar
   ( Sexp (..)
   , Sexp.Atom (..)
   , Sexp.Kw (..)
+  , SexpGrammar
   , Grammar (..)
   , (:-) (..)
+  , SexpIso (..)
   -- * Combinators
-  -- ** Primitive grammars
-  , iso
-  , osi
-  , partialIso
-  , partialOsi
-  , push
+  , module Data.InvertibleGrammar.Combinators
   , module Language.SexpGrammar.Base
-  -- * Decoding and encoding (machine-oriented)
-  , decode
-  , decodeWith
+  -- * Encoding
+  , toSexp
   , encode
   , encodeWith
-  -- * Parsing and printing (human-oriented)
-  , decodeNamed
-  , decodeNamedWith
   , encodePretty
   , encodePrettyWith
+  -- * Decoding
+  , fromSexp
+  , decode
+  , decodeWith
+  , decodeNamed
+  , decodeNamedWith
   -- * Parsing and encoding to Sexp
-  , parseSexp
-  , genSexp
   , Mismatch
   , expected
   , unexpected
-  -- * Typeclass for Sexp grammars
-  , SexpIso (..)
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Combinators
 import Data.InvertibleGrammar.Monad
 
 import Language.Sexp (Sexp, Position)
@@ -83,68 +79,72 @@ import qualified Language.Sexp as Sexp
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
 
+type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
+
 ----------------------------------------------------------------------
 -- Sexp interface
 
+runParse :: Grammar Position (Sexp :- ()) (a :- ()) -> Sexp -> ContextError (Propagation Position) (GrammarError Position) a
+runParse gram input =
+  (\(x :- _) -> x) <$> forward gram (input :- ())
+
+runGen :: Grammar Position (Sexp :- ()) (a :- ()) -> a -> ContextError (Propagation Position) (GrammarError Position) Sexp
+runGen gram input =
+  (\(x :- _) -> x) <$> backward gram (input :- ())
+
+
 -- | Run grammar in parsing direction
-parseSexp :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> Sexp -> Either String a
-parseSexp g a =
+fromSexp :: SexpGrammar a -> Sexp -> Either String a
+fromSexp g a =
   runGrammarMonad Sexp.dummyPos showPos (runParse g a)
   where
     showPos (Sexp.Position fn line col) = fn ++ ":" ++ show line ++ ":" ++ show col
 
 -- | Run grammar in generating direction
-genSexp :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String Sexp
-genSexp g a =
+toSexp :: SexpGrammar a -> a -> Either String Sexp
+toSexp g a =
   runGrammarMonad Sexp.dummyPos (const "<no location information>") (runGen g a)
 
 ----------------------------------------------------------------------
--- ByteString interface (machine-oriented)
 
--- | Deserialize a value from a lazy 'ByteString'. The input must
--- contain exactly one S-expression. Comments are ignored.
-decode :: SexpIso a => TL.Text -> Either String a
-decode =
-  decodeWith sexpIso
-
--- | Like 'decode' but uses specified grammar.
-decodeWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> TL.Text -> Either String a
-decodeWith g input =
-  Sexp.decode input >>= parseSexp g
-
--- | Serialize a value as a lazy 'ByteString' with a non-formatted
--- S-expression
+-- | Serialize a value using @SexpIso@ instance
 encode :: SexpIso a => a -> Either String ByteString
 encode =
   encodeWith sexpIso
 
--- | Like 'encode' but uses specified grammar.
-encodeWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String ByteString
+-- | Serialise a value using provided grammar
+encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
-  fmap Sexp.encode . genSexp g
+  fmap Sexp.encode . toSexp g
 
-----------------------------------------------------------------------
--- ByteString interface (human-oriented)
-
--- | Parse a value from 'ByteString'. The input must contain exactly
--- one S-expression. Unlike 'decode' it takes an additional argument
--- with a file name which is being parsed. It is used for error
--- messages.
-decodeNamed :: SexpIso a => FilePath -> TL.Text -> Either String a
-decodeNamed fn =
-  decodeNamedWith sexpIso fn
-
--- | Like 'decodeNamed' but uses specified grammar.
-decodeNamedWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> FilePath -> TL.Text -> Either String a
-decodeNamedWith g fn input =
-  Sexp.parseSexp fn input >>= parseSexp g
-
--- | Pretty-prints a value serialized to a lazy 'ByteString'.
+-- | Serialise and pretty-print a value using @SexpIso@ instance
 encodePretty :: SexpIso a => a -> Either String TL.Text
 encodePretty =
   encodePrettyWith sexpIso
 
--- | Like 'encodePretty' but uses specified grammar.
-encodePrettyWith :: (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Either String TL.Text
+-- | Serialise and pretty-print a value using provided grammar
+encodePrettyWith :: SexpGrammar a -> a -> Either String TL.Text
 encodePrettyWith g =
-  fmap Sexp.prettySexp . genSexp g
+  fmap Sexp.prettySexp . toSexp g
+
+----------------------------------------------------------------------
+
+-- | Deserialise a value using @SexpIso@ instance
+decode :: SexpIso a => TL.Text -> Either String a
+decode =
+  decodeWith sexpIso
+
+-- | Deserialise a value using provided grammar
+decodeWith :: SexpGrammar a -> TL.Text -> Either String a
+decodeWith g input =
+  Sexp.decode input >>= fromSexp g
+
+-- | Deserialise a value using @SexpIso@ instance, include a file name to error-messages
+decodeNamed :: SexpIso a => FilePath -> TL.Text -> Either String a
+decodeNamed fn =
+  decodeNamedWith sexpIso fn
+
+-- | Deserialise a value using provided grammar, include a file name to error-messages
+decodeNamedWith :: SexpGrammar a -> FilePath -> TL.Text -> Either String a
+decodeNamedWith g fn input =
+  Sexp.parseSexp fn input >>= fromSexp g
