@@ -67,6 +67,10 @@ module Language.SexpGrammar
   , unexpected
   ) where
 
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+#endif
+
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar

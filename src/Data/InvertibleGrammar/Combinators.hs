@@ -1,7 +1,8 @@
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Data.InvertibleGrammar.Combinators
   ( iso
@@ -22,10 +23,18 @@ module Data.InvertibleGrammar.Combinators
   , onTail
   ) where
 
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative
+#endif
+
 import Control.Category ((>>>))
 import Data.Maybe
 import Data.InvertibleGrammar.Base
 import qualified Data.Text as TS
+
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 
 
 iso :: (a -> b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
