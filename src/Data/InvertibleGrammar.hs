@@ -23,7 +23,6 @@ module Data.InvertibleGrammar
   , partialIso
   , partialOsi
   , push
-  , pushForget
   , forward
   , backward
   , GrammarError (..)
@@ -107,76 +106,44 @@ instance Semigroup (Grammar p a b) where
   (<>) = (:<>:)
 
 
-onHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
-onHead = OnHead
-
-onTail :: Grammar p a b -> Grammar p (h :- a) (h :- b)
-onTail = OnTail
-
-
--- | Make a grammar from a total isomorphism on top element of stack
 iso :: (a -> b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
 iso f' g' = Iso f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
 
--- iso :: (a -> b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
--- iso f g = onHead (Iso f g)
-
-
--- | Make a grammar from a total isomorphism on top element of stack (flipped)
 osi :: (b -> a) -> (a -> b) -> Grammar p (a :- t) (b :- t)
 osi f' g' = Iso g f
   where
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
 
--- osi :: (b -> a) -> (a -> b) -> Grammar p (a :- t) (b :- t)
--- osi f g = onHead (Iso g f)
-
--- | Make a grammar from a partial isomorphism which can fail during backward
--- run
 partialIso :: (a -> b) -> (b -> Either Mismatch a) -> Grammar p (a :- t) (b :- t)
 partialIso f' g' = PartialIso f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
--- partialIso :: (a -> b) -> (b -> Either Mismatch a) -> Grammar p (a :- t) (b :- t)
--- partialIso f g = onHead (PartialIso f g)
-
-
--- | Make a grammar from a partial isomorphism which can fail during forward run
-partialOsi :: (b -> a) -> (a -> Either Mismatch b) -> Grammar p (a :- t) (b :- t)
-partialOsi f' g' = Flip $ PartialIso f g
+partialOsi :: (a -> Either Mismatch b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
+partialOsi g' f' = Flip $ PartialIso f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
--- partialOsi :: (b -> a) -> (a -> Either Mismatch b) -> Grammar p (a :- t) (b :- t)
--- partialOsi f g = onHead (PartialOsi g f)
-
-
--- | Unconditionally push given value on stack, i.e. it does not consume
--- anything on parsing. However such grammar expects the same value as given one
--- on the stack during backward run.
-push :: (Eq a) => a -> Grammar p t (a :- t)
-push a = PartialIso f g
+push :: a -> (a -> Bool) -> Grammar p t (a :- t)
+push a p = PartialIso f g
   where
     f t = a :- t
     g (a' :- t)
-      | a == a' = Right t
+      | p a' = Right t
       | otherwise = Left $ unexpected "pushed element"
 
+onHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
+onHead = OnHead
 
--- | Same as 'push' except it does not check the value on stack during backward
--- run. Potentially unsafe as it \"forgets\" some data.
-pushForget :: a -> Grammar p t (a :- t)
-pushForget a = Iso f g
-  where
-    f t = a :- t
-    g (_ :- t) = t
+onTail :: Grammar p a b -> Grammar p (h :- a) (h :- b)
+onTail = OnTail
+
 
 ----------------------------------------------------------------------
 

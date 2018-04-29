@@ -51,7 +51,6 @@ module Language.SexpGrammar
   , partialIso
   , partialOsi
   , push
-  , pushForget
   , module Language.SexpGrammar.Base
   -- * Decoding and encoding (machine-oriented)
   , decode

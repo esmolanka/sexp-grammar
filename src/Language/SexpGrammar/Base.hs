@@ -75,18 +75,18 @@ locate =
 
 atom :: Grammar Position (Sexp :- t) (Atom :- t)
 atom = locate >>> partialOsi
-  (Atom dummyPos)
   (\case
       Atom _pos a -> Right a
       other -> Left (expected "atom" <> unexpected (ppBrief other)))
+  (Atom dummyPos)
 
 
 list_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
 list_ = partialOsi
-  (List dummyPos)
   (\case
       List _pos a -> Right a
       other -> Left (expected "list" <> unexpected (ppBrief other)))
+  (List dummyPos)
 
 
 list :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
@@ -95,10 +95,10 @@ list g = locate >>> list_ >>> Dive (g >>> Flip nil)
 
 vector_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
 vector_ = partialOsi
-  (Vector dummyPos)
   (\case
       Vector _pos a -> Right a
       other -> Left (expected "vector" <> unexpected (ppBrief other)))
+  (Vector dummyPos)
 
 
 vect :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
@@ -205,7 +205,7 @@ lkpMay k = Flip $ PartialIso
 
 
 popKey :: forall k v. Eq k => k -> [(k, v)] -> Maybe (v, [(k, v)])
-popKey k' alist = go [] alist
+popKey k' = go []
   where
     go :: [(k, v)] -> [(k, v)] -> Maybe (v, [(k, v)])
     go acc (x@(k, v) : xs)
@@ -226,7 +226,7 @@ coproduct = foldl1 (<>)
 
 
 enum :: (Enum a, Bounded a, Eq a, Data a) => Grammar Position (Sexp :- t) (a :- t)
-enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a) [minBound .. maxBound]
+enum = coproduct $ map (\a -> sym (getEnumName a) >>> push a (== a)) [minBound .. maxBound]
   where
     getEnumName :: (Data a) => a -> Text
     getEnumName = TS.pack . lispifyName . showConstr . toConstr
@@ -243,18 +243,18 @@ toDefault def = iso
 
 bool :: Grammar Position (Sexp :- t) (Bool :- t)
 bool = atom >>> partialOsi
-  AtomBool
   (\case
       AtomBool b -> Right b
       other -> Left (expected "bool" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomBool
 
 
 integer :: Grammar Position (Sexp :- t) (Integer :- t)
 integer = atom >>> partialOsi
-  AtomInt
   (\case
       AtomInt i -> Right i
       other -> Left (expected "int" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomInt
 
 
 int :: Grammar Position (Sexp :- t) (Int :- t)
@@ -263,10 +263,10 @@ int = integer >>> iso fromIntegral fromIntegral
 
 real :: Grammar Position (Sexp :- t) (Scientific :- t)
 real = atom >>> partialOsi
-  AtomReal
   (\case
       AtomReal r -> Right r
       other -> Left (expected "real" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomReal
 
 
 double :: Grammar Position (Sexp :- t) (Double :- t)
@@ -275,10 +275,10 @@ double = real >>> iso toRealFloat fromFloatDigits
 
 string :: Grammar Position (Sexp :- t) (Text :- t)
 string = atom >>> partialOsi
-  AtomString
   (\case
       AtomString s -> Right s
       other -> Left (expected "string" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomString
 
 string' :: Grammar Position (Sexp :- t) (String :- t)
 string' = string >>> iso TS.unpack TS.pack
@@ -286,10 +286,10 @@ string' = string >>> iso TS.unpack TS.pack
 
 symbol :: Grammar Position (Sexp :- t) (Text :- t)
 symbol = atom >>> partialOsi
-  AtomSymbol
   (\case
       AtomSymbol s -> Right s
       other -> Left (expected "symbol" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomSymbol
 
 
 symbol' :: Grammar Position (Sexp :- t) (String :- t)
@@ -298,10 +298,10 @@ symbol' = symbol >>> iso TS.unpack TS.pack
 
 keyword :: Grammar Position (Sexp :- t) (Kw :- t)
 keyword = atom >>> partialOsi
-  AtomKeyword
   (\case
       AtomKeyword k -> Right k
       other -> Left (expected "keyword" <> unexpected (ppBrief $ Atom dummyPos other)))
+  AtomKeyword
 
 
 sym :: Text -> Grammar Position (Sexp :- t) t
