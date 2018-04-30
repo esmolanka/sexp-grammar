@@ -20,14 +20,15 @@ module Data.InvertibleGrammar.Combinators
   , coproduct
   , onHead
   , onTail
-  , sealed
+  , traversed
   , flipped
+  , sealed
   ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
+import Data.Traversable
 #endif
-
 import Control.Category ((>>>))
 import Data.Maybe
 import Data.InvertibleGrammar.Base
@@ -145,8 +146,11 @@ coproduct = foldl1 (<>)
 onHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
 onHead = OnHead
 
-onTail :: Grammar p a b -> Grammar p (h :- a) (h :- b)
+onTail :: Grammar p ta tb -> Grammar p (h :- ta) (h :- tb)
 onTail = OnTail
+
+traversed :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
+traversed = Traverse
 
 flipped :: Grammar p a b -> Grammar p b a
 flipped = Flip
