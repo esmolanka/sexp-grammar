@@ -45,8 +45,8 @@ $charesc     = [abfnrtv\\\"]
 @escape      = \\ ($charesc | $digit+ | x $hex+)
 @string      = $graphic # [\"\\] | " " | @escape
 
-$idinitial   = [$alpha \!\$\%\&\*\/\<\=\>\?\~\_\^\.\+\- $uninonspace]
-$idsubseq    = [$idinitial $digit \: $uninonspace]
+$idinitial   = [$alpha \@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $uninonspace]
+$idsubseq    = [$idinitial $digit \: \' $uninonspace]
 @identifier  = $idinitial $idsubseq*
 @keyword     = ":" $idsubseq+
 
