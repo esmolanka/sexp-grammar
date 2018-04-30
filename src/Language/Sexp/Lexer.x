@@ -58,14 +58,13 @@ $whitespace+       ;
 ")"                { just TokRParen       }
 "["                { just TokLBracket     }
 "]"                { just TokRBracket     }
+"{"                { just TokLBrace       }
+"}"                { just TokRBrace       }
 "'" / $graphic     { just TokQuote        }
-"#t"               { just (TokBool True)  }
-"#f"               { just (TokBool False) }
-"#" / $graphic     { just TokHash         }
 @intnum            { TokInt     `via` readInteger       }
 @scinum            { TokReal    `via` (read . T.unpack) }
 @identifier        { TokSymbol  `via` id                }
-@keyword           { TokKeyword `via` id                }
+@keyword           { TokKeyword `via` (T.drop 1)        }
 \" @string* \"     { TokStr     `via` readString        }
 .                  { TokUnknown `via` T.head            }
 

@@ -12,14 +12,14 @@ data Token
   | TokRParen          -- )
   | TokLBracket        -- [
   | TokRBracket        -- ]
+  | TokLBrace          -- {
+  | TokRBrace          -- }
   | TokQuote           -- e.g. '(foo bar)
-  | TokHash            -- e.g. #(foo bar)
   | TokSymbol  { getSymbol  :: !Text }        -- foo, bar
   | TokKeyword { getKeyword :: !Text }        -- :foo, :bar
   | TokInt     { getInt     :: !Integer }     -- 42, -1, +100500
   | TokReal    { getReal    :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
   | TokStr     { getString  :: !Text }        -- "foo", "", "hello world"
-  | TokBool    { getBool    :: !Bool }        -- #f, #t
   | TokUnknown { getUnknown :: !Char }        -- for unknown lexemes
     deriving (Show, Eq)
 
@@ -41,12 +41,12 @@ instance Pretty Token where
   pretty TokRParen      = "right paren ')'"
   pretty TokLBracket    = "left bracket '['"
   pretty TokRBracket    = "right bracket '['"
+  pretty TokLBrace      = "left brace '{'"
+  pretty TokRBrace      = "right brace '}'"
   pretty TokQuote       = "quote \"'\""
-  pretty TokHash        = "hash '#'"
   pretty (TokSymbol s)  = "symbol" <+> dquote <> pretty s <> dquote
   pretty (TokKeyword k) = "keyword" <+> dquote <> pretty k <> dquote
   pretty (TokInt     n) = "integer" <+> pretty n
   pretty (TokReal    n) = "real number" <+> pretty (show n)
   pretty (TokStr     s) = "string" <+> pretty (show s)
-  pretty (TokBool    b) = "boolean" <+> if b then "#t" else "#f"
   pretty (TokUnknown u) = "unknown lexeme" <+> pretty (show u)

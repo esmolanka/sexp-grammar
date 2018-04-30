@@ -160,9 +160,12 @@ keyMay k g = Flip (insertMay k) >>> Step >>> onHead (Traverse (sealed g)) >>> sw
 bool :: Grammar Position (Sexp :- t) (Bool :- t)
 bool = atom >>> partialOsi
   (\case
-      AtomBool b -> Right b
-      other -> Left (expected "bool" <> unexpected (ppBrief $ Atom dummyPos other)))
-  AtomBool
+      AtomSymbol "tt" -> Right True
+      AtomSymbol "ff" -> Right False
+      other   -> Left (expected "bool" <> unexpected (ppBrief $ Atom dummyPos other)))
+  (\case
+      True  -> AtomSymbol "tt"
+      False -> AtomSymbol "ff")
 
 
 integer :: Grammar Position (Sexp :- t) (Integer :- t)

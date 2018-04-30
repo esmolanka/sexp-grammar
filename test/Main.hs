@@ -35,19 +35,21 @@ import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
 import Language.SexpGrammar.TH hiding (match)
 
-pattern List' xs   = List (Position "<no location information>" 1 0) xs
-pattern Bool' x    = Atom (Position "<no location information>" 1 0) (AtomBool x)
-pattern Int' x     = Atom (Position "<no location information>" 1 0) (AtomInt x)
-pattern Keyword' x = Atom (Position "<no location information>" 1 0) (AtomKeyword x)
-pattern Real' x    = Atom (Position "<no location information>" 1 0) (AtomReal x)
-pattern String' x  = Atom (Position "<no location information>" 1 0) (AtomString x)
-pattern Symbol' x  = Atom (Position "<no location information>" 1 0) (AtomSymbol x)
+pattern List' xs      = List (Position "<no location information>" 1 0) xs
+pattern Vector' xs    = Vector (Position "<no location information>" 1 0) xs
+pattern BraceList' xs = BraceList (Position "<no location information>" 1 0) xs
+pattern Int' x        = Atom (Position "<no location information>" 1 0) (AtomInt x)
+pattern Keyword' x    = Atom (Position "<no location information>" 1 0) (AtomKeyword (Kw x))
+pattern Real' x       = Atom (Position "<no location information>" 1 0) (AtomReal x)
+pattern String' x     = Atom (Position "<no location information>" 1 0) (AtomString x)
+pattern Symbol' x     = Atom (Position "<no location information>" 1 0) (AtomSymbol x)
 
 stripPos :: Sexp -> Sexp
-stripPos (Atom _ x)    = Atom dummyPos x
-stripPos (List _ xs)   = List dummyPos $ map stripPos xs
-stripPos (Vector _ xs) = Vector dummyPos $ map stripPos xs
-stripPos (Quoted _ x)  = Quoted dummyPos $ stripPos x
+stripPos (Atom _ x)       = Atom dummyPos x
+stripPos (List _ xs)      = List dummyPos $ map stripPos xs
+stripPos (Vector _ xs)    = Vector dummyPos $ map stripPos xs
+stripPos (BraceList _ xs) = BraceList dummyPos $ map stripPos xs
+stripPos (Quoted _ x)     = Quoted dummyPos $ stripPos x
 
 parseSexp' :: String -> Either String Sexp
 parseSexp' input = stripPos <$> Sexp.decode (TL.pack input)
@@ -160,6 +162,7 @@ personGenericIso = with
        Kw "address" .: string') >>>
       rest personGenericIso) >>> person)
 
+
 ----------------------------------------------------------------------
 -- Test cases
 
@@ -168,6 +171,7 @@ allTests = testGroup "All tests"
   [ lexerTests
   , grammarTests
   ]
+
 
 lexerTests :: TestTree
 lexerTests = testGroup "Lexer tests"
@@ -210,8 +214,11 @@ grammarTests = testGroup "Grammar tests"
 
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
-  [ testCase "bool" $
-    G.fromSexp bool (Bool' True) @?= Right True
+  [ testCase "bool/true" $
+    G.fromSexp bool (Symbol' "tt") @?= Right True
+
+  , testCase "bool/false" $
+    G.fromSexp bool (Symbol' "ff") @?= Right False
   , testCase "integer" $
     G.fromSexp integer (Int' (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
   , testCase "int" $
@@ -225,7 +232,7 @@ baseTypeTests = testGroup "Base type combinator tests"
   , testCase "string'" $
     G.fromSexp string' (String' "foo\nbar baz") @?= Right "foo\nbar baz"
   , testCase "keyword" $
-    G.fromSexp keyword (Keyword' (Kw "foobarbaz")) @?= Right (Kw "foobarbaz")
+    G.fromSexp keyword (Keyword' "foobarbaz") @?= Right (Kw "foobarbaz")
   , testCase "symbol" $
     G.fromSexp symbol (Symbol' "foobarbaz") @?= Right "foobarbaz"
   , testCase "symbol'" $
@@ -237,20 +244,20 @@ listTests = testGroup "List combinator tests"
   [ testCase "empty list of bools" $
     G.fromSexp (list (rest bool)) (List' []) @?= Right []
   , testCase "list of bools" $
-    G.fromSexp (list (rest bool)) (List' [Bool' True, Bool' False, Bool' False]) @?=
+    G.fromSexp (list (rest bool)) (List' [Symbol' "tt", Symbol' "ff", Symbol' "ff"]) @?=
     Right [True, False, False]
   ]
 
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
-    G.fromSexp sexpIso (List' [Bool' False, Bool' True]) @?=
+    G.fromSexp sexpIso (List' [Symbol' "ff", Symbol' "tt"]) @?=
     Right (Pair False True)
   , testCase "sum of products (Bar True 42)" $
-    G.fromSexp sexpIso (List' [Symbol' "bar", Bool' True, Int' 42]) @?=
+    G.fromSexp sexpIso (List' [Symbol' "bar", Symbol' "tt", Int' 42]) @?=
     Right (Bar True (42 :: Int))
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    G.fromSexp sexpIso (List' [Symbol' "baz", Bool' False, Int' 10]) @?=
+    G.fromSexp sexpIso (List' [Symbol' "baz", Symbol' "ff", Int' 10]) @?=
     (Left ("<no location information>:1:0: mismatch:\n  expected: bool\n       got: 10") :: Either String (Foo Bool Bool))
   ]
 

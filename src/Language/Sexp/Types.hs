@@ -33,8 +33,7 @@ newtype Kw = Kw { unKw :: Text }
 
 -- | Sexp atom types
 data Atom
-  = AtomBool    !Bool
-  | AtomInt     !Integer
+  = AtomInt     {-# UNPACK #-} !Integer
   | AtomReal    {-# UNPACK #-} !Scientific
   | AtomString  {-# UNPACK #-} !Text
   | AtomSymbol  {-# UNPACK #-} !Text
@@ -43,16 +42,18 @@ data Atom
 
 -- | Sexp ADT
 data Sexp
-  = Atom   {-# UNPACK #-} !Position !Atom
-  | List   {-# UNPACK #-} !Position [Sexp]
-  | Vector {-# UNPACK #-} !Position [Sexp]
-  | Quoted {-# UNPACK #-} !Position Sexp
+  = Atom      {-# UNPACK #-} !Position !Atom
+  | List      {-# UNPACK #-} !Position [Sexp]
+  | Vector    {-# UNPACK #-} !Position [Sexp]
+  | BraceList {-# UNPACK #-} !Position [Sexp]
+  | Quoted    {-# UNPACK #-} !Position Sexp
     deriving (Show, Eq, Ord, Generic)
 
 -- | Get position of Sexp element
 getPos :: Sexp -> Position
-getPos (Atom p _)   = p
-getPos (Quoted p _) = p
-getPos (Vector p _) = p
-getPos (List p _)   = p
+getPos (Atom p _)      = p
+getPos (List p _)      = p
+getPos (Vector p _)    = p
+getPos (BraceList p _) = p
+getPos (Quoted p _)    = p
 {-# INLINE getPos #-}
