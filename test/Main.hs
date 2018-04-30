@@ -202,15 +202,18 @@ lexerTests = testGroup "Lexer tests"
     Right (String' "媯綩 づ竤バ り姥娩ぎょひ")
   ]
 
+
 grammarTests :: TestTree
 grammarTests = testGroup "Grammar tests"
   [ baseTypeTests
   , listTests
+  , dictTests
   , revStackPrismTests
   , parseTests
   , genTests
   , parseGenTests
   ]
+
 
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
@@ -219,47 +222,91 @@ baseTypeTests = testGroup "Base type combinator tests"
 
   , testCase "bool/false" $
     G.fromSexp bool (Symbol' "ff") @?= Right False
+
   , testCase "integer" $
     G.fromSexp integer (Int' (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
+
   , testCase "int" $
     G.fromSexp int (Int' 65536) @?= Right 65536
+
   , testCase "real" $
     G.fromSexp real (Real' 3.14) @?= Right 3.14
+
   , testCase "double" $
     G.fromSexp double (Real' 3.14) @?= Right 3.14
+
   , testCase "string" $
     G.fromSexp string (String' "foo\nbar baz") @?= Right "foo\nbar baz"
+
   , testCase "string'" $
     G.fromSexp string' (String' "foo\nbar baz") @?= Right "foo\nbar baz"
+
   , testCase "keyword" $
     G.fromSexp keyword (Keyword' "foobarbaz") @?= Right (Kw "foobarbaz")
+
   , testCase "symbol" $
     G.fromSexp symbol (Symbol' "foobarbaz") @?= Right "foobarbaz"
+
   , testCase "symbol'" $
     G.fromSexp symbol' (Symbol' "foobarbaz") @?= Right "foobarbaz"
   ]
+
 
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
   [ testCase "empty list of bools" $
     G.fromSexp (list (rest bool)) (List' []) @?= Right []
+
   , testCase "list of bools" $
     G.fromSexp (list (rest bool)) (List' [Symbol' "tt", Symbol' "ff", Symbol' "ff"]) @?=
     Right [True, False, False]
+
+  , testCase "vector of ints" $
+    G.fromSexp (vect (rest int)) (Vector' [Int' 123, Int' 0, Int' (-100)]) @?=
+    Right [123, 0, -100]
+
+  , testCase "brace-list of strings" $
+    G.fromSexp (bracelist (rest string)) (BraceList' [String' "foo", String' "bar"]) @?=
+    Right ["foo", "bar"]
   ]
+
+
+dictTests :: TestTree
+dictTests = testGroup "Dict combinator tests"
+  [ testCase "simple dict, present key" $
+    G.fromSexp (dict (key (Kw "foo") int)) (BraceList' [Keyword' "foo", Int' 42]) @?=
+    Right 42
+
+  , testCase "simple dict, missing key" $
+    G.fromSexp (dict (key (Kw "bar") int)) (BraceList' [Keyword' "foo", Int' 42]) @?=
+    (Left ("<no location information>:1:0: mismatch:\n  expected: key :bar\n  ") :: Either String Int)
+
+  , testCase "simple dict, missing optional key" $
+    G.fromSexp (dict (keyMay (Kw "bar") int)) (BraceList' []) @?=
+    Right Nothing
+
+  , testCase "simple dict, extra key" $
+    G.fromSexp (dict (key (Kw "foo") int)) (BraceList' [Keyword' "foo", Int' 42, Keyword' "bar", Int' 0]) @?=
+    (Left ("<no location information>:1:0: mismatch:\n  expected: end of property list\n       got: key :bar") :: Either String Int)
+
+  ]
+
 
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
     G.fromSexp sexpIso (List' [Symbol' "ff", Symbol' "tt"]) @?=
     Right (Pair False True)
+
   , testCase "sum of products (Bar True 42)" $
     G.fromSexp sexpIso (List' [Symbol' "bar", Symbol' "tt", Int' 42]) @?=
     Right (Bar True (42 :: Int))
+
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     G.fromSexp sexpIso (List' [Symbol' "baz", Symbol' "ff", Int' 10]) @?=
     (Left ("<no location information>:1:0: mismatch:\n  expected: bool\n       got: 10") :: Either String (Foo Bool Bool))
   ]
+
 
 testArithExpr :: ArithExpr
 testArithExpr = Add (Lit 0) (Mul [])
@@ -286,14 +333,25 @@ genParseIdentityProp iso expr =
   ==
   Right expr
 
+
 parseGenTests :: TestTree
 parseGenTests = testGroup "parse . gen == id"
-  [ QC.testProperty "ArithExprs/TH" (genParseIdentityProp arithExprTHIso)
-  , QC.testProperty "ArithExprs/Generics" (genParseIdentityProp arithExprGenericIso)
-  , QC.testProperty "Pair Int String" (genParseIdentityProp (pairGenericIso int string'))
-  , QC.testProperty "Foo (Foo Int String) (Pair String Int)" (genParseIdentityProp (fooGenericIso (fooGenericIso int string') (pairGenericIso string' int)))
-  , QC.testProperty "Person" (genParseIdentityProp personGenericIso)
+  [ QC.testProperty "ArithExprs/TH" $
+      genParseIdentityProp arithExprTHIso
+
+  , QC.testProperty "ArithExprs/Generics" $
+      genParseIdentityProp arithExprGenericIso
+
+  , QC.testProperty "Pair Int String" $
+      genParseIdentityProp (pairGenericIso int string')
+
+  , QC.testProperty "Foo (Foo Int String) (Pair String Int)" $
+      genParseIdentityProp (fooGenericIso (fooGenericIso int string') (pairGenericIso string' int))
+
+  , QC.testProperty "Person" $
+      genParseIdentityProp personGenericIso
   ]
+
 
 main :: IO ()
 main = defaultMain allTests

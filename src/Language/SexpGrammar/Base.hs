@@ -8,6 +8,8 @@ module Language.SexpGrammar.Base
   ( atom
   , list
   , vect
+  , bracelist
+  , dict
   , el
   , rest
   , props
@@ -53,6 +55,7 @@ import Language.Sexp.Encode (encode)
 import Language.Sexp.Types
 import Language.Sexp.Utils (lispifyName)
 
+
 ppBrief :: Sexp -> Text
 ppBrief = TS.decodeUtf8 . BS.toStrict . \case
   atom@Atom{} ->
@@ -62,6 +65,9 @@ ppBrief = TS.decodeUtf8 . BS.toStrict . \case
     in if BS.length pp > 25
        then BS.take 25 pp <> "..."
        else pp
+
+ppKey :: Kw -> Text
+ppKey kw = "key " <> ppBrief (Atom dummyPos (AtomKeyword kw))
 
 ----------------------------------------------------------------------
 
@@ -110,6 +116,18 @@ vect :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp 
 vect g = locate >>> vector_ >>> Dive (g >>> Flip nil)
 
 
+bracelist_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
+bracelist_ = partialOsi
+  (\case
+      BraceList _pos a -> Right a
+      other -> Left (expected "brace-list" <> unexpected (ppBrief other)))
+  (Vector dummyPos)
+
+
+bracelist :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
+bracelist g = locate >>> bracelist_ >>> Dive (g >>> Flip nil)
+
+
 ----------------------------------------------------------------------
 
 el :: Grammar p (a :- t) t' -> Grammar p ([a] :- t) ([a] :- t')
@@ -136,11 +154,23 @@ props_ = Flip $ PartialIso
 
 
 props :: Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar p ([Sexp] :- t) ([Sexp] :- t')
-props g = Dive $ props_ >>> onTail g >>> swap >>> Flip nil
+props g = Dive $ props_ >>> onTail g >>> swap >>> Flip emptyProps
+  where
+    emptyProps :: Grammar p t ([(Kw, Sexp)] :- t)
+    emptyProps = PartialIso
+      (\t -> [] :- t)
+      (\(lst :- t) ->
+          case lst of
+            [] -> Right t
+            ((k, _) : _rest) -> Left (expected "end of property list" <> unexpected (ppKey k)))
+
+
+dict :: Grammar Position ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar Position (Sexp :- t) t'
+dict g = bracelist (props g)
 
 
 key :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- a :- t)
-key k g = Flip (insert k) >>> Step >>> onHead (sealed g) >>> swap
+key k g = Flip (insert k (expected $ ppKey k)) >>> Step >>> onHead (sealed g) >>> swap
 
 
 keyMay :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
@@ -153,6 +183,7 @@ keyMay k g = Flip (insertMay k) >>> Step >>> onHead (Traverse (sealed g)) >>> sw
 
 (.:?) :: Kw -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- Maybe a :- t)
 (.:?) = keyMay
+
 
 ----------------------------------------------------------------------
 -- Atoms

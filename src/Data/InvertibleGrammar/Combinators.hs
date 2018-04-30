@@ -30,7 +30,6 @@ import Control.Applicative
 import Control.Category ((>>>))
 import Data.Maybe
 import Data.InvertibleGrammar.Base
-import qualified Data.Text as TS
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
@@ -91,7 +90,7 @@ nil = PartialIso
   (\(lst :- t) ->
       case lst of
         [] -> Right t
-        (_el:_rest) -> Left (expected "end-of-list"))
+        (_el:_rest) -> Left (expected "end of list"))
 
 
 swap :: Grammar p (a :- b :- t) (b :- a :- t)
@@ -100,16 +99,16 @@ swap = Iso
   (\(b :- a :- t) -> (a :- b :- t))
 
 
-insert :: (Eq k, Show k) => k -> Grammar p (v :- [(k, v)] :- t) ([(k, v)] :- t)
-insert k = PartialIso
+insert :: (Eq k) => k -> Mismatch -> Grammar p (v :- [(k, v)] :- t) ([(k, v)] :- t)
+insert k m = PartialIso
   (\(v :- alist :- t) -> ((k, v) : alist) :- t)
   (\(alist :- t) ->
      case popKey k alist of
-       Nothing -> Left (expected ("key " <> TS.pack (show k)))
+       Nothing -> Left m
        Just (v, alist') -> Right (v :- alist' :- t))
 
 
-insertMay :: (Eq k, Show k) => k -> Grammar p (Maybe v :- [(k, v)] :- t) ([(k, v)] :- t)
+insertMay :: (Eq k) => k -> Grammar p (Maybe v :- [(k, v)] :- t) ([(k, v)] :- t)
 insertMay k = PartialIso
   (\(mv :- alist :- t) ->
       case mv of
