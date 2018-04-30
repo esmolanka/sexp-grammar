@@ -5,7 +5,8 @@
 {-# LANGUAGE LambdaCase        #-}
 
 module Language.SexpGrammar.Base
-  ( atom
+  ( position
+  , atom
   , list
   , vect
   , bracelist
