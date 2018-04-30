@@ -18,9 +18,10 @@ module Data.InvertibleGrammar.Combinators
   , insertMay
   , toDefault
   , coproduct
-  , sealed
   , onHead
   , onTail
+  , sealed
+  , flipped
   ) where
 
 #if !MIN_VERSION_base(4,8,0)
@@ -146,6 +147,9 @@ onHead = OnHead
 
 onTail :: Grammar p a b -> Grammar p (h :- a) (h :- b)
 onTail = OnTail
+
+flipped :: Grammar p a b -> Grammar p b a
+flipped = Flip
 
 sealed :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
 sealed g =
