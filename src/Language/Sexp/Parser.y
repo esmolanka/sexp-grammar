@@ -55,7 +55,7 @@ Sexp :: { Sexp }
   : Atom                                  { (\a p -> Atom p a) @@ $1 }
   | '(' list(Sexp) ')'                    { const (\p -> List p $2) @@ $1 }
   | '[' list(Sexp) ']'                    { const (\p -> Vector p $2) @@ $1 }
-  | '{' list(Sexp) '}'                    { const (\p -> List p $2) @@ $1 }
+  | '{' list(Sexp) '}'                    { const (\p -> BraceList p $2) @@ $1 }
   | "'" Sexp                              { const (\p -> Quoted p $2) @@ $1 }
 
 Atom :: { LocatedBy Position Atom }

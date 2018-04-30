@@ -138,7 +138,6 @@ el g = Flip cons >>> onTail g >>> Step
 rest :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p ([a] :- t) ([a] :- [b] :- t)
 rest g = onHead (Traverse (sealed g >>> Step)) >>> Iso (\a -> [] :- a) (\(_ :- a) -> a)
 
-
 ----------------------------------------------------------------------
 
 props_ :: Grammar p ([Sexp] :- t) ([Sexp] :- [(Kw, Sexp)] :- t)
@@ -155,7 +154,7 @@ props_ = Flip $ PartialIso
 
 
 props :: Grammar p ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar p ([Sexp] :- t) ([Sexp] :- t')
-props g = Dive $ props_ >>> onTail g >>> swap >>> Flip emptyProps
+props g = Dive $ props_ >>> onTail (g >>> Flip emptyProps)
   where
     emptyProps :: Grammar p t ([(Kw, Sexp)] :- t)
     emptyProps = PartialIso

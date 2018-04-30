@@ -94,13 +94,13 @@ type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
   (:++) '[] bs = bs
 
 type family Coll (f :: * -> *) (t :: *) :: [*] where
-  Coll (M1 D c f) t = Coll f t
   Coll (f :+: g)  t = Coll f t :++ Coll g t
+  Coll (M1 D c f) t = Coll f t
   Coll (M1 C c f) t = '[StackPrismLhs f t]
 
 type family Trav (t :: * -> *) (l :: [*]) :: [*] where
-  Trav (M1 D c f) lst = Trav f lst
   Trav (f :+: g) lst = Trav g (Trav f lst)
+  Trav (M1 D c f) lst = Trav f lst
   Trav (M1 C c f) (l ': ls) = ls
 
 class Match (f :: * -> *) bs t where
