@@ -279,7 +279,7 @@ dictTests = testGroup "Dict combinator tests"
 
   , testCase "simple dict, missing key" $
     G.fromSexp (dict (key (Kw "bar") int)) (BraceList' [Keyword' "foo", Int' 42]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n  expected: key :bar\n  ") :: Either String Int)
+    (Left ("<no location information>:1:0: mismatch:\n    Expected: key :bar") :: Either String Int)
 
   , testCase "simple dict, missing optional key" $
     G.fromSexp (dict (keyMay (Kw "bar") int)) (BraceList' []) @?=
@@ -287,7 +287,7 @@ dictTests = testGroup "Dict combinator tests"
 
   , testCase "simple dict, extra key" $
     G.fromSexp (dict (key (Kw "foo") int)) (BraceList' [Keyword' "foo", Int' 42, Keyword' "bar", Int' 0]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n  expected: end of property list\n       got: key :bar") :: Either String Int)
+    (Left ("<no location information>:1:0: mismatch:\n    Unexpected: key :bar") :: Either String Int)
 
   ]
 
@@ -304,7 +304,7 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
 
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
     G.fromSexp sexpIso (List' [Symbol' "baz", Symbol' "ff", Int' 10]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n  expected: bool\n       got: 10") :: Either String (Foo Bool Bool))
+    (Left ("<no location information>:1:0: mismatch:\n    Expected: bool\n    But got:  10") :: Either String (Foo Bool Bool))
   ]
 
 

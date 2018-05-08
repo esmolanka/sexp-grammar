@@ -23,6 +23,7 @@ module Data.InvertibleGrammar.Combinators
   , traversed
   , flipped
   , sealed
+  , annotated
   ) where
 
 #if !MIN_VERSION_base(4,8,0)
@@ -31,6 +32,7 @@ import Data.Traversable
 #endif
 import Control.Category ((>>>))
 import Data.Maybe
+import Data.Text (Text)
 import Data.InvertibleGrammar.Base
 
 #if !MIN_VERSION_base(4,11,0)
@@ -160,3 +162,7 @@ sealed g =
   Iso (:- undefined) (\(a :- _) -> a) >>>
   g >>>
   Iso (\(a :- _) -> a) (:- undefined)
+
+annotated :: Text -> Grammar p a b -> Grammar p a b
+annotated =
+  Annotate

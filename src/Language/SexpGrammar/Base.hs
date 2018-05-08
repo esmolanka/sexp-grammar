@@ -101,8 +101,17 @@ list_ = partialOsi
   (List dummyPos)
 
 
+sexpNil :: Grammar p t ([Sexp] :- t)
+sexpNil = PartialIso
+  (\t -> [] :- t)
+  (\(lst :- t) ->
+      case lst of
+        [] -> Right t
+        (el:_rest) -> Left (unexpected (ppBrief el)))
+
+
 list :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
-list g = locate >>> list_ >>> Dive (g >>> Flip nil)
+list g = locate >>> list_ >>> Dive (g >>> Flip sexpNil)
 
 
 vector_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
@@ -114,7 +123,7 @@ vector_ = partialOsi
 
 
 vect :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
-vect g = locate >>> vector_ >>> Dive (g >>> Flip nil)
+vect g = locate >>> vector_ >>> Dive (g >>> Flip sexpNil)
 
 
 bracelist_ :: Grammar p (Sexp :- t) ([Sexp] :- t)
@@ -126,7 +135,7 @@ bracelist_ = partialOsi
 
 
 bracelist :: Grammar Position ([Sexp] :- t) ([Sexp] :- t') -> Grammar Position (Sexp :- t) t'
-bracelist g = locate >>> bracelist_ >>> Dive (g >>> Flip nil)
+bracelist g = locate >>> bracelist_ >>> Dive (g >>> Flip sexpNil)
 
 
 ----------------------------------------------------------------------
@@ -162,7 +171,7 @@ props g = Dive $ props_ >>> onTail (g >>> Flip emptyProps)
       (\(lst :- t) ->
           case lst of
             [] -> Right t
-            ((k, _) : _rest) -> Left (expected "end of property list" <> unexpected (ppKey k)))
+            ((k, _) : _rest) -> Left (unexpected (ppKey k)))
 
 
 dict :: Grammar Position ([(Kw, Sexp)] :- t) ([(Kw, Sexp)] :- t') -> Grammar Position (Sexp :- t) t'

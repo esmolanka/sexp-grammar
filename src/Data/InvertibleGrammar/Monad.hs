@@ -4,6 +4,7 @@
 
 module Data.InvertibleGrammar.Monad
   ( module Control.Monad.ContextError
+  , annotate
   , dive
   , step
   , locate
@@ -19,28 +20,30 @@ module Data.InvertibleGrammar.Monad
 import Control.Applicative
 import Control.Monad.ContextError
 
+import Data.Maybe
 import Data.Semigroup as Semi
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 
 import Data.Text.Prettyprint.Doc
-  (Pretty, pretty, vsep, indent, fillSep, punctuate, comma, (<+>))
+  (Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate, comma, colon, (<+>))
 
 initPropagation :: p -> Propagation p
-initPropagation = Propagation [0]
+initPropagation = Propagation [0] []
 
 data Propagation p = Propagation
   { pProp :: [Int]
+  , pAnns :: [Text]
   , pPos  :: p
   } deriving (Show)
 
 instance Eq (Propagation p) where
-  Propagation xs _ == Propagation ys _ = xs == ys
+  Propagation xs _ _ == Propagation ys _ _ = xs == ys
   {-# INLINE (==) #-}
 
 instance Ord (Propagation p) where
-  compare (Propagation as _) (Propagation bs _) =
+  compare (Propagation as _ _) (Propagation bs _ _) =
     reverse as `compare` reverse bs
   {-# INLINE compare #-}
 
@@ -79,27 +82,30 @@ runGrammarMonad :: p -> (p -> String) -> ContextError (Propagation p) (GrammarEr
 runGrammarMonad initPos showPos m =
   case runContextError m (initPropagation initPos) of
     Left (GrammarError p mismatch) ->
-      Left $ renderMismatch (showPos (pPos p)) mismatch
+      Left $ show $ renderMismatch (showPos (pPos p)) (reverse (pAnns p)) mismatch
     Right a -> Right a
 
 instance Pretty Mismatch where
   pretty (Mismatch (S.toList -> []) Nothing) =
-    "unknown mismatch occurred"
-  pretty (Mismatch (S.toList -> expected) got) =
-    vsep [ ppExpected expected
-         , ppGot got
-         ]
-    where
-      ppExpected []  = mempty
-      ppExpected xs  = "expected:" <+> fillSep (punctuate comma $ map pretty xs)
-      ppGot Nothing  = mempty
-      ppGot (Just a) = "     got:" <+> pretty a
+    "Unknown mismatch occurred"
+  pretty (Mismatch (S.toList -> []) unexpected) =
+    "Unexpected:" <+> pretty unexpected
+  pretty (Mismatch (S.toList -> expected) Nothing) =
+    "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
+  pretty (Mismatch (S.toList -> expected) (Just got)) =
+    vsep
+      [ "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
+      , "But got: " <+> pretty got
+      ]
 
-renderMismatch :: String -> Mismatch -> String
-renderMismatch pos mismatch =
-  show $ vsep
-    [ pretty pos `mappend` ":" <+> "mismatch:"
-    , indent 2 $ pretty mismatch
+renderMismatch :: String -> [Text] -> Mismatch -> Doc a
+renderMismatch pos annotations mismatch =
+  vsep $ catMaybes
+    [ Just $ pretty pos `mappend` ":" <+> "mismatch:"
+    , if null annotations
+      then Nothing
+      else Just $ indent 2 $ "In" <+> hsep (punctuate (comma <> line <> "in") $ map pretty annotations) <> colon
+    , Just $ indent 4 $ pretty mismatch
     ]
 
 data GrammarError p = GrammarError (Propagation p) Mismatch
@@ -112,10 +118,16 @@ instance Semigroup (GrammarError p) where
     | otherwise  = GrammarError pos (m <> m')
   {-# INLINE (<>) #-}
 
+annotate :: MonadContextError (Propagation p) e m => Text -> m a -> m a
+annotate ann =
+  localContext $ \propagation ->
+    propagation { pAnns = ann : pAnns propagation }
+{-# INLINE annotate #-}
+
 dive :: MonadContextError (Propagation p) e m => m a -> m a
 dive =
-  localContext $ \(Propagation xs pos) ->
-    Propagation (0 : xs) pos
+  localContext $ \propagation ->
+    propagation { pProp = 0 : pProp propagation }
 {-# INLINE dive #-}
 
 step :: MonadContextError (Propagation p) e m => m ()

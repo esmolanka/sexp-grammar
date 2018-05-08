@@ -30,6 +30,7 @@ import Control.Applicative
 #endif
 import Control.Category
 import Control.Monad
+import Data.Text (Text)
 import Data.Bifunctor
 import Data.Bifoldable
 import Data.Bitraversable
@@ -64,6 +65,7 @@ data Grammar p a b where
   Traverse   :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
   OnHead     :: Grammar p a b -> Grammar p (a :- t) (b :- t)
   OnTail     :: Grammar p a b -> Grammar p (h :- a) (h :- b)
+  Annotate   :: Text -> Grammar p a b -> Grammar p a b
   Dive       :: Grammar p a b -> Grammar p a b
   Step       :: Grammar p a a
   Locate     :: Grammar p p p
@@ -108,6 +110,7 @@ forward (f :<>: g)       = \x -> forward f x `mplus` forward g x
 forward (Traverse g)     = traverse (forward g)
 forward (OnHead g)       = \(a :- b) -> (:- b) <$> forward g a
 forward (OnTail g)       = \(a :- b) -> (a :-) <$> forward g b
+forward (Annotate t g)   = annotate t . forward g
 forward (Dive g)         = dive . forward g
 forward Step             = \x -> step >> return x
 forward Locate           = \x -> locate x >> return x
@@ -121,6 +124,7 @@ backward (f :<>: g)       = \x -> backward f x `mplus` backward g x
 backward (Traverse g)     = traverse (backward g)
 backward (OnHead g)       = \(a :- b) -> (:- b) <$> backward g a
 backward (OnTail g)       = \(a :- b) -> (a :-) <$> backward g b
+backward (Annotate t g)   = annotate t . backward g
 backward (Dive g)         = dive . backward g
 backward Step             = \x -> step >> return x
 backward Locate           = \x -> locate x >> return x
