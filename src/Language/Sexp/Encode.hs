@@ -14,7 +14,6 @@ import Data.ByteString.Lazy.Builder.ASCII
 import Language.Sexp.Types
 
 bAtom :: Atom -> Builder
-bAtom (AtomBool a)    = char8 '#' <> if a then char8 't' else char8 'f'
 bAtom (AtomInt a)     = integerDec a
 bAtom (AtomReal a)    = string8 . formatScientific Generic Nothing $ a
 bAtom (AtomString a)  = stringUtf8 (show a)
@@ -25,10 +24,11 @@ sep :: [Builder] -> Builder
 sep = mconcat . intersperse (char8 ' ')
 
 bSexp :: Sexp -> Builder
-bSexp (Atom   _ a)  = bAtom a
-bSexp (List   _ ss) = char8 '(' <> sep (map bSexp ss) <> char8 ')'
-bSexp (Vector _ ss) = char8 '[' <> sep (map bSexp ss) <> char8 ']'
-bSexp (Quoted _ a)  = char8 '\'' Monoid.<> bSexp a
+bSexp (Atom   _ a)     = bAtom a
+bSexp (List   _ ss)    = char8 '(' <> sep (map bSexp ss) <> char8 ')'
+bSexp (Vector _ ss)    = char8 '[' <> sep (map bSexp ss) <> char8 ']'
+bSexp (BraceList _ ss) = char8 '{' <> sep (map bSexp ss) <> char8 '}'
+bSexp (Quoted _ a)     = char8 '\'' Monoid.<> bSexp a
 
 -- | Quickly encode Sexp to non-indented ByteString
 encode :: Sexp -> ByteString

@@ -22,7 +22,6 @@ instance Pretty Kw where
   pretty (Kw s) = colon <> pretty s
 
 ppAtom :: Atom -> Doc ann
-ppAtom (AtomBool a)    = if a then "#t" else "#f"
 ppAtom (AtomInt a)     = pretty a
 ppAtom (AtomReal a)    = pretty $ formatScientific Generic Nothing $ a
 ppAtom (AtomString a)  = pretty (show a)
@@ -48,6 +47,7 @@ ppSexp :: Sexp -> Doc ann
 ppSexp (Atom   _ a)  = ppAtom a
 ppSexp (List   _ ss) = parens $ ppList ss
 ppSexp (Vector _ ss) = brackets $ ppList ss
+ppSexp (BraceList _ ss) = braces $ ppList ss
 ppSexp (Quoted _ a)  = squote <> ppSexp a
 
 instance Pretty Sexp where

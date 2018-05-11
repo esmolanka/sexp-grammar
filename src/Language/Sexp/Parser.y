@@ -37,41 +37,33 @@ import Language.Sexp.Types
   ')'            { L _ TokRParen      }
   '['            { L _ TokLBracket    }
   ']'            { L _ TokRBracket    }
+  '{'            { L _ TokLBrace      }
+  '}'            { L _ TokRBrace      }
   "'"            { L _ TokQuote       }
-  '#'            { L _ TokHash        }
   Symbol         { L _ (TokSymbol  _) }
   Keyword        { L _ (TokKeyword _) }
   Integer        { L _ (TokInt     _) }
   Real           { L _ (TokReal    _) }
   String         { L _ (TokStr     _) }
-  Bool           { L _ (TokBool    _) }
 
 %%
 
 Sexps :: { [Sexp] }
-  : list(Sexp)   { $1 }
+  : list(Sexp)                            { $1 }
 
 Sexp :: { Sexp }
   : Atom                                  { (\a p -> Atom p a) @@ $1 }
-  | '(' ListBody ')'                      { const $2 @@ $1 }
-  | '[' VectorBody ']'                    { const $2 @@ $1 }
-  | '#' '(' VectorBody ')'                { const $3 @@ $1 }
+  | '(' list(Sexp) ')'                    { const (\p -> List p $2) @@ $1 }
+  | '[' list(Sexp) ']'                    { const (\p -> Vector p $2) @@ $1 }
+  | '{' list(Sexp) '}'                    { const (\p -> BraceList p $2) @@ $1 }
   | "'" Sexp                              { const (\p -> Quoted p $2) @@ $1 }
 
 Atom :: { LocatedBy Position Atom }
-  : Bool         { fmap (AtomBool    . getBool)           $1 }
-  | Integer      { fmap (AtomInt     . getInt)            $1 }
-  | Real         { fmap (AtomReal    . getReal)           $1 }
-  | String       { fmap (AtomString  . getString)         $1 }
-  | Symbol       { fmap (AtomSymbol  . getSymbol)         $1 }
-  | Keyword      { fmap (AtomKeyword . mkKw . getKeyword) $1 }
-
-ListBody :: { Position -> Sexp }
-  : list(Sexp)   { \p -> List p $1 }
-
-VectorBody :: { Position -> Sexp }
-  : list(Sexp)   { \p -> Vector p $1 }
-
+  : Integer                               { fmap (AtomInt     . getInt)          $1 }
+  | Real                                  { fmap (AtomReal    . getReal)         $1 }
+  | String                                { fmap (AtomString  . getString)       $1 }
+  | Symbol                                { fmap (AtomSymbol  . getSymbol)       $1 }
+  | Keyword                               { fmap (AtomKeyword . Kw . getKeyword) $1 }
 
 -- Utils
 
@@ -87,10 +79,6 @@ list(p)
   | list1(p)               { $1 }
 
 {
-mkKw :: Text -> Kw
-mkKw t = case T.uncons t of
-  Nothing -> error "Keyword should start with :"
-  Just (_, rs) -> Kw rs
 
 parseError :: [LocatedBy Position Token] -> Either String b
 parseError toks = case toks of

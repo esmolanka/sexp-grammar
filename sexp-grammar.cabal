@@ -35,11 +35,6 @@ library
     Language.SexpGrammar.Generic
 
   other-modules:
-    Data.InvertibleGrammar
-    Data.InvertibleGrammar.Monad
-    Data.InvertibleGrammar.Generic
-    Data.InvertibleGrammar.TH
-    Control.Monad.ContextError
     Language.Sexp.LexerInterface
     Language.Sexp.Lexer
     Language.Sexp.Parser
@@ -47,23 +42,18 @@ library
     Language.Sexp.Types
     Language.SexpGrammar.Base
     Language.SexpGrammar.Class
-    Language.SexpGrammar.Combinators
 
   build-depends:
-      array
-    , base >=4.7 && <5
-    , bytestring
-    , containers
-    , mtl >=2.1
-    , prettyprinter
-    , profunctors
-    , scientific
-    , semigroups
-    , split
-    , tagged
-    , template-haskell
-    , transformers
-    , text
+      array              >=0.5   && <0.6
+    , base               >=4.7   && <5.0
+    , bytestring         >=0.10  && <0.11
+    , containers         >=0.5.5 && <0.6
+    , prettyprinter      >=1     && <1.3
+    , scientific         >=0.3.3 && <0.4
+    , semigroups         >=0.16  && <0.19
+    , split              >=0.2   && <0.3
+    , text               >=1.2   && <1.3
+    , invertible-grammar >=0.1   && <0.2
 
   build-tools: alex, happy
 
@@ -74,11 +64,13 @@ test-suite sexp-grammar-test
     , base
     , scientific
     , semigroups
-    , sexp-grammar
+    , containers
     , tasty
     , tasty-hunit
     , tasty-quickcheck
     , text
+    , sexp-grammar
+    , invertible-grammar
   main-is:           Main.hs
   hs-source-dirs:    test
   default-language:  Haskell2010
@@ -87,12 +79,10 @@ benchmark sexp-grammar-bench
   type:              exitcode-stdio-1.0
   build-depends:
       base
-    , bytestring
     , criterion
-    , scientific
-    , semigroups
-    , sexp-grammar
+    , deepseq
     , text
+    , sexp-grammar
   main-is:           Main.hs
   hs-source-dirs:    bench
   default-language:  Haskell2010
