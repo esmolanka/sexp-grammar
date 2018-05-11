@@ -100,7 +100,6 @@ instance Category (Grammar p) where
 instance Semigroup (Grammar p a b) where
   (<>) = (:<>:)
 
-
 forward :: Grammar p a b -> a -> ContextError (Propagation p) (GrammarError p) b
 forward (Iso f _)        = return . f
 forward (PartialIso f _) = return . f
@@ -110,21 +109,21 @@ forward (f :<>: g)       = \x -> forward f x `mplus` forward g x
 forward (Traverse g)     = traverse (forward g)
 forward (OnHead g)       = \(a :- b) -> (:- b) <$> forward g a
 forward (OnTail g)       = \(a :- b) -> (a :-) <$> forward g b
-forward (Annotate t g)   = annotate t . forward g
-forward (Dive g)         = dive . forward g
-forward Step             = \x -> step >> return x
-forward Locate           = \x -> locate x >> return x
+forward (Annotate t g)   = doAnnotate t . forward g
+forward (Dive g)         = doDive . forward g
+forward Step             = \x -> doStep >> return x
+forward Locate           = \x -> doLocate x >> return x
 
 backward :: Grammar p a b -> b -> ContextError (Propagation p) (GrammarError p) a
 backward (Iso _ g)        = return . g
-backward (PartialIso _ g) = either (\mis -> throwInContext (\ctx -> GrammarError ctx mis)) return . g
+backward (PartialIso _ g) = either doError return . g
 backward (Flip g)         = forward g
 backward (g :.: f)        = backward g >=> backward f
 backward (f :<>: g)       = \x -> backward f x `mplus` backward g x
 backward (Traverse g)     = traverse (backward g)
 backward (OnHead g)       = \(a :- b) -> (:- b) <$> backward g a
 backward (OnTail g)       = \(a :- b) -> (a :-) <$> backward g b
-backward (Annotate t g)   = annotate t . backward g
-backward (Dive g)         = dive . backward g
-backward Step             = \x -> step >> return x
-backward Locate           = \x -> locate x >> return x
+backward (Annotate t g)   = doAnnotate t . backward g
+backward (Dive g)         = doDive . backward g
+backward Step             = \x -> doStep >> return x
+backward Locate           = \x -> doLocate x >> return x

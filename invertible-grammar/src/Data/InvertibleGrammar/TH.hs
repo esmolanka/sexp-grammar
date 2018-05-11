@@ -8,7 +8,7 @@ module Data.InvertibleGrammar.TH where
 import Control.Applicative
 #endif
 import Data.Foldable (toList)
-import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Base
 import Data.Maybe
 import Data.Text (pack)
 import Language.Haskell.TH as TH
@@ -39,8 +39,9 @@ import Data.Semigroup ((<>))
      Note the order of elements on the stack:
 
      > ghci> :t fooGrammar
-     > fooGrammar :: Grammar g (c :- (b :- (a :- t))) (FooBar a b c :- t)
+     > fooGrammar :: Grammar p (c :- (b :- (a :- t))) (FooBar a b c :- t)
 -}
+
 grammarFor :: Name -> ExpQ
 grammarFor constructorName = do
 #if defined(__GLASGOW_HASKELL__)

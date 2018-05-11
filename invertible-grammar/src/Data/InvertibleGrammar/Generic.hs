@@ -1,12 +1,8 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs                  #-}
-{-# LANGUAGE InstanceSigs           #-}
-{-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PolyKinds              #-}
@@ -14,9 +10,9 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE UndecidableInstances   #-}
 
 -- NB: UndecidableInstances needed for nested type family application. :-/
+{-# LANGUAGE UndecidableInstances   #-}
 
 module Data.InvertibleGrammar.Generic
   ( with
@@ -30,7 +26,7 @@ import Control.Applicative
 import Control.Category ((.))
 
 import Data.Functor.Identity
-import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Base
 import Data.Monoid (First(..))
 import Data.Profunctor (Choice(..))
 import Data.Profunctor.Unsafe

@@ -4,12 +4,12 @@
 
 module Data.InvertibleGrammar.Monad
   ( module Control.Monad.ContextError
-  , annotate
-  , dive
-  , step
-  , locate
-  , grammarError
-  , runGrammarMonad
+  , runGrammar
+  , doAnnotate
+  , doDive
+  , doStep
+  , doLocate
+  , doError
   , Propagation
   , GrammarError (..)
   , Mismatch
@@ -27,7 +27,9 @@ import qualified Data.Set as S
 import Data.Text (Text)
 
 import Data.Text.Prettyprint.Doc
-  (Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate, comma, colon, (<+>))
+  ( Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate
+  , comma, colon, (<+>)
+  )
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0] []
@@ -47,21 +49,22 @@ instance Ord (Propagation p) where
     reverse as `compare` reverse bs
   {-# INLINE compare #-}
 
--- | Data type to encode mismatches during parsing or generation, kept abstract.
--- It is suggested to use 'expected' and 'unexpected' constructors to build a
+-- | Data type to encode mismatches during parsing or generation, kept
+-- abstract. Use 'expected' and 'unexpected' constructors to build a
 -- mismatch report.
 data Mismatch = Mismatch
   { mismatchExpected :: Set Text
   , mismatchGot :: Maybe Text
   } deriving (Show, Eq)
 
--- | Construct a mismatch report with specified expectation. Can be appended
--- to other expectations and 'unexpected' reports to clarify a mismatch.
+-- | Construct a mismatch report with specified expectation. Can be
+-- appended to other expectations and 'unexpected' reports to clarify
+-- a mismatch.
 expected :: Text -> Mismatch
 expected a = Mismatch (S.singleton a) Nothing
 
--- | Construct a mismatch report with information what has been occurred during
--- processing but is not expected.
+-- | Construct a mismatch report with information what occurred during
+-- the processing but was not expected.
 unexpected :: Text -> Mismatch
 unexpected a = Mismatch S.empty (Just a)
 
@@ -78,8 +81,8 @@ instance Monoid Mismatch where
   mappend = (<>)
   {-# INLINE mappend #-}
 
-runGrammarMonad :: p -> (p -> String) -> ContextError (Propagation p) (GrammarError p) a -> Either String a
-runGrammarMonad initPos showPos m =
+runGrammar :: p -> (p -> String) -> ContextError (Propagation p) (GrammarError p) a -> Either String a
+runGrammar initPos showPos m =
   case runContextError m (initPropagation initPos) of
     Left (GrammarError p mismatch) ->
       Left $ show $ renderMismatch (showPos (pPos p)) (reverse (pAnns p)) mismatch
@@ -118,36 +121,36 @@ instance Semigroup (GrammarError p) where
     | otherwise  = GrammarError pos (m <> m')
   {-# INLINE (<>) #-}
 
-annotate :: MonadContextError (Propagation p) e m => Text -> m a -> m a
-annotate ann =
+doAnnotate :: MonadContextError (Propagation p) e m => Text -> m a -> m a
+doAnnotate ann =
   localContext $ \propagation ->
     propagation { pAnns = ann : pAnns propagation }
-{-# INLINE annotate #-}
+{-# INLINE doAnnotate #-}
 
-dive :: MonadContextError (Propagation p) e m => m a -> m a
-dive =
+doDive :: MonadContextError (Propagation p) e m => m a -> m a
+doDive =
   localContext $ \propagation ->
     propagation { pProp = 0 : pProp propagation }
-{-# INLINE dive #-}
+{-# INLINE doDive #-}
 
-step :: MonadContextError (Propagation p) e m => m ()
-step =
+doStep :: MonadContextError (Propagation p) e m => m ()
+doStep =
   modifyContext $ \propagation ->
     propagation
       { pProp = case pProp propagation of
           (x : xs) -> succ x : xs
           [] -> [0]
       }
-{-# INLINE step #-}
+{-# INLINE doStep #-}
 
-locate :: MonadContextError (Propagation p) e m => p -> m ()
-locate pos =
+doLocate :: MonadContextError (Propagation p) e m => p -> m ()
+doLocate pos =
   modifyContext $ \propagation ->
     propagation { pPos = pos }
-{-# INLINE locate #-}
+{-# INLINE doLocate #-}
 
-grammarError :: MonadContextError (Propagation p) (GrammarError p) m => Mismatch -> m a
-grammarError mismatch =
+doError :: MonadContextError (Propagation p) (GrammarError p) m => Mismatch -> m a
+doError mismatch =
   throwInContext $ \ctx ->
     GrammarError ctx mismatch
-{-# INLINE grammarError #-}
+{-# INLINE doError #-}

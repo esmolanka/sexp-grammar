@@ -1,5 +1,6 @@
 resolver: lts-2.22
 packages:
 - '.'
+- 'invertible-grammar'
 extra-deps:
 - prettyprinter-1.0.1

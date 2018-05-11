@@ -46,11 +46,13 @@ iso f' g' = Iso f g
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
 
+
 osi :: (b -> a) -> (a -> b) -> Grammar p (a :- t) (b :- t)
 osi f' g' = Iso g f
   where
     f (a :- t) = f' a :- t
     g (b :- t) = g' b :- t
+
 
 partialIso :: (a -> b) -> (b -> Either Mismatch a) -> Grammar p (a :- t) (b :- t)
 partialIso f' g' = PartialIso f g
@@ -58,11 +60,13 @@ partialIso f' g' = PartialIso f g
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
 
+
 partialOsi :: (a -> Either Mismatch b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
 partialOsi g' f' = Flip $ PartialIso f g
   where
     f (a :- t) = f' a :- t
     g (b :- t) = (:- t) <$> g' b
+
 
 push :: a -> (a -> Bool) -> Grammar p t (a :- t)
 push a p = PartialIso f g
@@ -145,23 +149,29 @@ toDefault def = iso
 coproduct :: [Grammar p a b] -> Grammar p a b
 coproduct = foldl1 (<>)
 
+
 onHead :: Grammar p a b -> Grammar p (a :- t) (b :- t)
 onHead = OnHead
+
 
 onTail :: Grammar p ta tb -> Grammar p (h :- ta) (h :- tb)
 onTail = OnTail
 
+
 traversed :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
 traversed = Traverse
 
+
 flipped :: Grammar p a b -> Grammar p b a
 flipped = Flip
+
 
 sealed :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
 sealed g =
   Iso (:- undefined) (\(a :- _) -> a) >>>
   g >>>
   Iso (\(a :- _) -> a) (:- undefined)
+
 
 annotated :: Text -> Grammar p a b -> Grammar p a b
 annotated =

@@ -1,0 +1,50 @@
+name:                invertible-grammar
+version:             0.1
+license:             BSD3
+license-file:        LICENSE
+author:              Eugene Smolanka, Sergey Vinokurov
+maintainer:          Eugene Smolanka <esmolanka@gmail.com>
+homepage:            https://github.com/esmolanka/sexp-grammar
+category:            Language
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+synopsis:
+  Invertible grammar combinators
+description:
+  Invertible grammar combinators for serializing and deserializing
+tested-with:   GHC == 7.8.3, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1
+
+source-repository head
+  type: git
+  location: https://github.com/esmolanka/sexp-grammar
+
+library
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
+  exposed-modules:
+    Control.Monad.ContextError
+    Data.InvertibleGrammar
+    Data.InvertibleGrammar.Base
+    Data.InvertibleGrammar.Combinators
+    Data.InvertibleGrammar.Generic
+    Data.InvertibleGrammar.TH
+
+  other-modules:
+    Data.InvertibleGrammar.Monad
+
+  build-depends:
+      base              >=4.7   && <5.0
+    , bifunctors        >=4.2   && <5.6
+    , containers        >=0.5.5 && <0.6
+    , mtl               >=2.1   && <2.3
+    , prettyprinter     >=1     && <1.3
+    , profunctors       >=4.4   && <5.3
+    , scientific        >=0.3.3 && <0.4
+    , semigroups        >=0.16  && <0.19
+    , split             >=0.2   && <0.3
+    , tagged            >=0.7   && <0.9
+    , template-haskell  >=2.9   && <2.14
+    , transformers      >=0.3   && <0.6
+    , text              >=1.2   && <1.3

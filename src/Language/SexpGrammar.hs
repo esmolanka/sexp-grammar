@@ -74,8 +74,8 @@ import Control.Applicative
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
+import Data.InvertibleGrammar.Base
 import Data.InvertibleGrammar.Combinators
-import Data.InvertibleGrammar.Monad
 
 import Language.Sexp (Sexp, Position)
 import qualified Language.Sexp as Sexp
@@ -100,14 +100,14 @@ runGen gram input =
 -- | Run grammar in parsing direction
 fromSexp :: SexpGrammar a -> Sexp -> Either String a
 fromSexp g a =
-  runGrammarMonad Sexp.dummyPos showPos (runParse g a)
+  runGrammar Sexp.dummyPos showPos (runParse g a)
   where
     showPos (Sexp.Position fn line col) = fn ++ ":" ++ show line ++ ":" ++ show col
 
 -- | Run grammar in generating direction
 toSexp :: SexpGrammar a -> a -> Either String Sexp
 toSexp g a =
-  runGrammarMonad Sexp.dummyPos (const "<no location information>") (runGen g a)
+  runGrammar Sexp.dummyPos (const "<no location information>") (runGen g a)
 
 ----------------------------------------------------------------------
 

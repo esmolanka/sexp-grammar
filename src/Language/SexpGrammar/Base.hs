@@ -42,7 +42,7 @@ import Control.Category ((>>>))
 import qualified Data.ByteString.Lazy as BS
 import Data.Data
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Combinators
+import Data.InvertibleGrammar.Base
 import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
