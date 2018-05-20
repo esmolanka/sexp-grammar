@@ -160,7 +160,7 @@ allTests = testGroup "All tests"
   ]
 
 (@?=~) :: Either String BareSexp -> Either String Sexp -> Assertion
-(@?=~) a b = a @?= fmap extractRecursive b
+(@?=~) a b = a @?= fmap stripLocation b
 
 lexerTests :: TestTree
 lexerTests = testGroup "Lexer tests"

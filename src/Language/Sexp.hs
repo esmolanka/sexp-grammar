@@ -7,10 +7,9 @@ module Language.Sexp
   , encode
   , parseSexp
   , parseSexps
-  , parseSexp'
-  , parseSexps'
+  , parseSexpWithPos
+  , parseSexpsWithPos
   , prettySexp
-  , prettySexps
   -- * Type
   , BareSexp
   , Sexp
@@ -28,9 +27,7 @@ module Language.Sexp
   , Position (..)
   , dummyPos
   , LocatedBy (..)
-  , location
-  , extract
-  , extractRecursive
+  , stripLocation
   ) where
 
 import qualified Data.Text.Lazy as TL
@@ -38,11 +35,11 @@ import qualified Data.Text.Lazy as TL
 import Language.Sexp.Types
 import Language.Sexp.Parser (parseSexp_, parseSexps_)
 import Language.Sexp.Lexer  (lexSexp)
-import Language.Sexp.Pretty (prettySexp, prettySexps)
+import Language.Sexp.Pretty (prettySexp)
 import Language.Sexp.Encode (encode)
 
 decode :: TL.Text -> Either String BareSexp
-decode = fmap extractRecursive . parseSexp "<str>"
+decode = fmap stripLocation . parseSexp "<str>"
 
 parseSexp :: FilePath -> TL.Text -> Either String Sexp
 parseSexp fn inp = parseSexp_ (lexSexp (Position fn 1 0) inp)
@@ -50,8 +47,8 @@ parseSexp fn inp = parseSexp_ (lexSexp (Position fn 1 0) inp)
 parseSexps :: FilePath -> TL.Text -> Either String [Sexp]
 parseSexps fn inp = parseSexps_ (lexSexp (Position fn 1 0) inp)
 
-parseSexp' :: Position -> TL.Text -> Either String Sexp
-parseSexp' pos inp = parseSexp_ (lexSexp pos inp)
+parseSexpWithPos :: Position -> TL.Text -> Either String Sexp
+parseSexpWithPos pos inp = parseSexp_ (lexSexp pos inp)
 
-parseSexps' :: Position -> TL.Text -> Either String [Sexp]
-parseSexps' pos inp = parseSexps_ (lexSexp pos inp)
+parseSexpsWithPos :: Position -> TL.Text -> Either String [Sexp]
+parseSexpsWithPos pos inp = parseSexps_ (lexSexp pos inp)

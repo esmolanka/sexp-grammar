@@ -113,7 +113,7 @@ encode =
 -- | Serialise a value using provided grammar
 encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
-  fmap (Sexp.encode . Sexp.extractRecursive) . toSexp g
+  fmap (Sexp.encode . Sexp.stripLocation) . toSexp g
 
 -- | Serialise and pretty-print a value using @SexpIso@ instance
 encodePretty :: SexpIso a => a -> Either String TL.Text

@@ -27,7 +27,7 @@ module Language.Sexp.Types
   , LocatedBy (..)
   , location
   , extract
-  , extractRecursive
+  , stripLocation
   ) where
 
 import Control.DeepSeq
@@ -77,8 +77,8 @@ location (a :< _) = a
 extract :: LocatedBy a e -> e
 extract (_ :< e) = e
 
-extractRecursive :: (Functor f) => Fix (Compose (LocatedBy p) f) -> Fix f
-extractRecursive = cata (Fix . extract . getCompose)
+stripLocation :: (Functor f) => Fix (Compose (LocatedBy p) f) -> Fix f
+stripLocation = cata (Fix . extract . getCompose)
 
 ----------------------------------------------------------------------
 -- Sexp
@@ -122,7 +122,7 @@ instance NFData (Fix SexpF) where
         QuotedF a -> rnf a
 
 instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
-  rnf = rnf . extractRecursive
+  rnf = rnf . stripLocation
 
 type BareSexp = Fix SexpF
 

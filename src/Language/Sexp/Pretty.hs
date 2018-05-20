@@ -6,7 +6,6 @@
 
 module Language.Sexp.Pretty
   ( prettySexp
-  , prettySexps
   ) where
 
 import Data.Functor.Foldable (cata)
@@ -40,13 +39,11 @@ ppSexp = cata $ \case
 instance Pretty (Fix SexpF) where
   pretty = ppSexp
 
+
 -- | Pretty-print a Sexp to a Text
 prettySexp :: Sexp -> Lazy.Text
-prettySexp = renderDoc . ppSexp . extractRecursive
-
--- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
-prettySexps :: [Sexp] -> Lazy.Text
-prettySexps = renderDoc . vcat . punctuate (line <> line) . map (ppSexp  . extractRecursive)
-
-renderDoc :: Doc ann -> Lazy.Text
-renderDoc = Render.renderLazy . layoutSmart (LayoutOptions (AvailablePerLine 79 0.75))
+prettySexp =
+  Render.renderLazy .
+    layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) .
+      ppSexp .
+        stripLocation

@@ -62,9 +62,9 @@ import Language.Sexp.Types
 ppBrief :: Sexp -> Text
 ppBrief = TS.decodeUtf8 . BS.toStrict . \case
   atom@Atom{} ->
-     encode (extractRecursive atom)
+     encode (stripLocation atom)
   other ->
-    let pp = encode (extractRecursive other)
+    let pp = encode (stripLocation other)
     in if BS.length pp > 25
        then BS.take 25 pp <> "..."
        else pp
@@ -73,9 +73,6 @@ ppKey :: Text -> Text
 ppKey kw = "keyword " <> kw
 
 ----------------------------------------------------------------------
-
-coerced :: (Coercible a c, Coercible b d) => Grammar p (a :- t) (b :- t') -> Grammar p (c :- t) (d :- t')
-coerced g = iso coerce coerce >>> g >>> iso coerce coerce
 
 newtype PropertyList = PropertyList [(Text, Sexp)]
 

@@ -47,7 +47,7 @@ encode :: BareSexp -> ByteString
 encode = toLazyByteString . buildSexp
 
 instance {-# OVERLAPPING #-} Show Sexp where
-  show = unpack . encode . extractRecursive
+  show = unpack . encode . stripLocation
 
 instance {-# OVERLAPPING #-} Show BareSexp where
   show = unpack . encode
