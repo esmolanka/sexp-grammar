@@ -9,7 +9,6 @@ import Control.Arrow
 import Control.Category
 
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Combinators
 import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import Data.Scientific
@@ -49,15 +48,21 @@ instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
     pair
 
 instance (Ord k, SexpIso k, SexpIso v) => SexpIso (Map k v) where
-  sexpIso = iso Map.fromList Map.toList . list (el sexpIso)
+  sexpIso = iso Map.fromList Map.toList . bracelist (rest sexpIso)
 
 instance (Ord a, SexpIso a) => SexpIso (Set a) where
-  sexpIso = iso Set.fromList Set.toList . list (el sexpIso)
+  sexpIso = iso Set.fromList Set.toList . bracelist (rest sexpIso)
 
 instance (SexpIso a) => SexpIso (Maybe a) where
   sexpIso = match
     $ With (\nothing -> sym "nil" >>> nothing)
     $ With (\just    -> list (el (sym "just") >>> el sexpIso) >>> just)
+    $ End
+
+instance (SexpIso a, SexpIso b) => SexpIso (Either a b) where
+  sexpIso = match
+    $ With (\left  -> list (el (sym "left")  >>> el sexpIso) >>> left)
+    $ With (\right -> list (el (sym "right") >>> el sexpIso) >>> right)
     $ End
 
 instance (SexpIso a) => SexpIso [a] where

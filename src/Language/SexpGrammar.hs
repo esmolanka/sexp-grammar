@@ -39,9 +39,7 @@ and the record will pretty-print back into:
 -}
 
 module Language.SexpGrammar
-  ( Sexp (..)
-  , Sexp.Atom (..)
-  , Sexp.Kw (..)
+  ( Sexp
   , SexpGrammar
   , Grammar (..)
   , (:-) (..)
@@ -79,6 +77,7 @@ import Data.InvertibleGrammar.Combinators
 
 import Language.Sexp (Sexp, Position)
 import qualified Language.Sexp as Sexp
+import qualified Language.Sexp.Types as Sexp
 
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
@@ -119,7 +118,7 @@ encode =
 -- | Serialise a value using provided grammar
 encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
-  fmap Sexp.encode . toSexp g
+  fmap (Sexp.encode . Sexp.extractRecursive) . toSexp g
 
 -- | Serialise and pretty-print a value using @SexpIso@ instance
 encodePretty :: SexpIso a => a -> Either String TL.Text
@@ -141,7 +140,7 @@ decode =
 -- | Deserialise a value using provided grammar
 decodeWith :: SexpGrammar a -> TL.Text -> Either String a
 decodeWith g input =
-  Sexp.decode input >>= fromSexp g
+  Sexp.parseSexp "<string>" input >>= fromSexp g
 
 -- | Deserialise a value using @SexpIso@ instance, include a file name to error-messages
 decodeNamed :: SexpIso a => FilePath -> TL.Text -> Either String a

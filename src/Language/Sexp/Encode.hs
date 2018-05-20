@@ -1,35 +1,48 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Language.Sexp.Encode
   ( encode
   ) where
 
+import Data.Functor.Foldable (Fix, cata)
 import Data.List (intersperse)
-import Data.Monoid as Monoid
 import Data.Scientific
 import Data.Text.Encoding (encodeUtf8)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy.Char8 (ByteString, unpack)
 import Data.ByteString.Lazy.Builder.ASCII
 
 import Language.Sexp.Types
 
-bAtom :: Atom -> Builder
-bAtom (AtomInt a)     = integerDec a
-bAtom (AtomReal a)    = string8 . formatScientific Generic Nothing $ a
-bAtom (AtomString a)  = stringUtf8 (show a)
-bAtom (AtomSymbol a)  = byteString (encodeUtf8 a)
-bAtom (AtomKeyword a) = char8 ':' <> byteString (encodeUtf8 (unKw a))
+buildSexp :: Fix SexpF -> Builder
+buildSexp = cata alg
+  where
+    hsep :: [Builder] -> Builder
+    hsep = mconcat . intersperse (char8 ' ')
 
-sep :: [Builder] -> Builder
-sep = mconcat . intersperse (char8 ' ')
+    alg :: SexpF Builder -> Builder
+    alg = \case
+      AtomF atom -> case atom of
+        AtomNumber a
+          | isInteger a -> string8 (formatScientific Fixed (Just 0) a)
+          | otherwise   -> string8 (formatScientific Fixed Nothing a)
+        AtomString a    -> stringUtf8 (show a)
+        AtomSymbol a    -> byteString (encodeUtf8 a)
+      ParenListF ss   -> char8 '(' <> hsep ss <> char8 ')'
+      BracketListF ss -> char8 '[' <> hsep ss <> char8 ']'
+      BraceListF ss   -> char8 '{' <> hsep ss <> char8 '}'
+      QuotedF a       -> char8 '\'' <> a
 
-bSexp :: Sexp -> Builder
-bSexp (Atom   _ a)     = bAtom a
-bSexp (List   _ ss)    = char8 '(' <> sep (map bSexp ss) <> char8 ')'
-bSexp (Vector _ ss)    = char8 '[' <> sep (map bSexp ss) <> char8 ']'
-bSexp (BraceList _ ss) = char8 '{' <> sep (map bSexp ss) <> char8 '}'
-bSexp (Quoted _ a)     = char8 '\'' Monoid.<> bSexp a
+encode :: BareSexp -> ByteString
+encode = toLazyByteString . buildSexp
 
--- | Quickly encode Sexp to non-indented ByteString
-encode :: Sexp -> ByteString
-encode = toLazyByteString . bSexp
+instance {-# OVERLAPPING #-} Show Sexp where
+  show = unpack . encode . extractRecursive
+
+instance {-# OVERLAPPING #-} Show BareSexp where
+  show = unpack . encode

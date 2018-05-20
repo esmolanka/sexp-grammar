@@ -12,12 +12,11 @@ module Language.Sexp.Parser
   , parseSexps_
   ) where
 
-import Data.Text (Text)
+import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Scientific
+import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.ByteString.Lazy.Char8 as B8
-
 import Data.Text.Prettyprint.Doc
 import qualified Data.Text.Prettyprint.Doc.Render.ShowS as Render
 
@@ -33,18 +32,16 @@ import Language.Sexp.Types
 %monad { Either String }
 
 %token
-  '('            { L _ TokLParen      }
-  ')'            { L _ TokRParen      }
-  '['            { L _ TokLBracket    }
-  ']'            { L _ TokRBracket    }
-  '{'            { L _ TokLBrace      }
-  '}'            { L _ TokRBrace      }
-  "'"            { L _ TokQuote       }
-  Symbol         { L _ (TokSymbol  _) }
-  Keyword        { L _ (TokKeyword _) }
-  Integer        { L _ (TokInt     _) }
-  Real           { L _ (TokReal    _) }
-  String         { L _ (TokStr     _) }
+  '('            { _ :< TokLParen     }
+  ')'            { _ :< TokRParen     }
+  '['            { _ :< TokLBracket   }
+  ']'            { _ :< TokRBracket   }
+  '{'            { _ :< TokLBrace     }
+  '}'            { _ :< TokRBrace     }
+  "'"            { _ :< TokQuote      }
+  SYMBOL         { _ :< (TokSymbol _) }
+  NUMBER         { _ :< (TokNumber _) }
+  STRING         { _ :< (TokString _) }
 
 %%
 
@@ -52,18 +49,16 @@ Sexps :: { [Sexp] }
   : list(Sexp)                            { $1 }
 
 Sexp :: { Sexp }
-  : Atom                                  { (\a p -> Atom p a) @@ $1 }
-  | '(' list(Sexp) ')'                    { const (\p -> List p $2) @@ $1 }
-  | '[' list(Sexp) ']'                    { const (\p -> Vector p $2) @@ $1 }
-  | '{' list(Sexp) '}'                    { const (\p -> BraceList p $2) @@ $1 }
-  | "'" Sexp                              { const (\p -> Quoted p $2) @@ $1 }
+  : Atom                                  { AtomF                   @@ $1 }
+  | '(' list(Sexp) ')'                    { const (ParenListF $2)   @@ $1 }
+  | '[' list(Sexp) ']'                    { const (BracketListF $2) @@ $1 }
+  | '{' list(Sexp) '}'                    { const (BraceListF $2)   @@ $1 }
+  | "'" Sexp                              { const (QuotedF $2)      @@ $1 }
 
 Atom :: { LocatedBy Position Atom }
-  : Integer                               { fmap (AtomInt     . getInt)          $1 }
-  | Real                                  { fmap (AtomReal    . getReal)         $1 }
-  | String                                { fmap (AtomString  . getString)       $1 }
-  | Symbol                                { fmap (AtomSymbol  . getSymbol)       $1 }
-  | Keyword                               { fmap (AtomKeyword . Kw . getKeyword) $1 }
+  : NUMBER                                { fmap (AtomNumber . getNumber) $1 }
+  | STRING                                { fmap (AtomString . getString) $1 }
+  | SYMBOL                                { fmap (AtomSymbol . getSymbol) $1 }
 
 -- Utils
 
@@ -80,11 +75,14 @@ list(p)
 
 {
 
+(@@) :: (a -> e (Fix (Compose (LocatedBy p) e))) -> LocatedBy p a -> Fix (Compose (LocatedBy p) e)
+(@@) f (p :< a) = Fix . Compose . (p :<) . f $ a
+
 parseError :: [LocatedBy Position Token] -> Either String b
 parseError toks = case toks of
   [] ->
     Left "EOF: Unexpected end of file"
-  (L pos tok : _) ->
+  (pos :< tok : _) ->
     Left $ flip Render.renderShowS [] . layoutPretty (LayoutOptions (AvailablePerLine 80 0.8)) $
       pretty pos <> colon <+> "Unexpected token:" <+> pretty tok
 }

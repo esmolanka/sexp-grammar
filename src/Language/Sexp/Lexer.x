@@ -12,15 +12,16 @@ module Language.Sexp.Lexer
   ( lexSexp
   ) where
 
+import Data.Bifunctor
+import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.Text as T
-import Data.Text.Read
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding (decodeUtf8)
-import qualified Data.ByteString.Lazy.Char8 as B8
+import Data.Text.Read
 
 import Language.Sexp.LexerInterface
 import Language.Sexp.Token
-import Language.Sexp.Types (Position (..))
+import Language.Sexp.Types (Position (..), LocatedBy (..))
 
 }
 
@@ -38,34 +39,31 @@ $alpha       = [a-z A-Z]
 
 $graphic     = [$alpha $digit \!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~ \(\)\,\;\[\]\`\{\} \:\"\'\_ $uninonspace]
 
-@intnum      = [\-\+]? $digit+
-@scinum      = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
+@number      = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
 
 $charesc     = [abfnrtv\\\"]
 @escape      = \\ ($charesc | $digit+ | x $hex+)
 @string      = $graphic # [\"\\] | " " | @escape
 
-$idinitial   = [$alpha \@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $uninonspace]
-$idsubseq    = [$idinitial $digit \: \' $uninonspace]
-@identifier  = $idinitial $idsubseq*
-@keyword     = ":" $idsubseq+
+$syminitial   = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $uninonspace]
+$symsubseq    = [$syminitial $digit \' $uninonspace]
+@symbol       = $syminitial $symsubseq*
 
 :-
 
 $whitespace+       ;
 ";" @any*          ;
-"("                { just TokLParen       }
-")"                { just TokRParen       }
-"["                { just TokLBracket     }
-"]"                { just TokRBracket     }
-"{"                { just TokLBrace       }
-"}"                { just TokRBrace       }
-"'" / $graphic     { just TokQuote        }
-@intnum            { TokInt     `via` readInteger       }
-@scinum            { TokReal    `via` (read . T.unpack) }
-@identifier        { TokSymbol  `via` id                }
-@keyword           { TokKeyword `via` (T.drop 1)        }
-\" @string* \"     { TokStr     `via` readString        }
+"("                { just TokLParen   }
+")"                { just TokRParen   }
+"["                { just TokLBracket }
+"]"                { just TokRBracket }
+"{"                { just TokLBrace   }
+"}"                { just TokRBrace   }
+"'" / $graphic     { just TokQuote    }
+
+@number            { TokNumber  `via` (read . T.unpack) }
+@symbol            { TokSymbol  `via` id                }
+\" @string* \"     { TokString  `via` readString        }
 .                  { TokUnknown `via` T.head            }
 
 {
@@ -86,11 +84,11 @@ readString =
 
 just :: Token -> AlexAction
 just tok pos _ =
-  L pos tok
+  pos :< tok
 
 via :: (a -> Token) -> (T.Text -> a) -> AlexAction
 via ftok f pos str =
-  L pos . ftok . f . TL.toStrict $str
+  (pos :<) . ftok . f . TL.toStrict $str
 
 alexScanTokens :: AlexInput -> [LocatedBy LineCol Token]
 alexScanTokens input =
@@ -120,9 +118,8 @@ alexScanTokens input =
 
 lexSexp :: Position -> TL.Text -> [LocatedBy Position Token]
 lexSexp (Position fn line1 col1) =
-  map (mapPosition fixPos) . alexScanTokens . mkAlexInput
+  map (bimap fixPos id) . alexScanTokens . mkAlexInput
   where
     fixPos (LineCol l c) | l == 1    = Position fn line1 (col1 + c)
                          | otherwise = Position fn (pred l + line1) c
-
 }

@@ -15,26 +15,11 @@ data Token
   | TokLBrace          -- {
   | TokRBrace          -- }
   | TokQuote           -- e.g. '(foo bar)
+  | TokNumber  { getNumber  :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
+  | TokString  { getString  :: !Text }        -- "foo", "", "hello world"
   | TokSymbol  { getSymbol  :: !Text }        -- foo, bar
-  | TokKeyword { getKeyword :: !Text }        -- :foo, :bar
-  | TokInt     { getInt     :: !Integer }     -- 42, -1, +100500
-  | TokReal    { getReal    :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
-  | TokStr     { getString  :: !Text }        -- "foo", "", "hello world"
   | TokUnknown { getUnknown :: !Char }        -- for unknown lexemes
     deriving (Show, Eq)
-
-data LocatedBy p a = L !p !a
-  deriving (Show, Eq, Functor)
-
-{-# INLINE mapPosition #-}
-mapPosition :: (p -> p') -> LocatedBy p a -> LocatedBy p' a
-mapPosition f (L p a) = L (f p) a
-
-extract :: LocatedBy p a -> a
-extract (L _ a) = a
-
-(@@) :: (a -> (p -> b)) -> LocatedBy p a -> b
-(@@) f (L p a) = f a p
 
 instance Pretty Token where
   pretty TokLParen      = "left paren '('"
@@ -44,9 +29,7 @@ instance Pretty Token where
   pretty TokLBrace      = "left brace '{'"
   pretty TokRBrace      = "right brace '}'"
   pretty TokQuote       = "quote \"'\""
-  pretty (TokSymbol s)  = "symbol" <+> dquote <> pretty s <> dquote
-  pretty (TokKeyword k) = "keyword" <+> dquote <> pretty k <> dquote
-  pretty (TokInt     n) = "integer" <+> pretty n
-  pretty (TokReal    n) = "real number" <+> pretty (show n)
-  pretty (TokStr     s) = "string" <+> pretty (show s)
-  pretty (TokUnknown u) = "unknown lexeme" <+> pretty (show u)
+  pretty (TokSymbol s)  = "symbol" <+> squote <> pretty s <> squote
+  pretty (TokNumber n)  = "number" <+> pretty (show n)
+  pretty (TokString s)  = "string" <+> pretty (show s)
+  pretty (TokUnknown u) = "unrecognized lexeme" <+> pretty (show u)

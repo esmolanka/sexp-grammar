@@ -22,7 +22,7 @@ import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
 import GHC.Generics (Generic)
 
-import Language.Sexp (Sexp, Atom, Kw, Position)
+import Language.Sexp (Sexp, Position)
 import Language.SexpGrammar
 import qualified Language.SexpGrammar.TH as TH
 import qualified Language.SexpGrammar.Generic as G
@@ -51,11 +51,6 @@ instance NFData Ident
 instance NFData Prim
 instance NFData Expr
 
-instance NFData Atom
-instance NFData Kw
-instance NFData Position
-instance NFData Sexp
-
 return []
 
 type SexpG a = forall t. Grammar Position (Sexp :- t) (a :- t)
@@ -77,13 +72,13 @@ exprGrammarTH = go
       (\_Add -> _Add . list (el (sym "+") >>> el go >>> el go))
       (\_Mul -> _Mul . list (el (sym "*") >>> el go >>> el go))
       (\_Inv -> _Inv . list (el (sym "invert") >>> el go))
-      (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( Kw "pred"  .:  go
-                                                           >>> Kw "true"  .:  go
-                                                           >>> Kw "false" .:? go )))
+      (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( "pred"  .:  go
+                                                           >>> "true"  .:  go
+                                                           >>> "false" .:? go )))
       (\_Apply -> _Apply .                       -- Convert prim :- "dummy" :- args :- () to Apply node
           list
            (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
-            el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+            el (sym ":args") >>>                 -- Recognize :args, push nothing
             rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
             onTail (
                swap >>>                          -- Swap:            prim :- args :- ()
@@ -101,13 +96,13 @@ exprGrammarGeneric = go
       $ With (\_Add -> _Add . list (el (sym "+") >>> el go >>> el go))
       $ With (\_Mul -> _Mul . list (el (sym "*") >>> el go >>> el go))
       $ With (\_Inv -> _Inv . list (el (sym "invert") >>> el go))
-      $ With (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( Kw "pred"  .:  go
-                                                                  >>> Kw "true"  .:  go
-                                                                  >>> Kw "false" .:? go )))
+      $ With (\_IfZero -> _IfZero . list (el (sym "cond") >>> props ( "pred"  .:  go
+                                                                  >>> "true"  .:  go
+                                                                  >>> "false" .:? go )))
       $ With (\_Apply -> _Apply .                      -- Convert prim :- "dummy" :- args :- () to Apply node
                 list
                  (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
-                  el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
+                  el (sym ":args") >>>                 -- Recognize :args, push nothing
                   rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
                   onTail (
                      swap >>>                          -- Swap:            prim :- args :- ()

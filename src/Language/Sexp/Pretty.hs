@@ -1,69 +1,52 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Language.Sexp.Pretty
-  ( prettySexp'
-  , prettySexp
+  ( prettySexp
   , prettySexps
   ) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.Monoid as Monoid
+import Data.Functor.Foldable (Fix, cata)
 import Data.Scientific
 import qualified Data.Text.Lazy as Lazy
-import Data.Text.Lazy.Encoding (encodeUtf8)
 import Data.Text.Prettyprint.Doc
 import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
 
 import Language.Sexp.Types
 
-instance Pretty Kw where
-  pretty (Kw s) = colon <> pretty s
-
-ppAtom :: Atom -> Doc ann
-ppAtom (AtomInt a)     = pretty a
-ppAtom (AtomReal a)    = pretty $ formatScientific Generic Nothing $ a
-ppAtom (AtomString a)  = pretty (show a)
-ppAtom (AtomSymbol a)  = pretty a
-ppAtom (AtomKeyword k) = pretty k
-
 instance Pretty Atom where
-  pretty = ppAtom
+  pretty = \case
+    AtomNumber a
+      | isInteger a -> pretty $ formatScientific Fixed (Just 0) a
+      | otherwise   -> pretty $ formatScientific Fixed Nothing $ a
+    AtomString a  -> pretty (show a)
+    AtomSymbol a  -> pretty a
 
-ppList :: [Sexp] -> Doc ann
-ppList ls =
-  align $ case ls of
-    [] ->
-      Monoid.mempty
-    a : [] ->
-      ppSexp a
-    a : b : [] ->
-      ppSexp a <+> ppSexp b
-    a : rest@(_ : _ : _) ->
-      ppSexp a <+> group (nest 2 (vsep (map ppSexp rest)))
 
-ppSexp :: Sexp -> Doc ann
-ppSexp (Atom   _ a)  = ppAtom a
-ppSexp (List   _ ss) = parens $ ppList ss
-ppSexp (Vector _ ss) = brackets $ ppList ss
-ppSexp (BraceList _ ss) = braces $ ppList ss
-ppSexp (Quoted _ a)  = squote <> ppSexp a
+ppList :: [Doc ann] -> Doc ann
+ppList ls = group $ align $ nest 2 $ vsep ls
 
-instance Pretty Sexp where
+ppSexp :: Fix SexpF -> Doc ann
+ppSexp = cata $ \case
+  AtomF a         -> pretty a
+  ParenListF ss   -> parens $ ppList ss
+  BracketListF ss -> brackets $ ppList ss
+  BraceListF ss   -> braces $ ppList ss
+  QuotedF a       -> squote <> a
+
+instance Pretty (Fix SexpF) where
   pretty = ppSexp
 
 -- | Pretty-print a Sexp to a Text
 prettySexp :: Sexp -> Lazy.Text
-prettySexp = renderDoc . ppSexp
-
--- | Pretty-print a Sexp to a ByteString
-prettySexp' :: Sexp -> ByteString
-prettySexp' = encodeUtf8 . prettySexp
+prettySexp = renderDoc . ppSexp . extractRecursive
 
 -- | Pretty-print a list of Sexps as a sequence of S-expressions to a ByteString
 prettySexps :: [Sexp] -> Lazy.Text
-prettySexps = renderDoc . vcat . punctuate (line <> line) . map ppSexp
+prettySexps = renderDoc . vcat . punctuate (line <> line) . map (ppSexp  . extractRecursive)
 
 renderDoc :: Doc ann -> Lazy.Text
-renderDoc = Render.renderLazy . layoutPretty (LayoutOptions (AvailablePerLine 79 0.75))
+renderDoc = Render.renderLazy . layoutSmart (LayoutOptions (AvailablePerLine 79 0.75))
