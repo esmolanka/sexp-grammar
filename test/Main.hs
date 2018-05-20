@@ -271,7 +271,7 @@ dictTests = testGroup "Dict combinator tests"
 
   , testCase "simple dict, missing key" $
     G.fromSexp (dict (key "bar" int)) (BraceList [Symbol ":foo", Number 42]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Expected: key :bar") :: Either String Int)
+    (Left ("<no location information>:1:0: mismatch:\n    Expected: keyword :bar") :: Either String Int)
 
   , testCase "simple dict, missing optional key" $
     G.fromSexp (dict (keyMay "bar" int)) (BraceList []) @?=
@@ -279,7 +279,7 @@ dictTests = testGroup "Dict combinator tests"
 
   , testCase "simple dict, extra key" $
     G.fromSexp (dict (key "foo" int)) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Unexpected: key :bar") :: Either String Int)
+    (Left ("<no location information>:1:0: mismatch:\n    Unexpected: keyword :bar") :: Either String Int)
 
   ]
 
