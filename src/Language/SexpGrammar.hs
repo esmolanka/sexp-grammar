@@ -65,10 +65,6 @@ module Language.SexpGrammar
   , unexpected
   ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative
-#endif
-
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
@@ -77,7 +73,6 @@ import Data.InvertibleGrammar.Combinators
 
 import Language.Sexp (Sexp, Position)
 import qualified Language.Sexp as Sexp
-import qualified Language.Sexp.Types as Sexp
 
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class

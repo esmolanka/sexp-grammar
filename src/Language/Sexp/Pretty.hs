@@ -9,7 +9,7 @@ module Language.Sexp.Pretty
   , prettySexps
   ) where
 
-import Data.Functor.Foldable (Fix, cata)
+import Data.Functor.Foldable (cata)
 import Data.Scientific
 import qualified Data.Text.Lazy as Lazy
 import Data.Text.Prettyprint.Doc

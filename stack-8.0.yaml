@@ -4,3 +4,4 @@ packages:
 - 'invertible-grammar'
 extra-deps:
 - prettyprinter-1.0.1
+- recursion-schemes-5.0.2

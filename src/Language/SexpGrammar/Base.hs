@@ -36,10 +36,6 @@ module Language.SexpGrammar.Base
   , restKeys
   ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative
-#endif
-
 import Control.Category ((>>>))
 
 import qualified Data.ByteString.Lazy as BS

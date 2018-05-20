@@ -11,7 +11,7 @@ module Language.Sexp.Encode
   ( encode
   ) where
 
-import Data.Functor.Foldable (Fix, cata)
+import Data.Functor.Foldable (cata)
 import Data.List (intersperse)
 import Data.Scientific
 import Data.Text.Encoding (encodeUtf8)

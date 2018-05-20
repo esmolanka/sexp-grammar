@@ -95,16 +95,15 @@ data SexpF e
   | BracketListF [e]
   | BraceListF   [e]
   | QuotedF      e
-    deriving (Eq, Ord, Functor, Foldable, Traversable, Generic)
+    deriving (Functor, Foldable, Traversable, Generic)
 
 instance Eq1 SexpF where
   liftEq eq = go
     where
-      cmpList as bs = length as == length bs && and (zipWith eq as bs)
       go (AtomF a) (AtomF b) = a == b
-      go (ParenListF as) (ParenListF bs) = cmpList as bs
-      go (BracketListF as) (BracketListF bs) = cmpList as bs
-      go (BraceListF as) (BraceListF bs) = cmpList as bs
+      go (ParenListF as) (ParenListF bs) = liftEq eq as bs
+      go (BracketListF as) (BracketListF bs) = liftEq eq as bs
+      go (BraceListF as) (BraceListF bs) = liftEq eq as bs
       go (QuotedF a) (QuotedF b) = a `eq` b
       go _ _ = False
 
