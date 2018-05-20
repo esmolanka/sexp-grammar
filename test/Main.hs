@@ -23,6 +23,7 @@ import Control.Category
 import Data.Scientific
 import Data.Semigroup
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text as TS
 import GHC.Generics
 import Test.QuickCheck ()
 import Test.Tasty
@@ -62,6 +63,9 @@ data ArithExpr =
   deriving (Show, Eq, Ord, Generic)
 
 return []
+
+string' :: Grammar Position (Sexp :- t) (String :- t)
+string' = string >>> iso TS.unpack TS.pack
 
 instance Arbitrary ArithExpr where
   arbitrary = frequency
@@ -297,21 +301,27 @@ revStackPrismTests = testGroup "Reverse stack prism tests"
 
 
 testArithExpr :: ArithExpr
-testArithExpr = Add (Lit 0) (Mul [])
+testArithExpr =
+  Add (Lit 0) (Mul [])
 
 testArithExprSexp :: Sexp
-testArithExprSexp = ParenList [Symbol "+", Number 0, ParenList [Symbol "*"]]
+testArithExprSexp =
+  ParenList [Symbol "+", Number 0, ParenList [Symbol "*"]]
+
 
 parseTests :: TestTree
 parseTests = testGroup "parse tests"
   [ testCase "(+ 0 (*))" $
-      Right testArithExpr @=? G.fromSexp arithExprGenericIso testArithExprSexp
+      G.fromSexp arithExprGenericIso testArithExprSexp
+      @?= Right testArithExpr
   ]
+
 
 genTests :: TestTree
 genTests = testGroup "gen tests"
   [ testCase "(+ 0 (*))" $
-      Right testArithExprSexp @=? G.toSexp arithExprGenericIso testArithExpr
+      G.toSexp arithExprGenericIso testArithExpr
+      @?= Right testArithExprSexp
   ]
 
 

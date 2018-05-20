@@ -13,10 +13,10 @@ module Language.SexpGrammar.Base
   , int
   , integer
   , string
-  , string'
   , symbol
-  , symbol'
+  , keyword
   , sym
+  , kwd
   , enum
   -- * Lists
   , List
@@ -33,6 +33,7 @@ module Language.SexpGrammar.Base
   , keyMay
   , (.:)
   , (.:?)
+  , restKeys
   ) where
 
 #if !MIN_VERSION_base(4,8,0)
@@ -73,7 +74,7 @@ ppBrief = TS.decodeUtf8 . BS.toStrict . \case
        else pp
 
 ppKey :: Text -> Text
-ppKey kw = "key " <> kw
+ppKey kw = "keyword " <> kw
 
 ----------------------------------------------------------------------
 
@@ -163,13 +164,17 @@ rest g = iso coerce coerce >>> onHead (Traverse (sealed g >>> Step)) >>> Iso (\a
 
 ----------------------------------------------------------------------
 
-props_ :: Grammar p ([Sexp] :- t) ([Sexp] :- PropertyList :- t)
+dict :: Grammar Position (PropertyList :- t) (PropertyList :- t') -> Grammar Position (Sexp :- t) t'
+dict g = bracelist (props g)
+
+
+props_ :: Grammar p (List :- t) (List :- PropertyList :- t)
 props_ = Flip $ PartialIso
-  (\(rest :- PropertyList alist :- t) ->
-      (concatMap (\(k, v) -> [Atom (AtomSymbol k), v]) alist ++ rest) :- t)
-  (\(lst :- t) ->
+  (\(List rest :- PropertyList alist :- t) ->
+      List (concatMap (\(k, v) -> [Atom (AtomSymbol k), v]) alist ++ rest) :- t)
+  (\(List lst :- t) ->
       let (rest, alist) = takePairs lst [] in
-      Right (rest :- PropertyList alist :- t))
+      Right (List rest :- PropertyList alist :- t))
   where
     takePairs :: [Sexp] -> [(Text, Sexp)] -> ([Sexp], [(Text, Sexp)])
     takePairs (Atom (AtomSymbol k) : v : rest) acc =
@@ -180,7 +185,7 @@ props_ = Flip $ PartialIso
 
 
 props :: Grammar p (PropertyList :- t) (PropertyList :- t') -> Grammar p (List :- t) (List :- t')
-props g = coerced $ Dive $ props_ >>> onTail (g >>> Flip emptyProps)
+props g = Dive $ props_ >>> onTail (g >>> Flip emptyProps)
   where
     emptyProps :: Grammar p t (PropertyList :- t)
     emptyProps = PartialIso
@@ -189,10 +194,6 @@ props g = coerced $ Dive $ props_ >>> onTail (g >>> Flip emptyProps)
           case lst of
             [] -> Right t
             ((k, _) : _rest) -> Left (unexpected (ppKey k)))
-
-
-dict :: Grammar Position (PropertyList :- t) (PropertyList :- t') -> Grammar Position (Sexp :- t) t'
-dict g = bracelist (props g)
 
 
 key :: Text -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p (PropertyList :- t) (PropertyList :- a :- t)
@@ -213,6 +214,20 @@ keyMay k g =
 
 (.:?) :: Text -> (forall t. Grammar p (Sexp :- t) (a :- t)) -> Grammar p (PropertyList :- t) (PropertyList :- Maybe a :- t)
 (.:?) = keyMay
+
+
+parallel
+  :: (forall t. Grammar p (a :- t) (b :- t))
+  -> (forall t. Grammar p (c :- t) (d :- t))
+  -> Grammar p ((a, c) :- t) ((b, d) :- t)
+parallel f g = Flip pair >>> onHead (sealed g) >>> onTail (onHead (sealed f))  >>> pair
+
+
+restKeys
+  :: (forall t. Grammar p (Text :- t) (a :- t))
+  -> (forall t. Grammar p (Sexp :- t) (b :- t))
+  -> Grammar p (PropertyList :- t) (PropertyList :- [(a, b)] :- t)
+restKeys f g = iso coerce coerce >>> onHead (Traverse (sealed (parallel f g) >>> Step)) >>> Iso (\a -> PropertyList [] :- a) (\(_ :- a) -> a)
 
 
 ----------------------------------------------------------------------
@@ -260,9 +275,6 @@ string = atom >>> partialOsi
       other -> Left (expected "string" <> unexpected (ppBrief $ Atom other)))
   AtomString
 
-string' :: Grammar Position (Sexp :- t) (String :- t)
-string' = string >>> iso TS.unpack TS.pack
-
 
 symbol :: Grammar Position (Sexp :- t) (Text :- t)
 symbol = atom >>> partialOsi
@@ -272,8 +284,12 @@ symbol = atom >>> partialOsi
   AtomSymbol
 
 
-symbol' :: Grammar Position (Sexp :- t) (String :- t)
-symbol' = symbol >>> iso TS.unpack TS.pack
+keyword :: Grammar Position (Sexp :- t) (Text :- t)
+keyword = atom >>> partialOsi
+  (\case
+      AtomSymbol s | Just (':', k) <- TS.uncons s -> Right k
+      other -> Left (expected "keyword" <> unexpected (ppBrief $ Atom other)))
+  (AtomSymbol . TS.cons ':')
 
 
 sym :: Text -> Grammar Position (Sexp :- t) t
@@ -283,6 +299,17 @@ sym s = atom >>> Flip (PartialIso
       case a of
         AtomSymbol s' | s == s' -> Right t
         other -> Left $ expected ("symbol " <> s) <> unexpected (ppBrief $ Atom other)))
+
+
+kwd :: Text -> Grammar Position (Sexp :- t) t
+kwd s =
+  let k = TS.cons ':' s
+  in atom >>> Flip (PartialIso
+       (AtomSymbol k :-)
+       (\(a :- t) ->
+           case a of
+             AtomSymbol s' | k == s' -> Right t
+             other -> Left $ expected (ppKey k) <> unexpected (ppBrief $ Atom other)))
 
 ----------------------------------------------------------------------
 -- Special
