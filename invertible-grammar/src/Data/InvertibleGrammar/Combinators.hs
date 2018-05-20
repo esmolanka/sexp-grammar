@@ -23,14 +23,12 @@ module Data.InvertibleGrammar.Combinators
   , traversed
   , flipped
   , sealed
+  , coerced
   , annotated
   ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative
-import Data.Traversable
-#endif
 import Control.Category ((>>>))
+import Data.Coerce
 import Data.Maybe
 import Data.Text (Text)
 import Data.InvertibleGrammar.Base
@@ -171,6 +169,10 @@ sealed g =
   Iso (:- undefined) (\(a :- _) -> a) >>>
   g >>>
   Iso (\(a :- _) -> a) (:- undefined)
+
+
+coerced :: (Coercible a c, Coercible b d) => Grammar p (a :- t) (b :- t') -> Grammar p (c :- t) (d :- t')
+coerced g = iso coerce coerce >>> g >>> iso coerce coerce
 
 
 annotated :: Text -> Grammar p a b -> Grammar p a b
