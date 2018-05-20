@@ -20,6 +20,7 @@ import Control.Exception
 
 import Data.Data (Data, Typeable)
 import qualified Data.Text.Lazy as TL
+import Data.Text (Text)
 import GHC.Generics (Generic)
 
 import Language.Sexp (Sexp, Position)
@@ -28,7 +29,7 @@ import qualified Language.SexpGrammar.TH as TH
 import qualified Language.SexpGrammar.Generic as G
 import Language.SexpGrammar.Generic (Coproduct(..))
 
-newtype Ident = Ident String
+newtype Ident = Ident Text
   deriving (Show, Eq, Generic)
 
 data Expr
@@ -60,7 +61,7 @@ instance SexpIso Prim where
 
 instance SexpIso Ident where
   sexpIso = $(TH.match ''Ident)
-    (\_Ident -> _Ident . symbol')
+    (\_Ident -> _Ident . symbol)
 
 exprGrammarTH :: SexpG Expr
 exprGrammarTH = go
