@@ -31,15 +31,12 @@ matrix:
 
   - env: BUILD=stack ARGS="--stack-yaml stack-8.0.yaml"
     compiler: ": #stack ghc-8.0.1"
-    addons: {apt: {packages: [ghc-8.0.1], sources: [hvr-ghc]}}
 
   - env: BUILD=stack ARGS="--stack-yaml stack-8.2.yaml"
     compiler: ": #stack ghc-8.2.2"
-    addons: {apt: {packages: [ghc-8.2.2], sources: [hvr-ghc]}}
 
   - env: BUILD=stack ARGS="--stack-yaml stack.yaml"
     compiler: ": #stack ghc-8.4.2"
-    addons: {apt: {packages: [ghc-8.4.2], sources: [hvr-ghc]}}
 
 
   # Nightly builds are allowed to fail
@@ -84,7 +81,7 @@ install:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal --system-ghc --no-install-ghc $ARGS build --only-dependencies
+      stack --no-terminal --install-ghc $ARGS build --only-dependencies
       ;;
     cabal)
       cabal --version
@@ -99,7 +96,7 @@ script:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal --system-ghc --no-install-ghc $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
+      stack --no-terminal --install-ghc $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
       ;;
     cabal)
       cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
