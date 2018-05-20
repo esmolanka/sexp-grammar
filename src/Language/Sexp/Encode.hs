@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
@@ -16,6 +17,10 @@ import Data.Scientific
 import Data.Text.Encoding (encodeUtf8)
 import Data.ByteString.Lazy.Char8 (ByteString, unpack)
 import Data.ByteString.Lazy.Builder.ASCII
+
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 
 import Language.Sexp.Types
 
