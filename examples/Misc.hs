@@ -10,7 +10,10 @@ module Misc where
 import Prelude hiding ((.), id)
 
 import Control.Category
+import qualified Data.ByteString.Lazy.Char8 as B8
+import Data.Text (Text)
 import qualified Data.Text.Lazy as T
+
 
 import qualified Language.Sexp as Sexp
 import Language.SexpGrammar
@@ -25,8 +28,8 @@ data Pair a b = Pair a b
   deriving (Show, Generic)
 
 data Person = Person
-  { pName :: String
-  , pAddress :: String
+  { pName :: Text
+  , pAddress :: Text
   , pAge :: Maybe Int
   } deriving (Show, Generic)
 
@@ -41,29 +44,30 @@ instance (SexpIso a, SexpIso b) => SexpIso (Pair a b) where
     ) >>> _Pair
 
 instance SexpIso Person where
-  sexpIso = with $ \_Person ->
-    _Person .
+  sexpIso = with $ \person ->
     list (
       el (sym "person") >>>
-      el string'        >>>
+      el string         >>>
       props (
-        Kw "address" .:  string' >>>
-        Kw "age"     .:? int))
+        "address" .:  string >>>
+        "age"     .:? int))  >>>
+    person
+
 
 data FooBar a
   = Foo Int Double
   | Bar a
     deriving (Show, Generic)
 
-foobarSexp :: SexpG (FooBar Int)
+foobarSexp :: SexpGrammar (FooBar Int)
 foobarSexp =
   match $
     With (\foo -> foo . list (el int >>> el double)) $
     With (\bar -> bar . int) $
     End
 
-test :: String -> SexpG a -> (a, String)
+test :: String -> SexpGrammar a -> (a, String)
 test str g = either error id $ do
-  e <- decodeWith g (T.pack str)
-  sexp' <- genSexp g e
+  e <- decodeWith g (B8.pack str)
+  sexp' <- toSexp g e
   return (e, T.unpack (Sexp.prettySexp sexp'))

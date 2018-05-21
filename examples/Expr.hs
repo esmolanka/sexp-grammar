@@ -10,6 +10,8 @@ module Expr where
 import Prelude hiding ((.), id)
 import Control.Category
 import Data.Data (Data)
+import qualified Data.ByteString.Lazy.Char8 as B8
+import Data.Text (Text)
 import qualified Data.Text.Lazy as T
 
 import qualified Language.Sexp as Sexp
@@ -17,7 +19,7 @@ import Language.SexpGrammar
 import Language.SexpGrammar.Generic
 import GHC.Generics
 
-newtype Ident = Ident String
+newtype Ident = Ident Text
   deriving (Show, Generic)
 
 data Expr
@@ -41,7 +43,7 @@ instance SexpIso Prim where
   sexpIso = enum
 
 instance SexpIso Ident where
-  sexpIso = with (\ident -> ident . symbol')
+  sexpIso = with (\ident -> ident . symbol)
 
 instance SexpIso Expr where
   sexpIso = match
@@ -51,26 +53,24 @@ instance SexpIso Expr where
     $ With (\mul -> mul . list (el (sym "*") >>> el sexpIso >>> el sexpIso))
     $ With (\neg -> neg . list (el (sym "negate") >>> el sexpIso))
     $ With (\inv -> inv . list (el (sym "invert") >>> el sexpIso))
-    $ With (\ifz -> ifz . list (el (sym "cond") >>> props ( Kw "pred"  .: sexpIso
-                                                        >>> Kw "true"  .:  sexpIso
-                                                        >>> Kw "false" .:? sexpIso )))
+    $ With (\ifz -> ifz . list (el (sym "cond") >>> props ( "pred"  .: sexpIso
+                                                        >>> "true"  .:  sexpIso
+                                                        >>> "false" .:? sexpIso )))
     $ With (\app -> app . list
-        (el (sexpIso :: SexpG Prim) >>>       -- Push prim:       prim :- ()
-         el (kw (Kw "args")) >>>              -- Recognize :args, push nothing
-         rest (sexpIso :: SexpG Expr) >>>     -- Push args:       args :- prim :- ()
-         swap >>>                             -- Swap:            prim :- args :- ()
-         push "dummy" >>>                     -- Push "dummy":    "dummy" :- prim :- args :- ()
-         swap                                 -- Swap:            prim :- "dummy" :- args :- ()
+        (el (sexpIso :: SexpGrammar Prim) >>>   -- Push prim:       prim :- ()
+         el (kwd "args") >>>                    -- Recognize :args, push nothing
+         rest (sexpIso :: SexpGrammar Expr) >>> -- Push args:       args :- prim :- ()
+         onTail (swap >>> push "dummy" (const True) >>> swap)
         ))
     $ End
 
-exprGrammar :: SexpG Expr
+exprGrammar :: SexpGrammar Expr
 exprGrammar = sexpIso
 
-test :: String -> SexpG a -> (a, String)
+test :: String -> SexpGrammar a -> (a, String)
 test str g = either error id $ do
-  e <- decodeWith g (T.pack str)
-  sexp' <- genSexp g e
+  e <- decodeWith g (B8.pack str)
+  sexp' <- toSexp g e
   return (e, T.unpack (Sexp.prettySexp sexp'))
 
 -- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"

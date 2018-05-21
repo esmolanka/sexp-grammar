@@ -17,6 +17,8 @@ import Prelude hiding ((.), id)
 import Control.Category
 import Control.Monad.Reader
 import Data.Data (Data)
+import qualified Data.ByteString.Lazy.Char8 as B8
+import Data.Text (Text)
 import qualified Data.Text.Lazy as T
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -63,11 +65,11 @@ instance SexpIso Literal where
     $ With (\d -> d . double)
     $ End
 
-newtype Ident = Ident String
+newtype Ident = Ident Text
     deriving (Eq, Ord, Show, Generic)
 
 instance SexpIso Ident where
-  sexpIso = with (\ident -> ident . symbol')
+  sexpIso = with (\ident -> ident . symbol)
 
 data Func
   = Prim Prim
@@ -117,7 +119,7 @@ data ExprF e
   | Cond e e e
     deriving (Eq, Show, Functor, Foldable, Traversable, Generic)
 
-exprIso :: SexpG (ExprF (Fix ExprF))
+exprIso :: SexpGrammar (ExprF (Fix ExprF))
 exprIso = match
   $ With (\_Lit -> _Lit . sexpIso)
   $ With (\_Var -> _Var . sexpIso)
@@ -216,7 +218,7 @@ inline env e = runReader (cata alg e) env
 
 test :: String -> String
 test str = either error id $ do
-  e <- decode (T.pack str)
+  e <- decode (B8.pack str)
   either error (return . T.unpack) (encodePretty (partialEval e))
 
 -- λ> test "(let foo (/ 42 2) (let bar (* foo 1.5 baz) (if 0 foo (+ 1 bar))))"
