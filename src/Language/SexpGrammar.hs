@@ -56,8 +56,6 @@ module Language.SexpGrammar
   , fromSexp
   , decode
   , decodeWith
-  , decodeNamed
-  , decodeNamedWith
   -- * Combinators
   , module Control.Category
   , module Data.InvertibleGrammar.Combinators
@@ -121,12 +119,12 @@ encodeWith g =
   fmap (Sexp.encode . Sexp.stripLocation) . toSexp g
 
 -- | Serialise and pretty-print a value using @SexpIso@ instance
-encodePretty :: SexpIso a => a -> Either String TL.Text
+encodePretty :: SexpIso a => a -> Either String ByteString
 encodePretty =
   encodePrettyWith sexpIso
 
 -- | Serialise and pretty-print a value using provided grammar
-encodePrettyWith :: SexpGrammar a -> a -> Either String TL.Text
+encodePrettyWith :: SexpGrammar a -> a -> Either String ByteString
 encodePrettyWith g =
   fmap Sexp.prettySexp . toSexp g
 
@@ -135,19 +133,9 @@ encodePrettyWith g =
 -- | Deserialise a value using @SexpIso@ instance
 decode :: SexpIso a => ByteString -> Either String a
 decode =
-  decodeWith sexpIso
-
--- | Deserialise a value using provided grammar
-decodeWith :: SexpGrammar a -> ByteString -> Either String a
-decodeWith g input =
-  Sexp.parseSexp "<string>" input >>= fromSexp g
-
--- | Deserialise a value using @SexpIso@ instance, include a file name to error-messages
-decodeNamed :: SexpIso a => FilePath -> ByteString -> Either String a
-decodeNamed fn =
-  decodeNamedWith sexpIso fn
+  decodeWith sexpIso "<string>"
 
 -- | Deserialise a value using provided grammar, include a file name to error-messages
-decodeNamedWith :: SexpGrammar a -> FilePath -> ByteString -> Either String a
-decodeNamedWith g fn input =
+decodeWith :: SexpGrammar a -> FilePath -> ByteString -> Either String a
+decodeWith g fn input =
   Sexp.parseSexp fn input >>= fromSexp g

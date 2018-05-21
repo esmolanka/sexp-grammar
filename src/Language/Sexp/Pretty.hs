@@ -8,9 +8,10 @@ module Language.Sexp.Pretty
   ( prettySexp
   ) where
 
+import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Functor.Foldable (para)
 import Data.Scientific
-import qualified Data.Text.Lazy as Lazy
+import Data.Text.Lazy.Encoding (encodeUtf8)
 import Data.Text.Prettyprint.Doc
 import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
 
@@ -45,9 +46,10 @@ instance Pretty (Fix SexpF) where
 
 
 -- | Pretty-print a Sexp to a Text
-prettySexp :: Sexp -> Lazy.Text
+prettySexp :: Sexp -> ByteString
 prettySexp =
-  Render.renderLazy .
-    layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) .
-      ppSexp .
-        stripLocation
+  encodeUtf8 .
+    Render.renderLazy .
+      layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) .
+        ppSexp .
+          stripLocation

@@ -115,7 +115,7 @@ exprGrammarGeneric = go
 
 
 expr :: ByteString -> Expr
-expr = either error id . decodeWith exprGrammarTH
+expr = either error id . decodeWith exprGrammarTH "<string>"
 
 benchCases :: [(String, ByteString)]
 benchCases = map (\a -> ("expression, size " ++ show (B8.length a) ++ " bytes", a))
