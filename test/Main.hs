@@ -163,7 +163,7 @@ allTests = testGroup "All tests"
 (@?=~) a b = a @?= fmap stripLocation b
 
 lexerTests :: TestTree
-lexerTests = testGroup "Lexer tests"
+lexerTests = testGroup "Sexp lexer/parser tests"
   [ testCase "123 is an integer number" $
       parseSexp' "123"
       @?=~ Right (Number 123)
@@ -200,6 +200,24 @@ lexerTests = testGroup "Lexer tests"
   , testCase "string with japanese characters" $
       parseSexp' "\"媯綩 づ竤バ り姥娩ぎょひ\""
       @?=~ Right (String "媯綩 づ竤バ り姥娩ぎょひ")
+  , testCase "paren-list" $
+      parseSexp' "(foo bar)"
+      @?=~ Right (ParenList [Symbol "foo", Symbol "bar"])
+  , testCase "bracket-list" $
+      parseSexp' "[foo bar]"
+      @?=~ Right (BracketList [Symbol "foo", Symbol "bar"])
+  , testCase "brace-list" $
+      parseSexp' "{foo bar}"
+      @?=~ Right (BraceList [Symbol "foo", Symbol "bar"])
+  , testCase "quoted" $
+      parseSexp' "'foo"
+      @?=~ Right (Quoted (Symbol "foo"))
+  , testCase "hashed" $
+      parseSexp' "#foo"
+      @?=~ Right (Symbol "#foo")
+  , testCase "keyword" $
+      parseSexp' ":foo"
+      @?=~ Right (Symbol ":foo")
   ]
 
 
