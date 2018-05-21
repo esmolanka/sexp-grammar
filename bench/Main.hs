@@ -19,7 +19,8 @@ import Control.DeepSeq
 import Control.Exception
 
 import Data.Data (Data, Typeable)
-import qualified Data.Text.Lazy as TL
+import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
@@ -113,11 +114,11 @@ exprGrammarGeneric = go
       $ End
 
 
-expr :: TL.Text -> Expr
+expr :: ByteString -> Expr
 expr = either error id . decodeWith exprGrammarTH
 
-benchCases :: [(String, TL.Text)]
-benchCases = map (\a -> ("expression, size " ++ show (TL.length a) ++ " bytes", a))
+benchCases :: [(String, ByteString)]
+benchCases = map (\a -> ("expression, size " ++ show (B8.length a) ++ " bytes", a))
   [ "(+ 1 20)"
   , "(cond :pred (+ 42 x) :false (fibonacci :args 3) :true (factorial :args (* 10 (+ 1 2))))"
   , "(invert (* (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args \
@@ -127,7 +128,7 @@ benchCases = map (\a -> ("expression, size " ++ show (TL.length a) ++ " bytes", 
     \:args (* 10 (+ 1 2)))))))"
   ]
 
-mkBenchmark :: String -> TL.Text -> IO Benchmark
+mkBenchmark :: String -> ByteString -> IO Benchmark
 mkBenchmark name str = do
   expr <- evaluate $ force $ expr str
   sexp <- evaluate $ force $ either error id (toSexp exprGrammarTH expr)

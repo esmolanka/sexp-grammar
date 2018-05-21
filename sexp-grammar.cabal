@@ -82,6 +82,7 @@ benchmark sexp-grammar-bench
   type:              exitcode-stdio-1.0
   build-depends:
       base
+    , bytestring
     , criterion
     , deepseq
     , sexp-grammar
