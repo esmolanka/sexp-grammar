@@ -8,7 +8,7 @@ module Language.Sexp.Pretty
   ( prettySexp
   ) where
 
-import Data.Functor.Foldable (cata)
+import Data.Functor.Foldable (para)
 import Data.Scientific
 import qualified Data.Text.Lazy as Lazy
 import Data.Text.Prettyprint.Doc
@@ -25,16 +25,20 @@ instance Pretty Atom where
     AtomSymbol a  -> pretty a
 
 
-ppList :: [Doc ann] -> Doc ann
-ppList ls = group $ align $ nest 2 $ vsep ls
+ppList :: [(Fix SexpF, Doc ann)] -> Doc ann
+ppList ls = case ls of
+  ((Fix (AtomF _),_) : _) ->
+    group $ align $ nest 1 $ vsep $ map snd ls
+  _other ->
+    group $ align $ vsep $ map snd ls
 
 ppSexp :: Fix SexpF -> Doc ann
-ppSexp = cata $ \case
+ppSexp = para $ \case
   AtomF a         -> pretty a
   ParenListF ss   -> parens $ ppList ss
   BracketListF ss -> brackets $ ppList ss
   BraceListF ss   -> braces $ ppList ss
-  QuotedF a       -> squote <> a
+  QuotedF (_, a)  -> squote <> a
 
 instance Pretty (Fix SexpF) where
   pretty = ppSexp
