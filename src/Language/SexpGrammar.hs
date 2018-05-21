@@ -41,6 +41,7 @@ and the record will pretty-print back into:
 module Language.SexpGrammar
   ( -- * Data types
     Sexp
+  , Position
   , SexpGrammar
   , Grammar
   , (:-)
@@ -58,6 +59,7 @@ module Language.SexpGrammar
   , decodeNamed
   , decodeNamedWith
   -- * Combinators
+  , module Control.Category
   , module Data.InvertibleGrammar.Combinators
   , module Language.SexpGrammar.Base
   -- * Error reporting
@@ -65,6 +67,8 @@ module Language.SexpGrammar
   , expected
   , unexpected
   ) where
+
+import Control.Category ((<<<), (>>>))
 
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.Text.Lazy as TL
