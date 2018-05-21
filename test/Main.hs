@@ -22,7 +22,7 @@ import Control.Applicative
 import Control.Category
 import Data.Scientific
 import Data.Semigroup
-import qualified Data.Text.Lazy as TL
+import Data.ByteString.Lazy.UTF8 (fromString)
 import qualified Data.Text as TS
 import GHC.Generics
 import Test.QuickCheck ()
@@ -30,13 +30,13 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
 
-import Language.Sexp as Sexp hiding (parseSexp')
+import Language.Sexp as Sexp
 import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
 import Language.SexpGrammar.TH hiding (match)
 
 parseSexp' :: String -> Either String BareSexp
-parseSexp' input = Sexp.decode (TL.pack input)
+parseSexp' input = Sexp.decode (fromString input)
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord, Generic)
@@ -188,9 +188,12 @@ lexerTests = testGroup "Lexer tests"
   , testCase "symbol" $
       parseSexp' "hello-world"
       @?=~ Right (Symbol "hello-world")
+  , testCase "whitespace and symbol" $
+      parseSexp' "\t\n   hello-world\n"
+      @?=~ Right (Symbol "hello-world")
   , testCase "cyrillic symbol" $
-      parseSexp' "привет-мир"
-      @?=~ Right (Symbol "привет-мир")
+      parseSexp' "символ"
+      @?=~ Right (Symbol "символ")
   , testCase "string with arabic characters" $
       parseSexp' "\"ي الخاطفة الجديدة، مع, بلديهم\""
       @?=~ Right (String "ي الخاطفة الجديدة، مع, بلديهم")

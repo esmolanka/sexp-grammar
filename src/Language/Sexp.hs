@@ -30,7 +30,7 @@ module Language.Sexp
   , stripLocation
   ) where
 
-import qualified Data.Text.Lazy as TL
+import Data.ByteString.Lazy (ByteString)
 
 import Language.Sexp.Types
 import Language.Sexp.Parser (parseSexp_, parseSexps_)
@@ -38,17 +38,17 @@ import Language.Sexp.Lexer  (lexSexp)
 import Language.Sexp.Pretty (prettySexp)
 import Language.Sexp.Encode (encode)
 
-decode :: TL.Text -> Either String BareSexp
-decode = fmap stripLocation . parseSexp "<str>"
+decode :: ByteString -> Either String BareSexp
+decode = fmap stripLocation . parseSexp "<string>"
 
-parseSexp :: FilePath -> TL.Text -> Either String Sexp
+parseSexp :: FilePath -> ByteString -> Either String Sexp
 parseSexp fn inp = parseSexp_ (lexSexp (Position fn 1 0) inp)
 
-parseSexps :: FilePath -> TL.Text -> Either String [Sexp]
+parseSexps :: FilePath -> ByteString -> Either String [Sexp]
 parseSexps fn inp = parseSexps_ (lexSexp (Position fn 1 0) inp)
 
-parseSexpWithPos :: Position -> TL.Text -> Either String Sexp
+parseSexpWithPos :: Position -> ByteString -> Either String Sexp
 parseSexpWithPos pos inp = parseSexp_ (lexSexp pos inp)
 
-parseSexpsWithPos :: Position -> TL.Text -> Either String [Sexp]
+parseSexpsWithPos :: Position -> ByteString -> Either String [Sexp]
 parseSexpsWithPos pos inp = parseSexps_ (lexSexp pos inp)

@@ -39,14 +39,12 @@ and the record will pretty-print back into:
 -}
 
 module Language.SexpGrammar
-  ( Sexp
+  ( -- * Data types
+    Sexp
   , SexpGrammar
-  , Grammar (..)
-  , (:-) (..)
+  , Grammar
+  , (:-)
   , SexpIso (..)
-  -- * Combinators
-  , module Data.InvertibleGrammar.Combinators
-  , module Language.SexpGrammar.Base
   -- * Encoding
   , toSexp
   , encode
@@ -59,7 +57,10 @@ module Language.SexpGrammar
   , decodeWith
   , decodeNamed
   , decodeNamedWith
-  -- * Parsing and encoding to Sexp
+  -- * Combinators
+  , module Data.InvertibleGrammar.Combinators
+  , module Language.SexpGrammar.Base
+  -- * Error reporting
   , Mismatch
   , expected
   , unexpected
@@ -128,21 +129,21 @@ encodePrettyWith g =
 ----------------------------------------------------------------------
 
 -- | Deserialise a value using @SexpIso@ instance
-decode :: SexpIso a => TL.Text -> Either String a
+decode :: SexpIso a => ByteString -> Either String a
 decode =
   decodeWith sexpIso
 
 -- | Deserialise a value using provided grammar
-decodeWith :: SexpGrammar a -> TL.Text -> Either String a
+decodeWith :: SexpGrammar a -> ByteString -> Either String a
 decodeWith g input =
   Sexp.parseSexp "<string>" input >>= fromSexp g
 
 -- | Deserialise a value using @SexpIso@ instance, include a file name to error-messages
-decodeNamed :: SexpIso a => FilePath -> TL.Text -> Either String a
+decodeNamed :: SexpIso a => FilePath -> ByteString -> Either String a
 decodeNamed fn =
   decodeNamedWith sexpIso fn
 
 -- | Deserialise a value using provided grammar, include a file name to error-messages
-decodeNamedWith :: SexpGrammar a -> FilePath -> TL.Text -> Either String a
+decodeNamedWith :: SexpGrammar a -> FilePath -> ByteString -> Either String a
 decodeNamedWith g fn input =
   Sexp.parseSexp fn input >>= fromSexp g

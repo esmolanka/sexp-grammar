@@ -13,82 +13,79 @@ module Language.Sexp.Lexer
   ) where
 
 import Data.Bifunctor
-import qualified Data.ByteString.Lazy.Char8 as B8
+import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.ByteString.Lazy.UTF8 as UTF8
+import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Data.Text.Read
+import Data.Scientific (Scientific)
 
 import Language.Sexp.LexerInterface
 import Language.Sexp.Token
 import Language.Sexp.Types (Position (..), LocatedBy (..))
 
+import Debug.Trace
+
 }
 
-$whitechar   = [\ \t\n\r\f\v]
-$unispace    = \x01
-$whitespace  = [$whitechar $unispace]
+$hspace     = [\ \t]
+$whitespace = [$hspace\n\r\f\v]
+$digit      = 0-9
+$hex        = [0-9 A-F a-f]
+$alpha      = [a-z A-Z]
 
-$uninonspace = \x02
-$uniany      = [$unispace $uninonspace]
-@any         = (. | $uniany)
+@number     = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
 
-$digit       = 0-9
-$hex         = [0-9 A-F a-f]
-$alpha       = [a-z A-Z]
+$charesc    = [nrt\\\"]
+@escape     = \\ ($charesc | $digit+ | x $hex+)
+@string     = $printable # [\"\\] | $hspace | @escape
 
-$graphic     = [$alpha $digit \!\#\$\%\&\*\+\.\/\<\=\>\?\@\\\^\|\-\~ \(\)\,\;\[\]\`\{\} \:\"\'\_ $uninonspace]
+$unicode    = $printable # [\x20-\x80]
 
-@number      = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
-
-$charesc     = [abfnrtv\\\"]
-@escape      = \\ ($charesc | $digit+ | x $hex+)
-@string      = $graphic # [\"\\] | " " | @escape
-
-$syminitial   = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $uninonspace]
-$symsubseq    = [$syminitial $digit \' $uninonspace]
-@symbol       = $syminitial $symsubseq*
+$syminitial = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $unicode]
+$symsubseq  = [$syminitial $digit \']
+@symbol     = $syminitial $symsubseq*
 
 :-
 
 $whitespace+       ;
-";" @any*          ;
+";" .*             ;
 "("                { just TokLParen   }
 ")"                { just TokRParen   }
 "["                { just TokLBracket }
 "]"                { just TokRBracket }
 "{"                { just TokLBrace   }
 "}"                { just TokRBrace   }
-"'" / $graphic     { just TokQuote    }
+"'" / $printable   { just TokQuote    }
 
-@number            { TokNumber  `via` (read . T.unpack) }
-@symbol            { TokSymbol  `via` id                }
-\" @string* \"     { TokString  `via` readString        }
-.                  { TokUnknown `via` T.head            }
+@number            { TokNumber  `via` readNum    }
+@symbol            { TokSymbol  `via` decode     }
+\" @string* \"     { TokString  `via` readString }
+
+.                  { TokUnknown `via` BL.head    }
 
 {
 
-type AlexAction = LineCol -> TL.Text -> LocatedBy LineCol Token
+type AlexAction = LineCol -> ByteString -> LocatedBy LineCol Token
 
-readInteger :: T.Text -> Integer
-readInteger str =
-  case signed decimal str of
-    Left err -> error $ "Lexer is broken: " ++ err
-    Right (a, rest)
-      | T.null (T.strip rest) -> a
-      | otherwise -> error $ "Lexer is broken, leftover: " ++ show rest
+readString :: ByteString -> T.Text
+readString = T.pack . read . TL.unpack . decodeUtf8
 
-readString :: T.Text -> T.Text
-readString =
-  T.pack . read . T.unpack
+readNum :: ByteString -> Scientific
+readNum = read . TL.unpack . decodeUtf8
+
+decode :: ByteString -> T.Text
+decode = TL.toStrict . decodeUtf8
 
 just :: Token -> AlexAction
 just tok pos _ =
   pos :< tok
 
-via :: (a -> Token) -> (T.Text -> a) -> AlexAction
+via :: (a -> Token) -> (ByteString -> a) -> AlexAction
 via ftok f pos str =
-  (pos :<) . ftok . f . TL.toStrict $str
+  (pos :<) . ftok . f $ str
 
 alexScanTokens :: AlexInput -> [LocatedBy LineCol Token]
 alexScanTokens input =
@@ -96,30 +93,20 @@ alexScanTokens input =
     AlexEOF -> []
     AlexError (AlexInput {aiInput, aiLineCol = LineCol line col}) ->
       error $ "Lexical error at line " ++ show line ++ " column " ++ show col ++
-        ". Remaining input: " ++ TL.unpack (TL.take 1000 aiInput)
+        ". Remaining input: " ++ show (UTF8.take 200 aiInput)
     AlexSkip input _ -> alexScanTokens input
     AlexToken input' tokLen action ->
-      action (aiLineCol input) inputText : alexScanTokens input'
+      action inputPosn inputText : alexScanTokens input'
       where
-        -- It is safe to take token length from input because every byte Alex
-        -- sees corresponds to exactly one character, even if character is a
-        -- Unicode one that occupies several bytes. We do character translation
-        -- in LexerInterface.alexGetByte function so that all unicode characters
-        -- occupy single byte.
-        --
-        -- On the other hand, taking N characters from Text will take N valid
-        -- characters, not N bytes.
-        --
-        -- Thus, we're good.
-        inputText = TL.take (fromIntegral tokLen) $ aiInput input
+        inputPosn = aiLineCol input
+        inputText = UTF8.take (fromIntegral tokLen) (aiInput input)
   where
     defaultCode :: Int
     defaultCode = 0
 
-lexSexp :: Position -> TL.Text -> [LocatedBy Position Token]
+lexSexp :: Position -> ByteString -> [LocatedBy Position Token]
 lexSexp (Position fn line1 col1) =
-  map (bimap fixPos id) . alexScanTokens . mkAlexInput
+  map (bimap fixPos id) . alexScanTokens . mkAlexInput (LineCol line1 col1)
   where
-    fixPos (LineCol l c) | l == 1    = Position fn line1 (col1 + c)
-                         | otherwise = Position fn (pred l + line1) c
+    fixPos (LineCol l c) = Position fn l c
 }

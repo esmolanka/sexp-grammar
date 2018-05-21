@@ -1,5 +1,5 @@
-{-# LANGUAGE BangPatterns   #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Sexp.LexerInterface
@@ -11,10 +11,9 @@ module Language.Sexp.LexerInterface
   , alexGetByte
   ) where
 
-import Control.Applicative ((<|>))
-import Data.Char
-import Data.Maybe
-import qualified Data.Text.Lazy as TL
+import Data.Int
+import Data.ByteString.Lazy (ByteString, uncons)
+import Data.ByteString.Lazy.UTF8 (decode)
 import Data.Word (Word8)
 
 data LineCol = LineCol {-# UNPACK #-} !Int {-# UNPACK #-} !Int
@@ -24,63 +23,59 @@ columnsInTab = 8
 
 advanceLineCol :: Char -> LineCol -> LineCol
 advanceLineCol '\n' (LineCol line _)   = LineCol (line + 1) 0
-advanceLineCol '\t' (LineCol line col) = LineCol line (col + columnsInTab)
+advanceLineCol '\t' (LineCol line col) = LineCol line (((col + columnsInTab - 1) `div` columnsInTab) * columnsInTab + 1)
 advanceLineCol _    (LineCol line col) = LineCol line (col + 1)
 
 data AlexInput = AlexInput
-  { aiInput    :: TL.Text
-  , aiPrevChar :: {-# UNPACK #-} !Char
-  , aiLineCol  :: !LineCol
+  { aiInput     :: ByteString
+  , aiPrevChar  :: {-# UNPACK #-} !Char
+  , aiCurChar   :: {-# UNPACK #-} !Char
+  , aiBytesLeft :: {-# UNPACK #-} !Int64
+  , aiLineCol   :: !LineCol
   }
 
-mkAlexInput :: TL.Text -> AlexInput
-mkAlexInput source = AlexInput
-  { aiInput    = stripBOM source
-  , aiPrevChar = '\n'
-  , aiLineCol  = initPos
+mkAlexInput :: LineCol -> ByteString -> AlexInput
+mkAlexInput initPos source = alexNextChar $ AlexInput
+  { aiInput     = source
+  , aiPrevChar  = '\n'
+  , aiCurChar   = '\n'
+  , aiBytesLeft = 0
+  , aiLineCol   = initPos
   }
-  where
-    initPos :: LineCol
-    initPos = LineCol 1 0
-    stripBOM :: TL.Text -> TL.Text
-    stripBOM xs =
-      fromMaybe xs $
-      TL.stripPrefix utf8BOM xs <|> TL.stripPrefix utf8BOM' xs
-    utf8BOM  = "\xFFEF"
-    utf8BOM' = "\xFEFF"
+
+alexNextChar :: AlexInput -> AlexInput
+alexNextChar input =
+  case decode (aiInput input) of
+    Just (c, n) -> input
+      { aiPrevChar  = aiCurChar input
+      , aiCurChar   = c
+      , aiBytesLeft = n
+      }
+    Nothing     -> input
+      { aiPrevChar  = aiCurChar input
+      , aiCurChar   = '\n'
+      , aiBytesLeft = 0
+      }
+
+alexPropagatePos :: AlexInput -> AlexInput
+alexPropagatePos input =
+  input { aiLineCol = advanceLineCol (aiPrevChar input) (aiLineCol input) }
 
 -- Alex interface - functions usedby Alex
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = aiPrevChar
 
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
-alexGetByte input@AlexInput {aiInput, aiLineCol} =
-  case TL.uncons aiInput of
-    Nothing      -> Nothing
-    Just (c, cs) -> Just $ encode c cs
+alexGetByte input
+  | aiBytesLeft input == 0 = go . alexPropagatePos . alexNextChar $ input
+  | otherwise = go input
   where
-    encode :: Char -> TL.Text -> (Word8, AlexInput)
-    encode c cs = (b, input')
-      where
-        b :: Word8
-        b = fromIntegral $ ord $ fixChar c
-        input' :: AlexInput
-        input' = input
-          { aiInput    = cs
-          , aiPrevChar = c
-          , aiLineCol  = advanceLineCol c aiLineCol
-          }
+    go :: AlexInput -> Maybe (Word8, AlexInput)
+    go input =
+      case uncons (aiInput input) of
+        Just (w, rest) -> Just (w, input
+          { aiBytesLeft = aiBytesLeft input - 1
+          , aiInput     = rest
+          })
+        Nothing -> Nothing
 
--- Translate unicode character into special symbol we taught Alex to recognize.
-fixChar :: Char -> Char
-fixChar c
-  -- Plain ascii case
-  | c <= '\x7f' = c
-  -- Unicode caset
-  | otherwise
-  = case generalCategory c of
-        Space -> space
-        _     -> nonSpaceUnicode
-  where
-    space           = '\x01'
-    nonSpaceUnicode = '\x02'
