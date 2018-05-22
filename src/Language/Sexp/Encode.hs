@@ -43,6 +43,7 @@ buildSexp = cata alg
       BraceListF ss   -> char8 '{' <> hsep ss <> char8 '}'
       QuotedF a       -> char8 '\'' <> a
 
+-- | Serialise a 'BareSexp' into a compact string
 encode :: BareSexp -> ByteString
 encode = toLazyByteString . buildSexp
 

@@ -8,20 +8,20 @@ Write your grammar once and get both parser and pretty-printer, for
 free.
 
 > data Person = Person
->   { pName    :: String
->   , pAddress :: String
+>   { pName    :: Text
+>   , pAddress :: Text
 >   , pAge     :: Maybe Int
->   } deriving (Show)
+>   } deriving (Show, Generic)
 >
-> personGrammar :: SexpG Person
-> personGrammar =
->   $(grammarFor 'Person) .               -- construct Person from
->     list (                              -- a list with
->       el (sym "person") >>>             -- symbol "person",
->       el string'        >>>             -- some string,
->       props (                           -- and properties
->         Kw "address" .:  string' >>>    -- :address with string value,
->         Kw "age"     .:? int ))         -- and optional :age int property
+> personGrammar :: Grammar Position (Sexp :- t) (Person :- t)
+> personGrammar = with $ \person ->  -- Person is isomorphic to:
+>   list (                           -- a list with
+>     el (sym "person") >>>          -- a symbol "person",
+>     el string         >>>          -- a string, and
+>     props (                        -- a property-list with
+>       "address" .:  string >>>     -- a keyword :address and a string value, and
+>       "age"     .:? int))  >>>     -- an optional keyword :age with int value.
+>   person
 
 So now we can use @personGrammar@ to parse S-expessions to @Person@
 record and pretty-print any @Person@ back to S-expression.
@@ -69,7 +69,6 @@ module Language.SexpGrammar
 import Control.Category ((<<<), (>>>))
 
 import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.Text.Lazy as TL
 import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Base
 import Data.InvertibleGrammar.Combinators
@@ -135,7 +134,7 @@ decode :: SexpIso a => ByteString -> Either String a
 decode =
   decodeWith sexpIso "<string>"
 
--- | Deserialise a value using provided grammar, include a file name to error-messages
+-- | Deserialise a value using provided grammar, use provided file name for error messages
 decodeWith :: SexpGrammar a -> FilePath -> ByteString -> Either String a
 decodeWith g fn input =
   Sexp.parseSexp fn input >>= fromSexp g

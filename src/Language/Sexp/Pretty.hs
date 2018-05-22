@@ -44,8 +44,7 @@ ppSexp = para $ \case
 instance Pretty (Fix SexpF) where
   pretty = ppSexp
 
-
--- | Pretty-print a Sexp to a Text
+-- | Serialize a 'Sexp' into a pretty-printed string
 prettySexp :: Sexp -> ByteString
 prettySexp =
   encodeUtf8 .

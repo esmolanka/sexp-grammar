@@ -44,6 +44,7 @@ import GHC.Generics
 ----------------------------------------------------------------------
 -- Positions
 
+-- | Position: file name, line number, column number
 data Position =
   Position FilePath {-# UNPACK #-} !Int {-# UNPACK #-} !Int
   deriving (Ord, Eq, Generic)
@@ -62,6 +63,7 @@ instance Show Position where
 ----------------------------------------------------------------------
 -- Annotations
 
+-- | Annotation functor for positions
 data LocatedBy a e = !a :< e
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
@@ -77,24 +79,36 @@ location (a :< _) = a
 extract :: LocatedBy a e -> e
 extract (_ :< e) = e
 
+-- | Strip annotations
 stripLocation :: (Functor f) => Fix (Compose (LocatedBy p) f) -> Fix f
 stripLocation = cata (Fix . extract . getCompose)
 
 ----------------------------------------------------------------------
 -- Sexp
 
+-- | S-expression atom type
 data Atom
   = AtomNumber {-# UNPACK #-} !Scientific
   | AtomString {-# UNPACK #-} !Text
   | AtomSymbol {-# UNPACK #-} !Text
     deriving (Show, Eq, Ord, Generic)
 
+-- | S-expression quotation type
+data Quotation
+  = Tick
+  | Backtick
+  | Comma
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData Quotation
+
+-- | S-expression functor
 data SexpF e
   = AtomF        !Atom
   | ParenListF   [e]
   | BracketListF [e]
   | BraceListF   [e]
-  | QuotedF      e
+  | QuotedF      !Quotation e
     deriving (Functor, Foldable, Traversable, Generic)
 
 instance Eq1 SexpF where
@@ -124,8 +138,12 @@ instance NFData (Fix SexpF) where
 instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
   rnf = rnf . stripLocation
 
+-- | S-expression type without annotations. Useful for quick
+-- traversals.
 type BareSexp = Fix SexpF
 
+-- | S-expression type annotated with positions. Useful for further
+-- parsing.
 type Sexp = Fix (Compose (LocatedBy Position) SexpF)
 
 pattern Atom :: Atom -> Sexp
