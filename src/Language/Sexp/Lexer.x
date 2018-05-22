@@ -40,13 +40,14 @@ $alpha      = [a-z A-Z]
 
 $charesc    = [nrt\\\"]
 @escape     = \\ ($charesc | $digit+ | x $hex+)
-@string     = $printable # [\"\\] | $hspace | @escape
+@string     = $printable # [\"\\] | $whitespace | @escape
 
 $unicode    = $printable # [\x20-\x80]
 
-$syminitial = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\,\|\\\+\- $unicode]
-$symsubseq  = [$syminitial $digit \']
-@symbol     = $syminitial $symsubseq*
+$syminitial = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\|\+\- $unicode]
+$symsubseq  = [$syminitial $digit \'\`\,]
+@symescape  = \\ [\(\)\[\]\{\}\\\"\'\`]
+@symbol     = ($syminitial | @symescape) ($symsubseq | @symescape)*
 
 :-
 
@@ -71,7 +72,22 @@ $whitespace+       ;
 type AlexAction = LineCol -> ByteString -> LocatedBy LineCol Token
 
 readString :: ByteString -> T.Text
-readString = T.pack . read . TL.unpack . decodeUtf8
+readString = TL.toStrict . TL.concat . unescape [] . TL.tail . TL.init . decodeUtf8
+ where
+   unescape acc text
+     | TL.null text = acc
+     | otherwise =
+        let (chunk, rest) = TL.break (== '\\') text in
+        case TL.uncons rest of
+          Nothing -> (chunk : acc)
+          Just (_, rest') ->
+            case TL.uncons rest' of
+              Nothing -> error "Invalid escape sequence"
+              Just ('n', rest'') -> unescape (chunk `TL.snoc` '\n' : acc) rest''
+              Just ('r', rest'') -> unescape (chunk `TL.snoc` '\r' : acc) rest''
+              Just ('t', rest'') -> unescape (chunk `TL.snoc` '\t' : acc) rest''
+              Just (lit, rest'') -> unescape (chunk `TL.snoc` lit  : acc) rest''
+
 
 readNum :: ByteString -> Scientific
 readNum = read . TL.unpack . decodeUtf8

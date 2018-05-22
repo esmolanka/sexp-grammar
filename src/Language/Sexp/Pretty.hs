@@ -16,13 +16,14 @@ import Data.Text.Prettyprint.Doc
 import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
 
 import Language.Sexp.Types
+import Language.Sexp.Encode (escape)
 
 instance Pretty Atom where
   pretty = \case
     AtomNumber a
       | isInteger a -> pretty $ formatScientific Fixed (Just 0) a
       | otherwise   -> pretty $ formatScientific Fixed Nothing $ a
-    AtomString a  -> pretty (show a)
+    AtomString a  -> dquotes (pretty (escape a))
     AtomSymbol a  -> pretty a
 
 
