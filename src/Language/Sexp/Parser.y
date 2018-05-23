@@ -38,7 +38,7 @@ import Language.Sexp.Types
   ']'            { _ :< TokRBracket   }
   '{'            { _ :< TokLBrace     }
   '}'            { _ :< TokRBrace     }
-  "'"            { _ :< TokQuote      }
+  PREFIX         { _ :< (TokPrefix _) }
   SYMBOL         { _ :< (TokSymbol _) }
   NUMBER         { _ :< (TokNumber _) }
   STRING         { _ :< (TokString _) }
@@ -49,11 +49,13 @@ Sexps :: { [Sexp] }
   : list(Sexp)                            { $1 }
 
 Sexp :: { Sexp }
-  : Atom                                  { AtomF                   @@ $1 }
-  | '(' list(Sexp) ')'                    { const (ParenListF $2)   @@ $1 }
-  | '[' list(Sexp) ']'                    { const (BracketListF $2) @@ $1 }
-  | '{' list(Sexp) '}'                    { const (BraceListF $2)   @@ $1 }
-  | "'" Sexp                              { const (QuotedF $2)      @@ $1 }
+  : Atom                                  { AtomF                       @@ $1 }
+  | '(' list(Sexp) ')'                    { const (ParenListF $2)       @@ $1 }
+  | '[' list(Sexp) ']'                    { const (BracketListF $2)     @@ $1 }
+  | '{' list(Sexp) '}'                    { const (BraceListF $2)       @@ $1 }
+  | PREFIX Sexp                           { const (ModifiedF
+                                                    (getPrefix (extract $1))
+                                                    $2)                 @@ $1 }
 
 Atom :: { LocatedBy Position Atom }
   : NUMBER                                { fmap (AtomNumber . getNumber) $1 }

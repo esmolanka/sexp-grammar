@@ -53,13 +53,19 @@ $symsubseq  = [$syminitial $digit \'\`\,]
 
 $whitespace+       ;
 ";" .*             ;
+
 "("                { just TokLParen   }
 ")"                { just TokRParen   }
 "["                { just TokLBracket }
 "]"                { just TokRBracket }
 "{"                { just TokLBrace   }
 "}"                { just TokRBrace   }
-"'" / $printable   { just TokQuote    }
+
+"'" / $printable   { just (TokPrefix Quote)    }
+"`" / $printable   { just (TokPrefix Backtick) }
+",@" / $printable  { just (TokPrefix CommaAt)  }
+"," / $printable   { just (TokPrefix Comma)    }
+"#" / $printable   { just (TokPrefix Hash)     }
 
 @number            { TokNumber  `via` readNum    }
 @symbol            { TokSymbol  `via` decode     }

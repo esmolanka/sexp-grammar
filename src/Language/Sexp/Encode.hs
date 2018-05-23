@@ -58,10 +58,12 @@ buildSexp = cata alg
       ParenListF ss   -> char8 '(' <> hsep ss <> char8 ')'
       BracketListF ss -> char8 '[' <> hsep ss <> char8 ']'
       BraceListF ss   -> char8 '{' <> hsep ss <> char8 '}'
-      QuotedF q a     -> case q of
-                           Tick     -> char8 '\'' <> a
-                           Backtick -> char8 '`' <> a
-                           Comma    -> char8 ',' <> a
+      ModifiedF q a   -> case q of
+        Quote    -> char8 '\'' <> a
+        Backtick -> char8 '`' <> a
+        Comma    -> char8 ',' <> a
+        CommaAt  -> char8 ',' <> char8 '@' <> a
+        Hash     -> char8 '#' <> a
 
 -- | Serialise a 'BareSexp' into a compact string
 encode :: BareSexp -> ByteString

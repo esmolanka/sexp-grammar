@@ -9,6 +9,7 @@
 
 module Language.Sexp.Types
   ( Atom (..)
+  , Prefix (..)
   , Sexp
   , pattern Atom
   , pattern Number
@@ -17,7 +18,7 @@ module Language.Sexp.Types
   , pattern ParenList
   , pattern BracketList
   , pattern BraceList
-  , pattern Quoted
+  , pattern Modified
   , BareSexp
   , Fix (..)
   , SexpF (..)
@@ -94,13 +95,15 @@ data Atom
     deriving (Show, Eq, Ord, Generic)
 
 -- | S-expression quotation type
-data Quotation
-  = Tick
+data Prefix
+  = Quote
   | Backtick
   | Comma
+  | CommaAt
+  | Hash
     deriving (Show, Eq, Ord, Generic)
 
-instance NFData Quotation
+instance NFData Prefix
 
 -- | S-expression functor
 data SexpF e
@@ -108,7 +111,7 @@ data SexpF e
   | ParenListF   [e]
   | BracketListF [e]
   | BraceListF   [e]
-  | QuotedF      !Quotation e
+  | ModifiedF    !Prefix e
     deriving (Functor, Foldable, Traversable, Generic)
 
 instance Eq1 SexpF where
@@ -118,7 +121,7 @@ instance Eq1 SexpF where
       go (ParenListF as) (ParenListF bs) = liftEq eq as bs
       go (BracketListF as) (BracketListF bs) = liftEq eq as bs
       go (BraceListF as) (BraceListF bs) = liftEq eq as bs
-      go (QuotedF a) (QuotedF b) = a `eq` b
+      go (ModifiedF q a) (ModifiedF p b) = q == p && a `eq` b
       go _ _ = False
 
 instance NFData Atom
@@ -133,7 +136,7 @@ instance NFData (Fix SexpF) where
         ParenListF as -> rnf as
         BracketListF as -> rnf as
         BraceListF as -> rnf as
-        QuotedF a -> rnf a
+        ModifiedF q a -> rnf q `seq` rnf a
 
 instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
   rnf = rnf . stripLocation
@@ -174,6 +177,6 @@ pattern BraceList :: [Sexp] -> Sexp
 pattern BraceList ls <- Fix (Compose ((_ :: Position) :< BraceListF ls))
   where BraceList ls =  Fix (Compose (dummyPos :< BraceListF ls))
 
-pattern Quoted :: Sexp -> Sexp
-pattern Quoted s <- Fix (Compose ((_ :: Position) :< QuotedF s))
-  where Quoted s =  Fix (Compose (dummyPos :< QuotedF s))
+pattern Modified :: Prefix -> Sexp -> Sexp
+pattern Modified q s <- Fix (Compose ((_ :: Position) :< ModifiedF q s))
+  where Modified q s =  Fix (Compose (dummyPos :< ModifiedF q s))

@@ -36,11 +36,17 @@ ppList ls = case ls of
 
 ppSexp :: Fix SexpF -> Doc ann
 ppSexp = para $ \case
-  AtomF a         -> pretty a
-  ParenListF ss   -> parens $ ppList ss
-  BracketListF ss -> brackets $ ppList ss
-  BraceListF ss   -> braces $ ppList ss
-  QuotedF (_, a)  -> squote <> a
+  AtomF a          -> pretty a
+  ParenListF ss    -> parens $ ppList ss
+  BracketListF ss  -> brackets $ ppList ss
+  BraceListF ss    -> braces $ ppList ss
+  ModifiedF q a    ->
+    case q of
+      Quote    -> "'"  <> snd a
+      Backtick -> "`"  <> snd a
+      Comma    -> ","  <> snd a
+      CommaAt  -> ",@" <> snd a
+      Hash     -> "#"  <> snd a
 
 instance Pretty (Fix SexpF) where
   pretty = ppSexp

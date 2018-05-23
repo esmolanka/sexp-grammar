@@ -20,9 +20,10 @@ module Language.Sexp
   , pattern ParenList
   , pattern BracketList
   , pattern BraceList
-  , pattern Quoted
+  , pattern Modified
   , SexpF (..)
   , Atom (..)
+  , Prefix (..)
   -- ** Position
   , Position (..)
   , dummyPos

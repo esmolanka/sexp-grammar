@@ -211,7 +211,7 @@ lexerTests = testGroup "Sexp lexer/parser tests"
       @?=~ Right (BraceList [Symbol "foo", Symbol "bar"])
   , testCase "quoted" $
       parseSexp' "'foo"
-      @?=~ Right (Quoted (Symbol "foo"))
+      @?=~ Right (Modified Quote (Symbol "foo"))
   , testCase "hashed" $
       parseSexp' "#foo"
       @?=~ Right (Symbol "#foo")
