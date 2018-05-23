@@ -66,12 +66,15 @@ ppKey kw = "keyword " <> kw
 
 ----------------------------------------------------------------------
 
+-- | Key\/value pairs of a property list that is being parsed/constructed
 newtype PropertyList = PropertyList [(Text, Sexp)]
 
+-- | Elements of a list that is being parsed/constructed
 newtype List = List [Sexp]
 
 ----------------------------------------------------------------------
 
+-- | Extract\/inject a position from\/to a 'Sexp'
 position :: Grammar Position (Sexp :- t) (Position :- Sexp :- t)
 position = Iso
   (\(s@(Fix (Compose (p :< _))) :- t) -> p :- s :- t)
@@ -126,23 +129,53 @@ endList = Flip $ PartialIso
         (el:_rest) -> Left (unexpected (ppBrief el)))
 
 
+-- | Parenthesis list grammar. Runs a specified grammar on a
+-- sequence of S-exps in a parenthesized list.
+--
+-- > let grammar = list (el symbol >>> el int) >>> pair
+-- > in encodeWith grammar ("foo", 42) ≡ "(foo 42)"
 list :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 list g = beginParenList >>> Dive (g >>> endList)
 
 
+-- | Bracket list grammar. Runs a specified grammar on a
+-- sequence of S-exps in a bracketed list.
+--
+-- > let grammar = bracketList (rest int)
+-- > in encodeWith grammar [2, 3, 5, 7, 11, 13] ≡ "[2 3 5 7 11 13]"
 bracketList :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 bracketList g = beginBracketList >>> Dive (g >>> endList)
 
 
+-- | Brace list grammar. Runs a specified grammar on a
+-- sequence of S-exps in a list enclosed in braces.
+--
+-- > let grammar = braceList (props (key "x" real >>> key "y" real)) >>> pair
+-- > in encodeWith grammar (3.1415, -1) ≡ "{:x 3.1415 :y -1}"
 braceList :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 braceList g = beginBraceList >>> Dive (g >>> endList)
 
 ----------------------------------------------------------------------
 
+-- | Element of a sequence grammar. Runs a specified grammar on a next
+-- element of a sequence. The underlying grammar can produce zero or
+-- more values on the stack.
+--
+-- E.g.:
+--
+-- * @el (sym "lambda")@ consumes a symbol \"lambda\" and produces no values on the stack
+--
+-- * @el symbol@ consumes a symbol and produces a 'Text' value corresponding to the symbol
 el :: Grammar p (Sexp :- t) t' -> Grammar p (List :- t) (List :- t')
 el g = coerced (Flip cons >>> onTail g >>> Step)
 
 
+-- | The rest of a sequence grammar. Runs a specified grammar on each
+-- of remaining elements of a sequence and collect them. Expects zero
+-- or more elements in the sequence.
+--
+-- > let grammar = list (el (sym "check-primes") >>> rest int)
+-- > in encodeWith grammar [2, 3, 5, 7, 11, 13] ≡ "(check-primes 2 3 5 7 11 13)"
 rest
   :: (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (List :- t) (List :- [a] :- t)
@@ -180,30 +213,55 @@ endProperties = PartialIso
         ((k, _) : _rest) -> Left (unexpected (ppKey k)))
 
 
+-- | Property list in a sequence grammar. Collects pairs of keywords
+-- and S-expressions from remaining sequence elements and runs a
+-- specified grammar on them. Expects zero or more pairs in the
+-- sequence. If sequence of pairs interrupts with a non-keyword, the
+-- rest of this sequence is left untouched.
+--
+-- > let grammar = list (
+-- >       props (key "real" real >>> key "img" real) >>> onTail pair >>> el (sym "/")
+-- >       props (key "real" real >>> key "img" real) >>> onTail pair) >>> pair
+-- > in encodeWith grammar ((0, -1), (1, 0) ≡ "{:real 0 :img -1 / :real 1 :img 0}"
 props
   :: Grammar p (PropertyList :- t) (PropertyList :- t')
   -> Grammar p (List :- t) (List :- t')
 props g = beginProperties >>> Dive (onTail (g >>> Flip endProperties))
 
 
+-- | Property by a key grammar. Looks up an S-expression by a
+-- specified key and runs a specified grammar on it. Expects the key
+-- to be present.
 key
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (PropertyList :- t) (PropertyList :- a :- t)
 key k g =
   let k' = TS.cons ':' k
-  in coerced $ Flip (insert k' (expected $ ppKey k')) >>> Step >>> onHead (sealed g) >>> swap
+  in coerced (
+       Flip (insert k' (expected $ ppKey k')) >>>
+       Step >>>
+       onHead (sealed g) >>>
+       swap)
 
-
+-- | Optional property by a key grammar. Like 'key' but puts 'Nothing'
+-- in correspondence to the missing key and 'Just' to the present.
 optKey
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (PropertyList :- t) (PropertyList :- Maybe a :- t)
 optKey k g =
   let k' = TS.cons ':' k
-  in coerced $ Flip (insertMay k') >>> Step >>> onHead (Traverse (sealed g)) >>> swap
+  in coerced (Flip (insertMay k') >>>
+       Step >>>
+       onHead (Traverse (sealed g)) >>>
+       swap)
+
+infix 3 .:
+infix 3 .:?
 
 
+-- | Property by a key grammar. Infix version of 'key'.
 (.:)
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
@@ -211,6 +269,7 @@ optKey k g =
 (.:) = key
 
 
+-- | Optional property by a key grammar. Infix version of 'optKey'.
 (.:?)
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
@@ -228,7 +287,10 @@ parallel f g =
   onTail (onHead (sealed f)) >>>
   pair
 
-
+-- | Remaining properties grammar. Applies two grammars in parallel on
+-- each of the remaining key-value pairs of the property list: one on
+-- keys, another on corresponding S-expressions, and collects
+-- transformed pairs into a list
 restKeys
   :: (forall t. Grammar p (Text :- t) (a :- t))
   -> (forall t. Grammar p (Sexp :- t) (b :- t))
@@ -242,7 +304,9 @@ restKeys f g =
 ----------------------------------------------------------------------
 -- Atoms
 
-
+-- | Grammar matching integer number atoms to 'Integer' values.
+--
+-- > encodeWith integer 2^100 ≡ "1267650600228229401496703205376"
 integer :: Grammar Position (Sexp :- t) (Integer :- t)
 integer = atom >>> partialOsi
   (\case
@@ -251,10 +315,18 @@ integer = atom >>> partialOsi
   (AtomNumber . fromIntegral)
 
 
+-- | Grammar matching integer number atoms to 'Int' values.
+--
+-- > encodeWith int (2^63)   ≡ "-9223372036854775808"
+-- > encodeWith int (2^63-1) ≡  "9223372036854775807"
 int :: Grammar Position (Sexp :- t) (Int :- t)
 int = integer >>> iso fromIntegral fromIntegral
 
 
+-- | Grammar matching fractional number atoms to 'Scientific' values.
+--
+-- > encodeWith real (3.141592653589793^3)
+-- >   ≡ "31.006276680299813114880451174049119330924860257"
 real :: Grammar Position (Sexp :- t) (Scientific :- t)
 real = atom >>> partialOsi
   (\case
@@ -263,10 +335,15 @@ real = atom >>> partialOsi
   AtomNumber
 
 
+-- | Grammar matching fractional number atoms to 'Double' values.
+--
+-- > encodeWith double (3.141592653589793^3)
+-- >   ≡ "31.006276680299816"
 double :: Grammar Position (Sexp :- t) (Double :- t)
 double = real >>> iso toRealFloat fromFloatDigits
 
 
+-- | Grammar matching string literal atoms to 'Text' values.
 string :: Grammar Position (Sexp :- t) (Text :- t)
 string = atom >>> partialOsi
   (\case
@@ -275,6 +352,7 @@ string = atom >>> partialOsi
   AtomString
 
 
+-- | Grammar matching symbol literal atoms to 'Text' values.
 symbol :: Grammar Position (Sexp :- t) (Text :- t)
 symbol = atom >>> partialOsi
   (\case
@@ -283,23 +361,36 @@ symbol = atom >>> partialOsi
   AtomSymbol
 
 
+-- | Grammar matching symbol literal atoms starting with \':\' to
+-- 'Text' values without the colon char.
+--
+-- > encodeWith keyword "username" ≡ ":username"
 keyword :: Grammar Position (Sexp :- t) (Text :- t)
 keyword = atom >>> partialOsi
   (\case
       AtomSymbol s | Just (':', k) <- TS.uncons s -> Right k
-      other -> Left (expected "keyword" <> unexpected (ppBrief $ Atom other)))
+      other -> Left (expected "keyword" <>
+                     unexpected (ppBrief $ Atom other)))
   (AtomSymbol . TS.cons ':')
 
 
+-- | Grammar matching symbol literal atoms to a specified symbol.
+--
+-- > encodeWith (sym "username") () ≡ "username"
 sym :: Text -> Grammar Position (Sexp :- t) t
 sym s = atom >>> Flip (PartialIso
   (AtomSymbol s :-)
   (\(a :- t) ->
       case a of
         AtomSymbol s' | s == s' -> Right t
-        other -> Left $ expected ("symbol " <> s) <> unexpected (ppBrief $ Atom other)))
+        other -> Left $ expected ("symbol " <> s) <>
+                        unexpected (ppBrief $ Atom other)))
 
 
+-- | Grammar matching symbol literal atoms to a specified symbol
+-- prepended with \':\'..
+--
+-- > encodeWith (kwd "password") () ≡ ":password"
 kwd :: Text -> Grammar Position (Sexp :- t) t
 kwd s =
   let k = TS.cons ':' s
