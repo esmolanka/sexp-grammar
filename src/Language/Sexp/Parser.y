@@ -77,6 +77,8 @@ list(p)
 
 {
 
+type Sexp = Fix (Compose (LocatedBy Position) SexpF)
+
 (@@) :: (a -> e (Fix (Compose (LocatedBy p) e))) -> LocatedBy p a -> Fix (Compose (LocatedBy p) e)
 (@@) f (p :< a) = Fix . Compose . (p :<) . f $ a
 

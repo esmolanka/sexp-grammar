@@ -17,7 +17,7 @@ import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Language.Sexp.Types
+import Language.Sexp.Located
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Generic
 

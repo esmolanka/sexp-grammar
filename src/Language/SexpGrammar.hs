@@ -73,8 +73,8 @@ import Data.InvertibleGrammar
 import Data.InvertibleGrammar.Base
 import Data.InvertibleGrammar.Combinators
 
-import Language.Sexp (Sexp, Position)
-import qualified Language.Sexp as Sexp
+import Language.Sexp.Located (Sexp, Position)
+import qualified Language.Sexp.Located as Sexp
 
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
@@ -115,7 +115,7 @@ encode =
 -- | Serialise a value using provided grammar
 encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
-  fmap (Sexp.encode . Sexp.stripLocation) . toSexp g
+  fmap Sexp.encode . toSexp g
 
 -- | Serialise and pretty-print a value using @SexpIso@ instance
 encodePretty :: SexpIso a => a -> Either String ByteString
@@ -125,7 +125,7 @@ encodePretty =
 -- | Serialise and pretty-print a value using provided grammar
 encodePrettyWith :: SexpGrammar a -> a -> Either String ByteString
 encodePrettyWith g =
-  fmap Sexp.prettySexp . toSexp g
+  fmap Sexp.format . toSexp g
 
 ----------------------------------------------------------------------
 

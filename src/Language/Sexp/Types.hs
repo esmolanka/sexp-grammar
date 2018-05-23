@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -10,16 +9,6 @@
 module Language.Sexp.Types
   ( Atom (..)
   , Prefix (..)
-  , Sexp
-  , pattern Atom
-  , pattern Number
-  , pattern Symbol
-  , pattern String
-  , pattern ParenList
-  , pattern BracketList
-  , pattern BraceList
-  , pattern Modified
-  , BareSexp
   , Fix (..)
   , SexpF (..)
   , Compose (..)
@@ -29,6 +18,7 @@ module Language.Sexp.Types
   , location
   , extract
   , stripLocation
+  , addLocation
   ) where
 
 import Control.DeepSeq
@@ -37,7 +27,7 @@ import Data.Functor.Classes
 import Data.Functor.Compose
 import Data.Functor.Foldable (cata, Fix (..))
 import Data.Bifunctor
-import Data.Scientific
+import Data.Scientific (Scientific)
 import Data.Text (Text)
 import Data.Text.Prettyprint.Doc (Pretty (..), colon, (<>))
 import GHC.Generics
@@ -80,9 +70,11 @@ location (a :< _) = a
 extract :: LocatedBy a e -> e
 extract (_ :< e) = e
 
--- | Strip annotations
 stripLocation :: (Functor f) => Fix (Compose (LocatedBy p) f) -> Fix f
 stripLocation = cata (Fix . extract . getCompose)
+
+addLocation :: (Functor f) => p -> Fix f -> Fix (Compose (LocatedBy p) f)
+addLocation p = cata (Fix . Compose . (p :<))
 
 ----------------------------------------------------------------------
 -- Sexp
@@ -141,42 +133,3 @@ instance NFData (Fix SexpF) where
 instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
   rnf = rnf . stripLocation
 
--- | S-expression type without annotations. Useful for quick
--- traversals.
-type BareSexp = Fix SexpF
-
--- | S-expression type annotated with positions. Useful for further
--- parsing.
-type Sexp = Fix (Compose (LocatedBy Position) SexpF)
-
-pattern Atom :: Atom -> Sexp
-pattern Atom a <- Fix (Compose ((_ :: Position) :< AtomF a))
-  where Atom a =  Fix (Compose (dummyPos :< AtomF a))
-
-pattern Number :: Scientific -> Sexp
-pattern Number a <- Fix (Compose ((_ :: Position) :< AtomF (AtomNumber a)))
-  where Number a =  Fix (Compose (dummyPos :< AtomF (AtomNumber a)))
-
-pattern Symbol :: Text -> Sexp
-pattern Symbol a <- Fix (Compose ((_ :: Position) :< AtomF (AtomSymbol a)))
-  where Symbol a =  Fix (Compose (dummyPos :< AtomF (AtomSymbol a)))
-
-pattern String :: Text -> Sexp
-pattern String a <- Fix (Compose ((_ :: Position) :< AtomF (AtomString a)))
-  where String a =  Fix (Compose (dummyPos :< AtomF (AtomString a)))
-
-pattern ParenList :: [Sexp] -> Sexp
-pattern ParenList ls <- Fix (Compose ((_ :: Position) :< ParenListF ls))
-  where ParenList ls =  Fix (Compose (dummyPos :< ParenListF ls))
-
-pattern BracketList :: [Sexp] -> Sexp
-pattern BracketList ls <- Fix (Compose ((_ :: Position) :< BracketListF ls))
-  where BracketList ls =  Fix (Compose (dummyPos :< BracketListF ls))
-
-pattern BraceList :: [Sexp] -> Sexp
-pattern BraceList ls <- Fix (Compose ((_ :: Position) :< BraceListF ls))
-  where BraceList ls =  Fix (Compose (dummyPos :< BraceListF ls))
-
-pattern Modified :: Prefix -> Sexp -> Sexp
-pattern Modified q s <- Fix (Compose ((_ :: Position) :< ModifiedF q s))
-  where Modified q s =  Fix (Compose (dummyPos :< ModifiedF q s))

@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Language.Sexp.Pretty
-  ( prettySexp
+  ( format
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
@@ -52,10 +52,9 @@ instance Pretty (Fix SexpF) where
   pretty = ppSexp
 
 -- | Serialize a 'Sexp' into a pretty-printed string
-prettySexp :: Sexp -> ByteString
-prettySexp =
+format :: Fix SexpF -> ByteString
+format =
   encodeUtf8 .
     Render.renderLazy .
       layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) .
-        ppSexp .
-          stripLocation
+        ppSexp

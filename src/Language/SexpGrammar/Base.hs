@@ -38,7 +38,6 @@ module Language.SexpGrammar.Base
 
 import Control.Category ((>>>))
 
-import qualified Data.ByteString.Lazy as BS
 import Data.Char
 import Data.Coerce
 import Data.Data
@@ -49,24 +48,24 @@ import Data.List.Split
 import Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as TS
-import qualified Data.Text.Encoding as TS
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
 #endif
 
-import Language.Sexp.Encode (encode)
-import Language.Sexp.Types
+import Language.Sexp.Located
 
 
 ppBrief :: Sexp -> Text
-ppBrief = TS.decodeUtf8 . BS.toStrict . \case
+ppBrief = TL.toStrict . \case
   atom@Atom{} ->
-     encode (stripLocation atom)
+     TL.decodeUtf8 (encode atom)
   other ->
-    let pp = encode (stripLocation other)
-    in if BS.length pp > 25
-       then BS.take 25 pp <> "..."
+    let pp = TL.decodeUtf8 (encode other)
+    in if TL.length pp > 25
+       then TL.take 25 pp <> "..."
        else pp
 
 ppKey :: Text -> Text

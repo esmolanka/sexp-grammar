@@ -27,6 +27,7 @@ library
   ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
     Language.Sexp
+    Language.Sexp.Located
     Language.SexpGrammar
     Language.SexpGrammar.TH
     Language.SexpGrammar.Generic

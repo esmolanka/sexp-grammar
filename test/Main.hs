@@ -30,12 +30,14 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
 
-import Language.Sexp as Sexp
+import Language.Sexp.Located as Sexp
+import Language.Sexp () -- for Show instance
+
 import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
 import Language.SexpGrammar.TH hiding (match)
 
-parseSexp' :: String -> Either String BareSexp
+parseSexp' :: String -> Either String Sexp
 parseSexp' input = Sexp.decode (fromString input)
 
 data Pair a b = Pair a b
@@ -159,8 +161,8 @@ allTests = testGroup "All tests"
   , grammarTests
   ]
 
-(@?=~) :: Either String BareSexp -> Either String Sexp -> Assertion
-(@?=~) a b = a @?= fmap stripLocation b
+(@?=~) :: Either String Sexp -> Either String Sexp -> Assertion
+(@?=~) a b = fmap toSimple a @?= fmap toSimple b
 
 lexerTests :: TestTree
 lexerTests = testGroup "Sexp lexer/parser tests"

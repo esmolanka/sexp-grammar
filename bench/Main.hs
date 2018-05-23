@@ -24,7 +24,6 @@ import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-import Language.Sexp (Sexp, Position)
 import Language.SexpGrammar
 import qualified Language.SexpGrammar.TH as TH
 import qualified Language.SexpGrammar.Generic as G

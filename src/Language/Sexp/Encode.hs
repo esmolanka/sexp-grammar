@@ -5,8 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Language.Sexp.Encode
   ( encode
   , escape
@@ -19,7 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T (encodeUtf8)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL (encodeUtf8)
-import Data.ByteString.Lazy.Char8 (ByteString, unpack)
+import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.ByteString.Lazy.Builder.ASCII
 
 #if !MIN_VERSION_base(4,11,0)
@@ -65,12 +63,5 @@ buildSexp = cata alg
         CommaAt  -> char8 ',' <> char8 '@' <> a
         Hash     -> char8 '#' <> a
 
--- | Serialise a 'BareSexp' into a compact string
-encode :: BareSexp -> ByteString
+encode :: Fix SexpF -> ByteString
 encode = toLazyByteString . buildSexp
-
-instance {-# OVERLAPPING #-} Show Sexp where
-  show = unpack . encode . stripLocation
-
-instance {-# OVERLAPPING #-} Show BareSexp where
-  show = unpack . encode
