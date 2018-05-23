@@ -18,7 +18,6 @@ import Control.Category
 import Control.DeepSeq
 import Control.Exception
 
-import Data.Data (Data, Typeable)
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Text (Text)
@@ -46,7 +45,7 @@ data Prim
   = SquareRoot
   | Factorial
   | Fibonacci
-    deriving (Show, Eq, Enum, Bounded, Data, Typeable, Generic)
+    deriving (Show, Eq, Generic)
 
 instance NFData Ident
 instance NFData Prim
@@ -57,7 +56,11 @@ return []
 type SexpG a = forall t. Grammar Position (Sexp :- t) (a :- t)
 
 instance SexpIso Prim where
-  sexpIso = enum
+  sexpIso = G.match
+    $ With (sym "square-root" >>>)
+    $ With (sym "factorial" >>>)
+    $ With (sym "fibonacci" >>>)
+    $ End
 
 instance SexpIso Ident where
   sexpIso = $(TH.match ''Ident)

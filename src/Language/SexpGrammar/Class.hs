@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
 
@@ -17,6 +18,10 @@ import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
+
 import Language.Sexp.Located
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Generic
@@ -25,7 +30,9 @@ class SexpIso a where
   sexpIso :: Grammar Position (Sexp :- t) (a :- t)
 
 instance SexpIso Bool where
-  sexpIso = bool
+  sexpIso =
+    (sym "true"  >>> push True (==True)) <>
+    (sym "false" >>> push False (==False))
 
 instance SexpIso Int where
   sexpIso = int
@@ -48,10 +55,10 @@ instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
     pair
 
 instance (Ord k, SexpIso k, SexpIso v) => SexpIso (Map k v) where
-  sexpIso = iso Map.fromList Map.toList . bracelist (rest sexpIso)
+  sexpIso = iso Map.fromList Map.toList . braceList (rest sexpIso)
 
 instance (Ord a, SexpIso a) => SexpIso (Set a) where
-  sexpIso = iso Set.fromList Set.toList . bracelist (rest sexpIso)
+  sexpIso = iso Set.fromList Set.toList . braceList (rest sexpIso)
 
 instance (SexpIso a) => SexpIso (Maybe a) where
   sexpIso = match

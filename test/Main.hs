@@ -120,10 +120,10 @@ arithExprGenericIso = expr
       $ End
 
 data Person = Person
-  { pName     :: String
-  , pAge      :: Int
-  , pAddress  :: String
-  , pChildren :: [Person]
+  { _pName     :: String
+  , _pAge      :: Int
+  , _pAddress  :: String
+  , _pChildren :: [Person]
   } deriving (Show, Eq, Generic)
 
 
@@ -238,10 +238,10 @@ grammarTests = testGroup "Grammar tests"
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
   [ testCase "bool/true" $
-    G.fromSexp bool (Symbol "tt") @?= Right True
+    G.fromSexp sexpIso (Symbol "true") @?= Right True
 
   , testCase "bool/false" $
-    G.fromSexp bool (Symbol "ff") @?= Right False
+    G.fromSexp sexpIso (Symbol "false") @?= Right False
 
   , testCase "integer" $
     G.fromSexp integer (Number (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
@@ -269,19 +269,19 @@ baseTypeTests = testGroup "Base type combinator tests"
 
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
-  [ testCase "empty list of bools" $
-    G.fromSexp (list (rest bool)) (ParenList []) @?= Right []
+  [ testCase "empty list of ints" $
+    G.fromSexp (list (rest int)) (ParenList []) @?= Right []
 
-  , testCase "list of bools" $
-    G.fromSexp (list (rest bool)) (ParenList [Symbol "tt", Symbol "ff", Symbol "ff"]) @?=
-    Right [True, False, False]
+  , testCase "list of strings" $
+    G.fromSexp (list (rest string)) (ParenList [String "tt", String "ff", String "ff"]) @?=
+    Right ["tt", "ff", "ff"]
 
-  , testCase "vector of ints" $
-    G.fromSexp (vect (rest int)) (BracketList [Number 123, Number 0, Number (-100)]) @?=
+  , testCase "bracket list of ints" $
+    G.fromSexp (bracketList (rest int)) (BracketList [Number 123, Number 0, Number (-100)]) @?=
     Right [123, 0, -100]
 
-  , testCase "brace-list of strings" $
-    G.fromSexp (bracelist (rest string)) (BraceList [String "foo", String "bar"]) @?=
+  , testCase "brace list of strings" $
+    G.fromSexp (braceList (rest string)) (BraceList [String "foo", String "bar"]) @?=
     Right ["foo", "bar"]
   ]
 
@@ -289,19 +289,19 @@ listTests = testGroup "List combinator tests"
 dictTests :: TestTree
 dictTests = testGroup "Dict combinator tests"
   [ testCase "simple dict, present key" $
-    G.fromSexp (dict (key "foo" int)) (BraceList [Symbol ":foo", Number 42]) @?=
+    G.fromSexp (dictionary (key "foo" int)) (BraceList [Symbol ":foo", Number 42]) @?=
     Right 42
 
   , testCase "simple dict, missing key" $
-    G.fromSexp (dict (key "bar" int)) (BraceList [Symbol ":foo", Number 42]) @?=
+    G.fromSexp (dictionary (key "bar" int)) (BraceList [Symbol ":foo", Number 42]) @?=
     (Left ("<no location information>:1:0: mismatch:\n    Expected: keyword :bar") :: Either String Int)
 
   , testCase "simple dict, missing optional key" $
-    G.fromSexp (dict (keyMay "bar" int)) (BraceList []) @?=
+    G.fromSexp (dictionary (optKey "bar" int)) (BraceList []) @?=
     Right Nothing
 
   , testCase "simple dict, extra key" $
-    G.fromSexp (dict (key "foo" int)) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
+    G.fromSexp (dictionary (key "foo" int)) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
     (Left ("<no location information>:1:0: mismatch:\n    Unexpected: keyword :bar") :: Either String Int)
 
   ]
@@ -310,16 +310,17 @@ dictTests = testGroup "Dict combinator tests"
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
-    G.fromSexp sexpIso (ParenList [Symbol "ff", Symbol "tt"]) @?=
+    G.fromSexp sexpIso (ParenList [Symbol "false", Symbol "true"]) @?=
     Right (Pair False True)
 
   , testCase "sum of products (Bar True 42)" $
-    G.fromSexp sexpIso (ParenList [Symbol "bar", Symbol "tt", Number 42]) @?=
+    G.fromSexp sexpIso (ParenList [Symbol "bar", Symbol "true", Number 42]) @?=
     Right (Bar True (42 :: Int))
 
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    G.fromSexp sexpIso (ParenList [Symbol "baz", Symbol "ff", Number 10]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Expected: bool\n    But got:  10") :: Either String (Foo Bool Bool))
+    G.fromSexp sexpIso (ParenList [Symbol "baz", Symbol "false", Number 10]) @?=
+    (Left ("<no location information>:1:0: mismatch:\n    Expected: " ++
+           "symbol false,\n    symbol true\n    But got:  10") :: Either String (Foo Bool Bool))
   ]
 
 
