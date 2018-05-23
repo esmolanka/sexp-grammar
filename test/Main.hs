@@ -289,19 +289,19 @@ listTests = testGroup "List combinator tests"
 dictTests :: TestTree
 dictTests = testGroup "Dict combinator tests"
   [ testCase "simple dict, present key" $
-    G.fromSexp (dictionary (key "foo" int)) (BraceList [Symbol ":foo", Number 42]) @?=
+    G.fromSexp (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42]) @?=
     Right 42
 
   , testCase "simple dict, missing key" $
-    G.fromSexp (dictionary (key "bar" int)) (BraceList [Symbol ":foo", Number 42]) @?=
+    G.fromSexp (braceList (props (key "bar" int))) (BraceList [Symbol ":foo", Number 42]) @?=
     (Left ("<no location information>:1:0: mismatch:\n    Expected: keyword :bar") :: Either String Int)
 
   , testCase "simple dict, missing optional key" $
-    G.fromSexp (dictionary (optKey "bar" int)) (BraceList []) @?=
+    G.fromSexp (braceList (props (optKey "bar" int))) (BraceList []) @?=
     Right Nothing
 
   , testCase "simple dict, extra key" $
-    G.fromSexp (dictionary (key "foo" int)) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
+    G.fromSexp (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
     (Left ("<no location information>:1:0: mismatch:\n    Unexpected: keyword :bar") :: Either String Int)
 
   ]

@@ -25,7 +25,6 @@ module Language.SexpGrammar.Base
   , rest
   -- * Property lists
   , PropertyList
-  , dictionary
   , props
   , key
   , optKey
@@ -153,13 +152,6 @@ rest g =
   Iso (\a -> List [] :- a) (\(_ :- a) -> a)
 
 ----------------------------------------------------------------------
-
-dictionary
-  :: Grammar Position (PropertyList :- t) (PropertyList :- t')
-  -> Grammar Position (Sexp :- t) t'
-dictionary g =
-  braceList (props g)
-
 
 beginProperties
   :: Grammar p (List :- t) (List :- PropertyList :- t)
