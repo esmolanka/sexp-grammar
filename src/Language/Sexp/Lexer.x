@@ -32,21 +32,23 @@ import Debug.Trace
 
 $hspace     = [\ \t]
 $whitespace = [$hspace\n\r\f\v]
+
+$allgraphic = . # [\x00-\x20 \x7F-\xA0]
+
 $digit      = 0-9
 $hex        = [0-9 A-F a-f]
 $alpha      = [a-z A-Z]
 
 @number     = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
 
-$charesc    = [nrt\\\"]
-@escape     = \\ ($charesc | $digit+ | x $hex+)
-@string     = $printable # [\"\\] | $whitespace | @escape
+@escape     = \\ [nrt\\\"]
+@string     = $allgraphic # [\"\\] | $whitespace | @escape
 
-$unicode    = $printable # [\x20-\x80]
+$unicode    = $allgraphic # [\x20-\x80]
 
 $syminitial = [$alpha \:\@\#\!\$\%\&\*\/\<\=\>\?\~\_\^\.\|\+\- $unicode]
 $symsubseq  = [$syminitial $digit \'\`\,]
-@symescape  = \\ [\(\)\[\]\{\}\\\"\'\`]
+@symescape  = \\ [$alpha $digit \(\)\[\]\{\}\\\|\;\'\`\"\#\.\,]
 @symbol     = ($syminitial | @symescape) ($symsubseq | @symescape)*
 
 :-
@@ -61,11 +63,11 @@ $whitespace+       ;
 "{"                { just TokLBrace   }
 "}"                { just TokRBrace   }
 
-"'" / $printable   { just (TokPrefix Quote)    }
-"`" / $printable   { just (TokPrefix Backtick) }
-",@" / $printable  { just (TokPrefix CommaAt)  }
-"," / $printable   { just (TokPrefix Comma)    }
-"#" / $printable   { just (TokPrefix Hash)     }
+"'" / $allgraphic  { just (TokPrefix Quote)    }
+"`" / $allgraphic  { just (TokPrefix Backtick) }
+",@" / $allgraphic { just (TokPrefix CommaAt)  }
+"," / $allgraphic  { just (TokPrefix Comma)    }
+"#" / $allgraphic  { just (TokPrefix Hash)     }
 
 @number            { TokNumber  `via` readNum    }
 @symbol            { TokSymbol  `via` decode     }
