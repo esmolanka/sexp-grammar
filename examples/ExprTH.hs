@@ -13,8 +13,7 @@ import Control.Category
 import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Data (Data)
 import Data.Text (Text)
-import qualified Data.Text.Lazy as T
-import qualified Language.Sexp as Sexp
+import qualified Language.Sexp.Located as Sexp
 import Language.SexpGrammar
 import Language.SexpGrammar.TH
 
@@ -40,7 +39,11 @@ data Prim
 return []
 
 instance SexpIso Prim where
-  sexpIso = enum
+  sexpIso = coproduct
+    [ $(grammarFor 'SquareRoot) . sym "square-root"
+    , $(grammarFor 'Factorial) . sym "factorial"
+    , $(grammarFor 'Fibonacci) . sym "fibonacci"
+    ]
 
 instance SexpIso Ident where
   sexpIso = $(grammarFor 'Ident) . symbol
@@ -69,9 +72,9 @@ instance SexpIso Expr where
 
 test :: String -> SexpGrammar a -> (a, String)
 test str g = either error id $ do
-  e <- decodeWith g (B8.pack str)
+  e <- decodeWith g "<stdio>" (B8.pack str)
   sexp' <- toSexp g e
-  return (e, T.unpack (Sexp.prettySexp sexp'))
+  return (e, B8.unpack (Sexp.format sexp'))
 
 -- λ> test "(cond :pred 1 :true (+ 42 10) :false (* 2 (* 2 2)))" (sexpIso :: SexpG Expr)
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Just (Mul (Lit 2) (Mul (Lit 2) (Lit 2)))),"(cond :false (* 2 (* 2 2)) :pred 1 :true (+ 42 10))")
