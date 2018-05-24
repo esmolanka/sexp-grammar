@@ -30,6 +30,7 @@ module Data.InvertibleGrammar.Combinators
 import Control.Category ((>>>))
 import Data.Coerce
 import Data.Maybe
+import Data.Void
 import Data.Text (Text)
 import Data.InvertibleGrammar.Base
 
@@ -142,6 +143,20 @@ toDefault def = iso
   (\val -> if val == def then Nothing else Just val)
 
 
+sealed :: Grammar p (a :- Void) (b :- Void) -> Grammar p a b
+sealed g =
+  Iso (:- error "void") (\(a :- _) -> a) >>>
+  g >>>
+  Iso (\(a :- _) -> a) (:- error "void")
+
+
+coerced
+  :: (Coercible a c, Coercible b d) =>
+     Grammar p (a :- t) (b :- t')
+  -> Grammar p (c :- t) (d :- t')
+coerced g = iso coerce coerce >>> g >>> iso coerce coerce
+
+
 ----------------------------------------------------------------------
 
 coproduct :: [Grammar p a b] -> Grammar p a b
@@ -164,17 +179,5 @@ flipped :: Grammar p a b -> Grammar p b a
 flipped = Flip
 
 
-sealed :: (forall t. Grammar p (a :- t) (b :- t)) -> Grammar p a b
-sealed g =
-  Iso (:- undefined) (\(a :- _) -> a) >>>
-  g >>>
-  Iso (\(a :- _) -> a) (:- undefined)
-
-
-coerced :: (Coercible a c, Coercible b d) => Grammar p (a :- t) (b :- t') -> Grammar p (c :- t) (d :- t')
-coerced g = iso coerce coerce >>> g >>> iso coerce coerce
-
-
 annotated :: Text -> Grammar p a b -> Grammar p a b
-annotated =
-  Annotate
+annotated = Annotate
