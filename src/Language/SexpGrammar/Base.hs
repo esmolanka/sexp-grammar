@@ -62,7 +62,7 @@ ppBrief = TL.toStrict . \case
        else pp
 
 ppKey :: Text -> Text
-ppKey kw = "keyword " <> kw
+ppKey kw = "keyword :" <> kw
 
 ----------------------------------------------------------------------
 
@@ -190,16 +190,16 @@ beginProperties
   :: Grammar p (List :- t) (List :- PropertyList :- t)
 beginProperties = Flip $ PartialIso
   (\(List rest :- PropertyList alist :- t) ->
-      List (concatMap (\(k, v) -> [Atom (AtomSymbol k), v]) alist ++ rest) :- t)
+      List (concatMap (\(k, v) -> [Atom (AtomSymbol (':' `TS.cons` k)), v]) alist ++ rest) :- t)
   (\(List lst :- t) ->
       let (rest, alist) = takePairs lst [] in
-      Right (List rest :- PropertyList alist :- t))
+      Right (List rest :- PropertyList (reverse alist) :- t))
   where
     takePairs :: [Sexp] -> [(Text, Sexp)] -> ([Sexp], [(Text, Sexp)])
     takePairs (Atom (AtomSymbol k) : v : rest) acc =
       case TS.uncons k of
-        Just (':', _) -> takePairs rest ((k, v) : acc)
-        _             -> (Atom (AtomSymbol k) : v : rest, acc)
+        Just (':', k') -> takePairs rest ((k', v) : acc)
+        _              -> (Atom (AtomSymbol k) : v : rest, acc)
     takePairs other acc = (other, acc)
 
 
@@ -237,12 +237,11 @@ key
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (PropertyList :- t) (PropertyList :- a :- t)
 key k g =
-  let k' = TS.cons ':' k
-  in coerced (
-       Flip (insert k' (expected $ ppKey k')) >>>
-       Step >>>
-       onHead (sealed g) >>>
-       swap)
+  coerced (
+    Flip (insert k (expected $ ppKey k)) >>>
+    Step >>>
+    onHead (sealed g) >>>
+    swap)
 
 -- | Optional property by a key grammar. Like 'key' but puts 'Nothing'
 -- in correspondence to the missing key and 'Just' to the present.
@@ -251,11 +250,10 @@ optKey
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (PropertyList :- t) (PropertyList :- Maybe a :- t)
 optKey k g =
-  let k' = TS.cons ':' k
-  in coerced (Flip (insertMay k') >>>
-       Step >>>
-       onHead (Traverse (sealed g)) >>>
-       swap)
+  coerced (Flip (insertMay k) >>>
+    Step >>>
+    onHead (Traverse (sealed g)) >>>
+    swap)
 
 infix 3 .:
 infix 3 .:?
@@ -399,4 +397,4 @@ kwd s =
        (\(a :- t) ->
            case a of
              AtomSymbol s' | k == s' -> Right t
-             other -> Left $ expected (ppKey k) <> unexpected (ppBrief $ Atom other)))
+             other -> Left $ expected (ppKey s) <> unexpected (ppBrief $ Atom other)))

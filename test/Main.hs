@@ -304,6 +304,14 @@ dictTests = testGroup "Dict combinator tests"
     G.fromSexp (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
     (Left ("<no location information>:1:0: mismatch:\n    Unexpected: keyword :bar") :: Either String Int)
 
+  , testCase "simple dict, remaining keys, from" $
+    G.fromSexp (braceList (props (restKeys id int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
+    (Right [("foo", 42), ("bar", 0)])
+
+  , testCase "simple dict, remaining keys, to" $
+    G.toSexp (braceList (props (restKeys id int))) [("foo", 42), ("bar", 0)]  @?=~
+    (Right (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]))
+
   ]
 
 
