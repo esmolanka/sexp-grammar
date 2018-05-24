@@ -1,8 +1,8 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE TypeOperators     #-}
-{-# LANGUAGE LambdaCase        #-}
 
 module Language.SexpGrammar.Base
   ( position
@@ -54,7 +54,7 @@ import Language.Sexp.Located
 ppBrief :: Sexp -> Text
 ppBrief = TL.toStrict . \case
   atom@Atom{} ->
-     TL.decodeUtf8 (encode atom)
+    TL.decodeUtf8 (encode atom)
   other ->
     let pp = TL.decodeUtf8 (encode other)
     in if TL.length pp > 25
@@ -74,7 +74,7 @@ newtype List = List [Sexp]
 
 ----------------------------------------------------------------------
 
--- | Extract\/inject a position from\/to a 'Sexp'
+-- | Extract\/inject a position from\/to a 'Sexp'.
 position :: Grammar Position (Sexp :- t) (Position :- Sexp :- t)
 position = Iso
   (\(s@(Fix (Compose (p :< _))) :- t) -> p :- s :- t)
@@ -163,9 +163,11 @@ braceList g = beginBraceList >>> Dive (g >>> endList)
 --
 -- E.g.:
 --
--- * @el (sym "lambda")@ consumes a symbol \"lambda\" and produces no values on the stack
+-- * @el (sym "lambda")@ consumes a symbol \"lambda\" and produces no
+-- * values on the stack.
 --
--- * @el symbol@ consumes a symbol and produces a 'Text' value corresponding to the symbol
+-- * @el symbol@ consumes a symbol and produces a 'Text' value
+-- * corresponding to the symbol.
 el :: Grammar p (Sexp :- t) t' -> Grammar p (List :- t) (List :- t')
 el g = coerced (Flip cons >>> onTail g >>> Step)
 
@@ -243,6 +245,7 @@ key k g =
     onHead (sealed g) >>>
     swap)
 
+
 -- | Optional property by a key grammar. Like 'key' but puts 'Nothing'
 -- in correspondence to the missing key and 'Just' to the present.
 optKey
@@ -285,10 +288,11 @@ parallel f g =
   onTail (onHead (sealed f)) >>>
   pair
 
+
 -- | Remaining properties grammar. Applies two grammars in parallel on
 -- each of the remaining key-value pairs of the property list: one on
 -- keys, another on corresponding S-expressions, and collects
--- transformed pairs into a list
+-- transformed pairs into a list.
 restKeys
   :: (forall t. Grammar p (Text :- t) (a :- t))
   -> (forall t. Grammar p (Sexp :- t) (b :- t))
@@ -386,7 +390,7 @@ sym s = atom >>> Flip (PartialIso
 
 
 -- | Grammar matching symbol literal atoms to a specified symbol
--- prepended with \':\'..
+-- prepended with \':\'.
 --
 -- > encodeWith (kwd "password") () ≡ ":password"
 kwd :: Text -> Grammar Position (Sexp :- t) t
