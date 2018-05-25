@@ -221,6 +221,10 @@ endProperties = PartialIso
 -- sequence. If sequence of pairs interrupts with a non-keyword, the
 -- rest of this sequence is left untouched.
 --
+-- Collected 'PropertyList' is then available for random-access lookup
+-- combinators 'key', 'optKey', '(.:)', '(.:?)' or bulk extraction
+-- 'restKeys' combinator.
+--
 -- > let grammar = list (
 -- >       props (key "real" real >>> key "img" real) >>> onTail pair >>> el (sym "/")
 -- >       props (key "real" real >>> key "img" real) >>> onTail pair) >>> pair
@@ -234,6 +238,8 @@ props g = beginProperties >>> Dive (onTail (g >>> Flip endProperties))
 -- | Property by a key grammar. Looks up an S-expression by a
 -- specified key and runs a specified grammar on it. Expects the key
 -- to be present.
+--
+-- Note: performs linear lookup, /O(n)/
 key
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
@@ -248,6 +254,8 @@ key k g =
 
 -- | Optional property by a key grammar. Like 'key' but puts 'Nothing'
 -- in correspondence to the missing key and 'Just' to the present.
+--
+-- Note: performs linear lookup, /O(n)/
 optKey
   :: Text
   -> (forall t. Grammar p (Sexp :- t) (a :- t))
@@ -278,28 +286,14 @@ infix 3 .:?
 (.:?) = optKey
 
 
-parallel
-  :: (forall t. Grammar p (a :- t) (b :- t))
-  -> (forall t. Grammar p (c :- t) (d :- t))
-  -> Grammar p ((a, c) :- t) ((b, d) :- t)
-parallel f g =
-  Flip pair >>>
-  onHead (sealed g) >>>
-  onTail (onHead (sealed f)) >>>
-  pair
-
-
--- | Remaining properties grammar. Applies two grammars in parallel on
--- each of the remaining key-value pairs of the property list: one on
--- keys, another on corresponding S-expressions, and collects
--- transformed pairs into a list.
+-- | Remaining properties grammar. Extracts all key-value pairs and
+-- applies a grammar on every element.
 restKeys
-  :: (forall t. Grammar p (Text :- t) (a :- t))
-  -> (forall t. Grammar p (Sexp :- t) (b :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- [(a, b)] :- t)
-restKeys f g =
+  :: (forall t. Grammar p (Sexp :- Text :- t) (a :- t))
+  -> Grammar p (PropertyList :- t) (PropertyList :- [a] :- t)
+restKeys f =
   iso coerce coerce >>>
-  onHead (Traverse (sealed (parallel f g) >>> Step)) >>>
+  onHead (Traverse (sealed (Flip pair >>> f) >>> Step)) >>>
   Iso (\a -> PropertyList [] :- a) (\(_ :- a) -> a)
 
 

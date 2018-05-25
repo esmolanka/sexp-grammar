@@ -102,29 +102,30 @@ encode :: SexpIso a => a -> Either String ByteString
 encode =
   encodeWith sexpIso
 
--- | Serialise a value using provided grammar
+-- | Serialise a value using a provided grammar
 encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
   fmap Sexp.encode . toSexp g
 
--- | Serialise and pretty-print a value using @SexpIso@ instance
+-- | Serialise and pretty-print a value using its @SexpIso@ instance
 encodePretty :: SexpIso a => a -> Either String ByteString
 encodePretty =
   encodePrettyWith sexpIso
 
--- | Serialise and pretty-print a value using provided grammar
+-- | Serialise and pretty-print a value using a provided grammar
 encodePrettyWith :: SexpGrammar a -> a -> Either String ByteString
 encodePrettyWith g =
   fmap Sexp.format . toSexp g
 
 ----------------------------------------------------------------------
 
--- | Deserialise a value using @SexpIso@ instance
+-- | Deserialise a value using its @SexpIso@ instance
 decode :: SexpIso a => ByteString -> Either String a
 decode =
   decodeWith sexpIso "<string>"
 
--- | Deserialise a value using provided grammar, use provided file name for error messages
+-- | Deserialise a value using provided grammar, use a provided file
+-- name for error messages
 decodeWith :: SexpGrammar a -> FilePath -> ByteString -> Either String a
 decodeWith g fn input =
   Sexp.parseSexp fn input >>= fromSexp g

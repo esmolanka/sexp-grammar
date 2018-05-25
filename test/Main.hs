@@ -263,50 +263,67 @@ grammarTests = testGroup "Grammar tests"
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
   [ testCase "bool/true" $
-    fromSexp' sexpIso (Symbol "true") `otherEq` Right True
+    fromSexp' sexpIso (Symbol "true") `otherEq`
+    Right True
 
   , testCase "bool/false" $
-    fromSexp' sexpIso (Symbol "false") `otherEq` Right False
+    fromSexp' sexpIso (Symbol "false") `otherEq`
+    Right False
 
   , testCase "integer" $
-    fromSexp' integer (Number (42 ^ (42 :: Integer))) `otherEq` Right (42 ^ (42 :: Integer))
+    fromSexp' integer (Number (42 ^ (42 :: Integer))) `otherEq`
+    Right (42 ^ (42 :: Integer))
 
   , testCase "int" $
-    fromSexp' int (Number 65536) `otherEq` Right 65536
+    fromSexp' int (Number 65536) `otherEq`
+    Right 65536
 
   , testCase "real" $
-    fromSexp' real (Number  3.14) `otherEq` Right 3.14
+    fromSexp' real (Number  3.14) `otherEq`
+    Right 3.14
 
   , testCase "double" $
-    fromSexp' double (Number  3.14) `otherEq` Right 3.14
+    fromSexp' double (Number  3.14) `otherEq`
+    Right 3.14
 
   , testCase "string" $
-    fromSexp' string (String "foo\nbar baz") `otherEq` Right "foo\nbar baz"
+    fromSexp' string (String "foo\nbar baz") `otherEq`
+    Right "foo\nbar baz"
 
   , testCase "string'" $
-    fromSexp' string' (String "foo\nbar baz") `otherEq` Right "foo\nbar baz"
+    fromSexp' string' (String "foo\nbar baz") `otherEq`
+    Right "foo\nbar baz"
 
   , testCase "symbol" $
-    fromSexp' symbol (Symbol "foobarbaz") `otherEq` Right "foobarbaz"
-
+    fromSexp' symbol (Symbol "foobarbaz") `otherEq`
+    Right "foobarbaz"
   ]
 
 
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
   [ testCase "empty list of ints" $
-    fromSexp' (list (rest int)) (ParenList []) `otherEq` Right []
+    fromSexp'
+      (list (rest int))
+      (ParenList []) `otherEq`
+    Right []
 
   , testCase "list of strings" $
-    fromSexp' (list (rest string)) (ParenList [String "tt", String "ff", String "ff"]) `otherEq`
+    fromSexp'
+      (list (rest string))
+      (ParenList [String "tt", String "ff", String "ff"]) `otherEq`
     Right ["tt", "ff", "ff"]
 
   , testCase "bracket list of ints" $
-    fromSexp' (bracketList (rest int)) (BracketList [Number 123, Number 0, Number (-100)]) `otherEq`
+    fromSexp'
+      (bracketList (rest int))
+      (BracketList [Number 123, Number 0, Number (-100)]) `otherEq`
     Right [123, 0, -100]
 
   , testCase "brace list of strings" $
-    fromSexp' (braceList (rest string)) (BraceList [String "foo", String "bar"]) `otherEq`
+    fromSexp'
+      (braceList (rest string))
+      (BraceList [String "foo", String "bar"]) `otherEq`
     Right ["foo", "bar"]
   ]
 
@@ -314,28 +331,46 @@ listTests = testGroup "List combinator tests"
 dictTests :: TestTree
 dictTests = testGroup "Dict combinator tests"
   [ testCase "simple dict, present key" $
-    fromSexp' (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42]) `otherEq`
+    fromSexp'
+      (braceList (props (key "foo" int)))
+      (BraceList [Symbol ":foo", Number 42]) `otherEq`
     Right 42
 
   , testCase "simple dict, missing key" $
-    fromSexp' (braceList (props (key "bar" int))) (BraceList [Symbol ":foo", Number 42]) `otherEq`
+    fromSexp'
+      (braceList (props (key "bar" int)))
+      (BraceList [Symbol ":foo", Number 42]) `otherEq`
     (Left (ErrorMessage dummyPos [] (S.fromList ["keyword :bar"]) Nothing))
 
   , testCase "simple dict, missing optional key" $
-    fromSexp' (braceList (props (optKey "bar" int))) (BraceList []) `otherEq`
+    fromSexp'
+      (braceList (props (optKey "bar" int)))
+      (BraceList []) `otherEq`
     Right Nothing
 
   , testCase "simple dict, extra key" $
-    fromSexp' (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
+    fromSexp'
+      (braceList (props (key "foo" int)))
+      (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
     (Left (ErrorMessage dummyPos [] mempty (Just "keyword :bar")))
 
   , testCase "simple dict, remaining keys, from" $
-    fromSexp' (braceList (props (restKeys id int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
+    fromSexp'
+      (braceList (props (restKeys (int >>> pair))))
+      (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
     (Right [("foo", 42), ("bar", 0)])
 
   , testCase "simple dict, remaining keys, to" $
-    toSexp' (braceList (props (restKeys id int))) [("foo", 42), ("bar", 0)]  `sexpEq`
+    toSexp'
+      (braceList (props (restKeys (int >>> pair))))
+      [("foo", 42), ("bar", 0)]  `sexpEq`
     (Right (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]))
+
+  , testCase "simple dict, remaining keys then one more" $
+    fromSexp'
+      (braceList (props (restKeys (int >>> pair) >>> key "baz" int)) >>> pair)
+      (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
+    (Left (ErrorMessage dummyPos [] (S.fromList ["keyword :baz"]) Nothing))
   ]
 
 
