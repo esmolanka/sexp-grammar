@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -30,6 +31,7 @@ import Data.Semigroup as Semi
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
+import GHC.Generics
 
 import Data.Text.Prettyprint.Doc
   ( Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate
@@ -119,13 +121,15 @@ runGrammarString initPos m =
   left (renderString . layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) . ppError (pretty . show)) $
     runGrammar initPos m
 
-
 data ErrorMessage p = ErrorMessage
   { emPosition :: p
   , emAnnotations :: [Text]
   , emExpected :: Set Text
   , emGot :: Maybe Text
-  }
+  } deriving (Eq, Ord, Generic)
+
+instance (Pretty p) => Pretty (ErrorMessage p) where
+  pretty = ppError pretty
 
 ppMismatch :: Set Text -> Maybe Text -> Doc ann
 ppMismatch (S.toList -> []) Nothing =
