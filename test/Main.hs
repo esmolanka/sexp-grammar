@@ -24,14 +24,18 @@ import Data.Scientific
 import Data.Semigroup
 import Data.ByteString.Lazy.UTF8 (fromString)
 import qualified Data.Text as TS
+import qualified Data.Set as S
 import GHC.Generics
 import Test.QuickCheck ()
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 import Language.Sexp.Located as Sexp
 import Language.Sexp () -- for Show instance
+
+import Data.InvertibleGrammar (ErrorMessage(..), runGrammar, forward, backward)
 
 import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
@@ -39,6 +43,12 @@ import Language.SexpGrammar.TH hiding (match)
 
 parseSexp' :: String -> Either String Sexp
 parseSexp' input = Sexp.decode (fromString input)
+
+fromSexp' :: SexpGrammar a -> Sexp.Sexp -> Either (ErrorMessage Position) a
+fromSexp' g = runGrammar Sexp.dummyPos . forward (G.sealed g)
+
+toSexp' :: SexpGrammar a -> a -> Either (ErrorMessage Position) Sexp.Sexp
+toSexp' g = runGrammar Sexp.dummyPos . backward (G.sealed g)
 
 data Pair a b = Pair a b
   deriving (Show, Eq, Ord, Generic)
@@ -161,65 +171,80 @@ allTests = testGroup "All tests"
   , grammarTests
   ]
 
-(@?=~) :: Either String Sexp -> Either String Sexp -> Assertion
-(@?=~) a b = fmap toSimple a @?= fmap toSimple b
+sexpEq :: (Pretty e, Eq e) => Either e Sexp -> Either e Sexp -> Assertion
+sexpEq a b =
+  fmap toSimple a `otherEq` fmap toSimple b
+
+otherEq :: (Pretty e, Eq e, Show a, Eq a) => Either e a -> Either e a -> Assertion
+otherEq a b = do
+  (flip assertBool) (a == b) $
+    unlines
+      ["Output mismatch:"
+      , ppOutput a
+      , "vs."
+      , ppOutput b
+      ]
+  where
+    ppOutput o = case o of
+      Left err -> "Error message: " ++ show (pretty err)
+      Right v  -> "Output: " ++ show v
 
 lexerTests :: TestTree
 lexerTests = testGroup "Sexp lexer/parser tests"
   [ testCase "123 is an integer number" $
       parseSexp' "123"
-      @?=~ Right (Number 123)
+      `sexpEq` Right (Number 123)
   , testCase "+123 is an integer number" $
       parseSexp' "+123"
-      @?=~ Right (Number 123)
+      `sexpEq` Right (Number 123)
   , testCase "-123 is an integer number" $
       parseSexp' "-123"
-      @?=~ Right (Number (- 123))
+      `sexpEq` Right (Number (- 123))
   , testCase "+123.4e5 is a floating number" $
       parseSexp' "+123.4e5"
-      @?=~ Right (Number (read "+123.4e5" :: Scientific))
+      `sexpEq` Right (Number (read "+123.4e5" :: Scientific))
   , testCase "comments" $
       parseSexp' ";; hello, world\n   123"
-      @?=~ Right (Number 123)
+      `sexpEq` Right (Number 123)
   , testCase "cyrillic characters in comments" $
       parseSexp' ";; привет!\n   123"
-      @?=~ Right (Number 123)
+      `sexpEq` Right (Number 123)
   , testCase "unicode math in comments" $
       parseSexp' ";; Γ ctx\n;; ----- Nat-formation\n;; Γ ⊦ Nat : Type\nfoobar"
-      @?=~ Right (Symbol "foobar")
+      `sexpEq` Right (Symbol "foobar")
   , testCase "symbol" $
       parseSexp' "hello-world"
-      @?=~ Right (Symbol "hello-world")
+      `sexpEq` Right (Symbol "hello-world")
   , testCase "whitespace and symbol" $
       parseSexp' "\t\n   hello-world\n"
-      @?=~ Right (Symbol "hello-world")
+      `sexpEq` Right (Symbol "hello-world")
   , testCase "cyrillic symbol" $
       parseSexp' "символ"
-      @?=~ Right (Symbol "символ")
+      `sexpEq` Right (Symbol "символ")
   , testCase "string with arabic characters" $
       parseSexp' "\"ي الخاطفة الجديدة، مع, بلديهم\""
-      @?=~ Right (String "ي الخاطفة الجديدة، مع, بلديهم")
+      `sexpEq` Right (String "ي الخاطفة الجديدة، مع, بلديهم")
   , testCase "string with japanese characters" $
       parseSexp' "\"媯綩 づ竤バ り姥娩ぎょひ\""
-      @?=~ Right (String "媯綩 づ竤バ り姥娩ぎょひ")
+      `sexpEq` Right (String "媯綩 づ竤バ り姥娩ぎょひ")
   , testCase "paren-list" $
       parseSexp' "(foo bar)"
-      @?=~ Right (ParenList [Symbol "foo", Symbol "bar"])
+      `sexpEq` Right (ParenList [Symbol "foo", Symbol "bar"])
   , testCase "bracket-list" $
       parseSexp' "[foo bar]"
-      @?=~ Right (BracketList [Symbol "foo", Symbol "bar"])
+      `sexpEq` Right (BracketList [Symbol "foo", Symbol "bar"])
   , testCase "brace-list" $
       parseSexp' "{foo bar}"
-      @?=~ Right (BraceList [Symbol "foo", Symbol "bar"])
+      `sexpEq` Right (BraceList [Symbol "foo", Symbol "bar"])
   , testCase "quoted" $
       parseSexp' "'foo"
-      @?=~ Right (Modified Quote (Symbol "foo"))
+      `sexpEq` Right (Modified Quote (Symbol "foo"))
   , testCase "hashed" $
       parseSexp' "#foo"
-      @?=~ Right (Symbol "#foo")
+      `sexpEq` Right (Symbol "#foo")
   , testCase "keyword" $
       parseSexp' ":foo"
-      @?=~ Right (Symbol ":foo")
+      `sexpEq` Right (Symbol ":foo")
   ]
 
 
@@ -238,31 +263,31 @@ grammarTests = testGroup "Grammar tests"
 baseTypeTests :: TestTree
 baseTypeTests = testGroup "Base type combinator tests"
   [ testCase "bool/true" $
-    G.fromSexp sexpIso (Symbol "true") @?= Right True
+    fromSexp' sexpIso (Symbol "true") `otherEq` Right True
 
   , testCase "bool/false" $
-    G.fromSexp sexpIso (Symbol "false") @?= Right False
+    fromSexp' sexpIso (Symbol "false") `otherEq` Right False
 
   , testCase "integer" $
-    G.fromSexp integer (Number (42 ^ (42 :: Integer))) @?= Right (42 ^ (42 :: Integer))
+    fromSexp' integer (Number (42 ^ (42 :: Integer))) `otherEq` Right (42 ^ (42 :: Integer))
 
   , testCase "int" $
-    G.fromSexp int (Number 65536) @?= Right 65536
+    fromSexp' int (Number 65536) `otherEq` Right 65536
 
   , testCase "real" $
-    G.fromSexp real (Number  3.14) @?= Right 3.14
+    fromSexp' real (Number  3.14) `otherEq` Right 3.14
 
   , testCase "double" $
-    G.fromSexp double (Number  3.14) @?= Right 3.14
+    fromSexp' double (Number  3.14) `otherEq` Right 3.14
 
   , testCase "string" $
-    G.fromSexp string (String "foo\nbar baz") @?= Right "foo\nbar baz"
+    fromSexp' string (String "foo\nbar baz") `otherEq` Right "foo\nbar baz"
 
   , testCase "string'" $
-    G.fromSexp string' (String "foo\nbar baz") @?= Right "foo\nbar baz"
+    fromSexp' string' (String "foo\nbar baz") `otherEq` Right "foo\nbar baz"
 
   , testCase "symbol" $
-    G.fromSexp symbol (Symbol "foobarbaz") @?= Right "foobarbaz"
+    fromSexp' symbol (Symbol "foobarbaz") `otherEq` Right "foobarbaz"
 
   ]
 
@@ -270,18 +295,18 @@ baseTypeTests = testGroup "Base type combinator tests"
 listTests :: TestTree
 listTests = testGroup "List combinator tests"
   [ testCase "empty list of ints" $
-    G.fromSexp (list (rest int)) (ParenList []) @?= Right []
+    fromSexp' (list (rest int)) (ParenList []) `otherEq` Right []
 
   , testCase "list of strings" $
-    G.fromSexp (list (rest string)) (ParenList [String "tt", String "ff", String "ff"]) @?=
+    fromSexp' (list (rest string)) (ParenList [String "tt", String "ff", String "ff"]) `otherEq`
     Right ["tt", "ff", "ff"]
 
   , testCase "bracket list of ints" $
-    G.fromSexp (bracketList (rest int)) (BracketList [Number 123, Number 0, Number (-100)]) @?=
+    fromSexp' (bracketList (rest int)) (BracketList [Number 123, Number 0, Number (-100)]) `otherEq`
     Right [123, 0, -100]
 
   , testCase "brace list of strings" $
-    G.fromSexp (braceList (rest string)) (BraceList [String "foo", String "bar"]) @?=
+    fromSexp' (braceList (rest string)) (BraceList [String "foo", String "bar"]) `otherEq`
     Right ["foo", "bar"]
   ]
 
@@ -289,46 +314,45 @@ listTests = testGroup "List combinator tests"
 dictTests :: TestTree
 dictTests = testGroup "Dict combinator tests"
   [ testCase "simple dict, present key" $
-    G.fromSexp (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42]) @?=
+    fromSexp' (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42]) `otherEq`
     Right 42
 
   , testCase "simple dict, missing key" $
-    G.fromSexp (braceList (props (key "bar" int))) (BraceList [Symbol ":foo", Number 42]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Expected: keyword :bar") :: Either String Int)
+    fromSexp' (braceList (props (key "bar" int))) (BraceList [Symbol ":foo", Number 42]) `otherEq`
+    (Left (ErrorMessage dummyPos [] (S.fromList ["keyword :bar"]) Nothing))
 
   , testCase "simple dict, missing optional key" $
-    G.fromSexp (braceList (props (optKey "bar" int))) (BraceList []) @?=
+    fromSexp' (braceList (props (optKey "bar" int))) (BraceList []) `otherEq`
     Right Nothing
 
   , testCase "simple dict, extra key" $
-    G.fromSexp (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Unexpected: keyword :bar") :: Either String Int)
+    fromSexp' (braceList (props (key "foo" int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
+    (Left (ErrorMessage dummyPos [] mempty (Just "keyword :bar")))
 
   , testCase "simple dict, remaining keys, from" $
-    G.fromSexp (braceList (props (restKeys id int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) @?=
+    fromSexp' (braceList (props (restKeys id int))) (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]) `otherEq`
     (Right [("foo", 42), ("bar", 0)])
 
   , testCase "simple dict, remaining keys, to" $
-    G.toSexp (braceList (props (restKeys id int))) [("foo", 42), ("bar", 0)]  @?=~
+    toSexp' (braceList (props (restKeys id int))) [("foo", 42), ("bar", 0)]  `sexpEq`
     (Right (BraceList [Symbol ":foo", Number 42, Symbol ":bar", Number 0]))
-
   ]
 
 
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $
-    G.fromSexp sexpIso (ParenList [Symbol "false", Symbol "true"]) @?=
+    fromSexp' sexpIso (ParenList [Symbol "false", Symbol "true"]) `otherEq`
     Right (Pair False True)
 
   , testCase "sum of products (Bar True 42)" $
-    G.fromSexp sexpIso (ParenList [Symbol "bar", Symbol "true", Number 42]) @?=
+    fromSexp' sexpIso (ParenList [Symbol "bar", Symbol "true", Number 42]) `otherEq`
     Right (Bar True (42 :: Int))
 
   , testCase "sum of products (Baz True False) tries to parse (baz #f 10)" $
-    G.fromSexp sexpIso (ParenList [Symbol "baz", Symbol "false", Number 10]) @?=
-    (Left ("<no location information>:1:0: mismatch:\n    Expected: " ++
-           "symbol false,\n    symbol true\n    But got:  10") :: Either String (Foo Bool Bool))
+    fromSexp' (sexpIso :: SexpGrammar (Foo Bool Bool))
+    (ParenList [Symbol "baz", Symbol "false", Number 10]) `otherEq`
+    (Left (ErrorMessage dummyPos [] (S.fromList ["symbol false", "symbol true"]) (Just "10")))
   ]
 
 
@@ -344,22 +368,22 @@ testArithExprSexp =
 parseTests :: TestTree
 parseTests = testGroup "parse tests"
   [ testCase "(+ 0 (*))" $
-      G.fromSexp arithExprGenericIso testArithExprSexp
-      @?= Right testArithExpr
+      fromSexp' arithExprGenericIso testArithExprSexp
+      `otherEq` Right testArithExpr
   ]
 
 
 genTests :: TestTree
 genTests = testGroup "gen tests"
   [ testCase "(+ 0 (*))" $
-      G.toSexp arithExprGenericIso testArithExpr
-      @?= Right testArithExprSexp
+      toSexp' arithExprGenericIso testArithExpr
+      `otherEq` Right testArithExprSexp
   ]
 
 
 genParseIdentityProp :: forall a. (Eq a) => (forall t. Grammar Position (Sexp :- t) (a :- t)) -> a -> Bool
 genParseIdentityProp iso expr =
-  (G.toSexp iso expr >>= G.fromSexp iso :: Either String a)
+  (toSexp' iso expr >>= fromSexp' iso :: Either (ErrorMessage Position) a)
   ==
   Right expr
 

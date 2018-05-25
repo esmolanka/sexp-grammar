@@ -70,7 +70,6 @@ import Control.Category ((<<<), (>>>))
 
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.InvertibleGrammar
-import Data.InvertibleGrammar.Base
 import Data.InvertibleGrammar.Combinators
 
 import Language.Sexp.Located (Sexp, Position)
@@ -84,26 +83,17 @@ type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
 ----------------------------------------------------------------------
 -- Sexp interface
 
-runParse :: Grammar Position (Sexp :- ()) (a :- ()) -> Sexp -> ContextError (Propagation Position) (GrammarError Position) a
-runParse gram input =
-  (\(x :- _) -> x) <$> forward gram (input :- ())
-
-runGen :: Grammar Position (Sexp :- ()) (a :- ()) -> a -> ContextError (Propagation Position) (GrammarError Position) Sexp
-runGen gram input =
-  (\(x :- _) -> x) <$> backward gram (input :- ())
-
-
--- | Run grammar in parsing direction
+-- | Run grammar in parsing (left-to-right) direction
 fromSexp :: SexpGrammar a -> Sexp -> Either String a
-fromSexp g a =
-  runGrammar Sexp.dummyPos showPos (runParse g a)
-  where
-    showPos (Sexp.Position fn line col) = fn ++ ":" ++ show line ++ ":" ++ show col
+fromSexp g =
+  runGrammarString Sexp.dummyPos .
+    forward (sealed g)
 
--- | Run grammar in generating direction
+-- | Run grammar in generating (right-to-left) direction
 toSexp :: SexpGrammar a -> a -> Either String Sexp
-toSexp g a =
-  runGrammar Sexp.dummyPos (const "<no location information>") (runGen g a)
+toSexp g =
+  runGrammarString Sexp.dummyPos .
+    backward (sealed g)
 
 ----------------------------------------------------------------------
 
