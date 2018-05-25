@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -35,7 +36,16 @@ import Data.Text.Prettyprint.Doc
   , comma, colon, (<+>), layoutSmart, PageWidth(..), LayoutOptions(..)
   )
 
+#if MIN_VERSION_prettyprinter(1,2,0)
 import Data.Text.Prettyprint.Doc.Render.String
+#else
+import Data.Text.Prettyprint.Doc (SimpleDocStream)
+import Data.Text.Prettyprint.Doc.Render.ShowS
+
+renderString :: SimpleDocStream ann -> String
+renderString stream = renderShowS stream ""
+#endif
+
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0] []
