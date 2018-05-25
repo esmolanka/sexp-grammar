@@ -5,6 +5,9 @@
 module Data.InvertibleGrammar.Monad
   ( module Control.Monad.ContextError
   , runGrammar
+  , runGrammarDoc
+  , runGrammarString
+  , ErrorMessage (..)
   , doAnnotate
   , doDive
   , doStep
@@ -17,6 +20,7 @@ module Data.InvertibleGrammar.Monad
   , unexpected
   ) where
 
+import Control.Arrow (left)
 import Control.Applicative
 import Control.Monad.ContextError
 
@@ -28,8 +32,10 @@ import Data.Text (Text)
 
 import Data.Text.Prettyprint.Doc
   ( Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate
-  , comma, colon, (<+>)
+  , comma, colon, (<+>), layoutSmart, PageWidth(..), LayoutOptions(..)
   )
+
+import Data.Text.Prettyprint.Doc.Render.String
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0] []
@@ -81,34 +87,57 @@ instance Monoid Mismatch where
   mappend = (<>)
   {-# INLINE mappend #-}
 
-runGrammar :: p -> (p -> String) -> ContextError (Propagation p) (GrammarError p) a -> Either String a
-runGrammar initPos showPos m =
+runGrammar :: p -> ContextError (Propagation p) (GrammarError p) a -> Either (ErrorMessage p) a
+runGrammar initPos m =
   case runContextError m (initPropagation initPos) of
     Left (GrammarError p mismatch) ->
-      Left $ show $ renderMismatch (showPos (pPos p)) (reverse (pAnns p)) mismatch
-    Right a -> Right a
+      Left $ ErrorMessage
+        (pPos p)
+        (reverse (pAnns p))
+        (mismatchExpected mismatch)
+        (mismatchGot mismatch)
+    Right a ->
+      Right a
 
-instance Pretty Mismatch where
-  pretty (Mismatch (S.toList -> []) Nothing) =
-    "Unknown mismatch occurred"
-  pretty (Mismatch (S.toList -> []) unexpected) =
-    "Unexpected:" <+> pretty unexpected
-  pretty (Mismatch (S.toList -> expected) Nothing) =
-    "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
-  pretty (Mismatch (S.toList -> expected) (Just got)) =
-    vsep
-      [ "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
-      , "But got: " <+> pretty got
-      ]
+runGrammarDoc :: (Pretty p) => p -> ContextError (Propagation p) (GrammarError p) a -> Either (Doc ann) a
+runGrammarDoc initPos m =
+  left (ppError pretty) $
+    runGrammar initPos m
 
-renderMismatch :: String -> [Text] -> Mismatch -> Doc a
-renderMismatch pos annotations mismatch =
+runGrammarString :: (Show p) => p -> ContextError (Propagation p) (GrammarError p) a -> Either String a
+runGrammarString initPos m =
+  left (renderString . layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) . ppError (pretty . show)) $
+    runGrammar initPos m
+
+
+data ErrorMessage p = ErrorMessage
+  { emPosition :: p
+  , emAnnotations :: [Text]
+  , emExpected :: Set Text
+  , emGot :: Maybe Text
+  }
+
+ppMismatch :: Set Text -> Maybe Text -> Doc ann
+ppMismatch (S.toList -> []) Nothing =
+  "Unknown mismatch occurred"
+ppMismatch (S.toList -> []) unexpected =
+  "Unexpected:" <+> pretty unexpected
+ppMismatch (S.toList -> expected) Nothing =
+  "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
+ppMismatch (S.toList -> expected) (Just got) =
+  vsep
+  [ "Expected:" <+> fillSep (punctuate comma $ map pretty expected)
+  , "But got: " <+> pretty got
+  ]
+
+ppError :: (p -> Doc ann) -> ErrorMessage p -> Doc ann
+ppError ppPosition (ErrorMessage pos annotations expected got) =
   vsep $ catMaybes
-    [ Just $ pretty pos `mappend` ":" <+> "mismatch:"
+    [ Just $ ppPosition pos `mappend` ":" <+> "mismatch:"
     , if null annotations
       then Nothing
       else Just $ indent 2 $ "In" <+> hsep (punctuate (comma <> line <> "in") $ map pretty annotations) <> colon
-    , Just $ indent 4 $ pretty mismatch
+    , Just $ indent 4 $ ppMismatch expected got
     ]
 
 data GrammarError p = GrammarError (Propagation p) Mismatch

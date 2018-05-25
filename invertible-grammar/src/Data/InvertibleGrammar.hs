@@ -8,6 +8,10 @@ import Data.InvertibleGrammar.Base
   ( Grammar, (:-), forward, backward )
 import Data.InvertibleGrammar.Combinators
 import Data.InvertibleGrammar.Monad
-  ( runGrammar, ContextError, Propagation, GrammarError
+  ( runGrammar
+  , runGrammarDoc
+  , runGrammarString
+  , ErrorMessage(..)
+  , ContextError, Propagation , GrammarError
   , Mismatch, expected, unexpected
   )
