@@ -236,7 +236,7 @@ endProperties = PartialIso
 -- rest of this sequence is left untouched.
 --
 -- Collected 'PropertyList' is then available for random-access lookup
--- combinators 'key', 'optKey', '(.:)', '(.:?)' or bulk extraction
+-- combinators 'key', 'optKey', '.:', '.:?' or bulk extraction
 -- 'restKeys' combinator.
 --
 -- >>> :{
