@@ -9,13 +9,11 @@ encode a way how to parse S-expressions into a Haskell value, but how
 to serialise it back into an S-expression.
 
 The approach used in `sexp-grammar` is inspired by the paper
-[Invertible syntax descriptions: Unifying parsing and pretty printing]
-(http://www.informatik.uni-marburg.de/~rendel/unparse/) and a similar
-implementation of invertible grammar approach for JSON, library by
-Martijn van Steenbergen called
-[JsonGrammar2](https://github.com/MedeaMelana/JsonGrammar2).
+[Invertible syntax descriptions: Unifying parsing and pretty printing](http://www.informatik.uni-marburg.de/~rendel/unparse/)
+and a similar implementation of invertible grammar approach for JSON, library by
+Martijn van Steenbergen called [JsonGrammar2](https://github.com/MedeaMelana/JsonGrammar2).
 
-Let's have a look at `sexp-gramar` at work:
+Let's have a look at `sexp-grammar` at work:
 
 ```haskell
 {-# LANGUAGE DeriveGeneric     #-}
