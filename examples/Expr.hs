@@ -63,7 +63,9 @@ instance SexpIso Expr where
         (el (sexpIso :: SexpGrammar Prim) >>>   -- Push prim:       prim :- ()
          el (kwd "args") >>>                    -- Recognize :args, push nothing
          rest (sexpIso :: SexpGrammar Expr) >>> -- Push args:       args :- prim :- ()
-         onTail (swap >>> push "dummy" (const True) >>> swap)
+         onTail (swap >>> push "dummy"
+                  (const True)
+                  (const (expected "dummy")) >>> swap)
         ))
     $ End
 

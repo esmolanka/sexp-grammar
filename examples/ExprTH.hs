@@ -61,11 +61,13 @@ instance SexpIso Expr where
     , $(grammarFor 'Apply) .              -- Convert prim :- "dummy" :- args :- () to Apply node
         list
          (el (sexpIso :: SexpGrammar Prim) >>>   -- Push prim:       prim :- ()
-          el (kwd "args") >>>                -- Recognize :args, push nothing
+          el (kwd "args") >>>                    -- Recognize :args, push nothing
           rest (sexpIso :: SexpGrammar Expr) >>> -- Push args:       args :- prim :- ()
           onTail (
              swap >>>                            -- Swap:            prim :- args :- ()
-             push "dummy" (const True) >>>       -- Push "dummy":    "dummy" :- prim :- args :- ()
+             push "dummy"                        -- Push "dummy":    "dummy" :- prim :- args :- ()
+               (const True)
+               (const (expected "dummy")) >>>
              swap)                               -- Swap:            prim :- "dummy" :- args :- ()
          )
     ]
