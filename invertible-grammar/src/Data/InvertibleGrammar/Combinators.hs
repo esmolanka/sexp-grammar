@@ -66,13 +66,13 @@ partialOsi g' f' = Flip $ PartialIso f g
     g (b :- t) = (:- t) <$> g' b
 
 
-push :: a -> (a -> Bool) -> Grammar p t (a :- t)
-push a p = PartialIso f g
+push :: a -> (a -> Bool) -> (a -> Mismatch) -> Grammar p t (a :- t)
+push a p e = PartialIso f g
   where
     f t = a :- t
     g (a' :- t)
       | p a' = Right t
-      | otherwise = Left $ unexpected "pushed element"
+      | otherwise = Left $ e a'
 
 
 pair :: Grammar p (b :- a :- t) ((a, b) :- t)
