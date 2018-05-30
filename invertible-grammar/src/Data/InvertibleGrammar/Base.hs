@@ -36,6 +36,10 @@ import Data.Semigroup
 import Data.InvertibleGrammar.Monad
 import qualified Debug.Trace
 
+-- | A pair of values.
+--
+-- Isomorphic to a tuple with two elments, but is much more
+-- convenient for nested pairs.
 data h :- t = h :- t deriving (Eq, Show, Functor, Foldable, Traversable)
 infixr 5 :-
 
@@ -48,6 +52,17 @@ instance Bifoldable (:-) where
 instance Bitraversable (:-) where
   bitraverse f g (a :- b) = (:-) <$> f a <*> g b
 
+-- | Representation of an invertible grammar - a grammar that can
+-- be executed either "forwards" and "backwards".
+--
+-- For a grammar @Grammar p a b@, running it forwards will take
+-- a value of type @a@ and possibly produce a value of type @b@. Running
+-- it backwards will take a value of type @b@ and possibly produce an @a@.
+--
+-- As a common example, running a 'Grammar' forwards corresponds to parsing
+-- and running backwards corresponds to prettyprinting.
+--
+-- That is, the grammar defines a partial isomorphism between two values.
 data Grammar p a b where
   Iso        :: (a -> b) -> (b -> a) -> Grammar p a b
   PartialIso :: (a -> b) -> (b -> Either Mismatch a) -> Grammar p a b
@@ -92,6 +107,9 @@ instance Category (Grammar p) where
 instance Semigroup (Grammar p a b) where
   (<>) = (:<>:)
 
+-- | Run 'Grammar' forwards.
+--
+-- A common example is parsing a complex type from a simpler one.
 forward :: Grammar p a b -> a -> ContextError (Propagation p) (GrammarError p) b
 forward (Iso f _)        = return . f
 forward (PartialIso f _) = return . f
@@ -106,6 +124,9 @@ forward (Dive g)         = doDive . forward g
 forward Step             = \x -> doStep >> return x
 forward Locate           = \x -> doLocate x >> return x
 
+-- | Run 'Grammar' backwards.
+--
+-- A common example is converting a complex type in terms a simpler one.
 backward :: Grammar p a b -> b -> ContextError (Propagation p) (GrammarError p) a
 backward (Iso _ g)        = return . g
 backward (PartialIso _ g) = either doError return . g
