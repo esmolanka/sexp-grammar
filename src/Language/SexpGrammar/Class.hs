@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
 
-module Language.SexpGrammar.Class where
+module Language.SexpGrammar.Class (SexpIso(..)) where
 
 import Prelude hiding ((.), id)
 
@@ -26,6 +26,8 @@ import Language.Sexp.Located
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Generic
 
+-- | A class for types that could be converted to and inferred from
+-- s-expressions defined by 'Sexp'.
 class SexpIso a where
   sexpIso :: Grammar Position (Sexp :- t) (a :- t)
 

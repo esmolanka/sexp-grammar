@@ -87,6 +87,9 @@ import qualified Language.Sexp.Located as Sexp
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Class
 
+-- | A common type of grammar that operates on S-expressions. This grammar
+-- accepts a single 'Sexp' value and converts it into a value of type
+-- @a@.
 type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
 
 ----------------------------------------------------------------------

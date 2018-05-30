@@ -76,10 +76,10 @@ ppKey kw = "keyword :" <> kw
 
 ----------------------------------------------------------------------
 
--- | Key\/value pairs of a property list that is being parsed/constructed
+-- | Key\/value pairs of a property list that is being parsed/constructed.
 newtype PropertyList = PropertyList [(Text, Sexp)]
 
--- | Elements of a list that is being parsed/constructed
+-- | Elements of a list that is being parsed/constructed.
 newtype List = List [Sexp]
 
 ----------------------------------------------------------------------
@@ -177,10 +177,10 @@ braceList g = beginBraceList >>> Dive (g >>> endList)
 -- E.g.:
 --
 -- * @el (sym "lambda")@ consumes a symbol \"lambda\" and produces no
--- * values on the stack.
+--   values on the stack.
 --
 -- * @el symbol@ consumes a symbol and produces a 'Text' value
--- * corresponding to the symbol.
+--   corresponding to the symbol.
 el :: Grammar p (Sexp :- t) t' -> Grammar p (List :- t) (List :- t')
 el g = coerced (Flip cons >>> onTail g >>> Step)
 
