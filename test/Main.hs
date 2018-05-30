@@ -374,6 +374,40 @@ dictTests = testGroup "Dict combinator tests"
   ]
 
 
+prefixTests :: TestTree
+prefixTests = testGroup "Prefix combinator tests"
+  [ testCase "quoted" $
+    fromSexp'
+      (quoted (list (rest int)))
+      (Modified Quote (ParenList [Number 1, Number 2])) `otherEq`
+    Right [1, 2]
+
+  , testCase "hashed" $
+    fromSexp'
+      (hashed (bracketList (rest int)))
+      (Modified Quote (BracketList [Number 1, Number 2])) `otherEq`
+    Right [1, 2]
+
+  , testCase "backticked" $
+    fromSexp'
+      (prefixed Backtick (bracketList (rest int)))
+      (Modified Backtick (BracketList [Number 123, Number 0, Number (-100)])) `otherEq`
+    Right [123, 0, -100]
+
+  , testCase "comma-ed" $
+    fromSexp'
+      (prefixed Comma (bracketList (rest int)))
+      (Modified Comma (BracketList [Number 123, Number 0, Number (-100)])) `otherEq`
+    Right [123, 0, -100]
+
+  , testCase "comma-at-ed" $
+    fromSexp'
+      (prefixed CommaAt (bracketList (rest int)))
+      (Modified CommaAt (BracketList [Number 123, Number 0, Number (-100)])) `otherEq`
+    Right [123, 0, -100]
+  ]
+
+
 revStackPrismTests :: TestTree
 revStackPrismTests = testGroup "Reverse stack prism tests"
   [ testCase "pair of two bools" $

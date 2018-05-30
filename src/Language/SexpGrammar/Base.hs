@@ -31,6 +31,11 @@ module Language.SexpGrammar.Base
   , (.:)
   , (.:?)
   , restKeys
+    -- * Quotes, antiquotes, etc
+  , Prefix (..)
+  , prefixed
+  , quoted
+  , hashed
   ) where
 
 import Control.Category ((>>>))
@@ -396,3 +401,33 @@ kwd s =
            case a of
              AtomSymbol s' | k == s' -> Right t
              other -> Left $ expected (ppKey s) <> unexpected (ppBrief $ Atom other)))
+
+
+prefix :: Prefix -> Grammar Position (Sexp :- t) (Sexp :- t)
+prefix m = locate >>> partialOsi
+  (\case
+      Modified m' a | m' == m -> Right a
+      other -> Left (expected (ppBrief (Modified m (Symbol "-prefixed"))) <> unexpected (ppBrief other)))
+  (Modified m)
+
+-- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
+-- @Sexp@ under the hash prefix.
+--
+-- > encodeWith (hashed symbol) "foo" ≡ "#foo"
+hashed :: Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
+hashed g = prefix Hash >>> g
+
+-- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
+-- @Sexp@ under the quotation.
+--
+-- > encodeWith (quoted symbol) "foo" ≡ "'foo"
+quoted :: Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
+quoted g = prefix Quote >>> g
+
+
+-- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
+-- @Sexp@ under the prefix.
+--
+-- > encodeWith (prefixed Backtick symbol) "foo" ≡ "`foo"
+prefixed :: Prefix -> Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
+prefixed m g = prefix m >>> g
