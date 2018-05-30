@@ -31,8 +31,8 @@ class SexpIso a where
 
 instance SexpIso Bool where
   sexpIso =
-    (sym "true"  >>> push True (==True)) <>
-    (sym "false" >>> push False (==False))
+    (sym "true"  >>> push True  (==True)  (const $ expected "Bool")) <>
+    (sym "false" >>> push False (==False) (const $ expected "Bool"))
 
 instance SexpIso Int where
   sexpIso = int
