@@ -1,5 +1,5 @@
 name:                sexp-grammar
-version:             1.3.0
+version:             2.0.0
 license:             BSD3
 license-file:        LICENSE
 author:              Eugene Smolanka, Sergey Vinokurov
@@ -12,10 +12,10 @@ extra-source-files:  README.md
                      examples/Misc.hs
 cabal-version:       >=1.10
 synopsis:
-  Invertible parsers for S-expressions
+  Invertible grammar combinators for S-expressions
 description:
-  Invertible grammar combinators for serializing and deserializing from S-expessions
-tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1
+  Serialisation to and deserialisation from S-expressions derived from a single grammar definition.
+tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
 
 source-repository head
   type: git

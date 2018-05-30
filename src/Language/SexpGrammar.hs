@@ -7,24 +7,33 @@
 Write your grammar once and get both parser and pretty-printer, for
 free.
 
+> {-# LANGUAGE DeriveGeneric     #-}
+> {-# LANGUAGE OverloadedStrings #-}
+> {-# LANGUAGE TypeOperators     #-}
+>
+> import GHC.Generics
+> import Data.Text (Text)
+> import Language.SexpGrammar
+> import Language.SexpGrammar.Generic
+>
 > data Person = Person
 >   { pName    :: Text
 >   , pAddress :: Text
 >   , pAge     :: Maybe Int
 >   } deriving (Show, Generic)
 >
-> personGrammar :: Grammar Position (Sexp :- t) (Person :- t)
-> personGrammar = with $ \person ->  -- Person is isomorphic to:
->   list (                           -- a list with
->     el (sym "person") >>>          -- a symbol "person",
->     el string         >>>          -- a string, and
->     props (                        -- a property-list with
->       "address" .:  string >>>     -- a keyword :address and a string value, and
->       "age"     .:? int))  >>>     -- an optional keyword :age with int value.
->   person
+> instance SexpIso Person where
+>   sexpIso = with $ \person ->  -- Person is isomorphic to:
+>     list (                           -- a list with
+>       el (sym "person") >>>          -- a symbol "person",
+>       el string         >>>          -- a string, and
+>       props (                        -- a property-list with
+>         "address" .:  string >>>     -- a keyword :address and a string value, and
+>         "age"     .:? int))  >>>     -- an optional keyword :age with int value.
+>     person
 
-So now we can use @personGrammar@ to parse S-expessions to @Person@
-record and pretty-print any @Person@ back to S-expression.
+So now we can use this isomorphism to parse S-expessions to @Person@
+record and pretty-print @Person@ records back to S-expression.
 
 > (person "John Doe" :address "42 Whatever str." :age 25)
 
@@ -84,12 +93,16 @@ type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
 -- Sexp interface
 
 -- | Run grammar in parsing (left-to-right) direction
+--
+-- > fromSexp g = runGrammarString Sexp.dummyPos . forward (sealed g)
 fromSexp :: SexpGrammar a -> Sexp -> Either String a
 fromSexp g =
   runGrammarString Sexp.dummyPos .
     forward (sealed g)
 
 -- | Run grammar in generating (right-to-left) direction
+--
+-- > toSexp g = runGrammarString Sexp.dummyPos . backward (sealed g)
 toSexp :: SexpGrammar a -> a -> Either String Sexp
 toSexp g =
   runGrammarString Sexp.dummyPos .
