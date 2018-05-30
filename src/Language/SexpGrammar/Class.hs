@@ -1,8 +1,12 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE TypeOperators     #-}
 
-module Language.SexpGrammar.Class (SexpIso(..)) where
+module Language.SexpGrammar.Class
+  ( SexpGrammar
+  , SexpIso(..)
+  ) where
 
 import Prelude hiding ((.), id)
 
@@ -26,10 +30,15 @@ import Language.Sexp.Located
 import Language.SexpGrammar.Base
 import Language.SexpGrammar.Generic
 
+-- | A common type of grammar that operates on S-expressions. This grammar
+-- accepts a single 'Sexp' value and converts it into a value of type
+-- @a@.
+type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
+
 -- | A class for types that could be converted to and inferred from
 -- s-expressions defined by 'Sexp'.
 class SexpIso a where
-  sexpIso :: Grammar Position (Sexp :- t) (a :- t)
+  sexpIso :: SexpGrammar a
 
 instance SexpIso Bool where
   sexpIso =
