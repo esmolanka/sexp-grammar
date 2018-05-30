@@ -110,7 +110,7 @@ toSexp g =
 
 ----------------------------------------------------------------------
 
--- | Serialize a value using @SexpIso@ instance
+-- | Serialize a value using 'SexpIso' instance
 encode :: SexpIso a => a -> Either String ByteString
 encode =
   encodeWith sexpIso
@@ -120,7 +120,7 @@ encodeWith :: SexpGrammar a -> a -> Either String ByteString
 encodeWith g =
   fmap Sexp.encode . toSexp g
 
--- | Serialise and pretty-print a value using its @SexpIso@ instance
+-- | Serialise and pretty-print a value using its 'SexpIso' instance
 encodePretty :: SexpIso a => a -> Either String ByteString
 encodePretty =
   encodePrettyWith sexpIso
@@ -132,7 +132,7 @@ encodePrettyWith g =
 
 ----------------------------------------------------------------------
 
--- | Deserialise a value using its @SexpIso@ instance
+-- | Deserialise a value using its 'SexpIso' instance
 decode :: SexpIso a => ByteString -> Either String a
 decode =
   decodeWith sexpIso "<string>"
