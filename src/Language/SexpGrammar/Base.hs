@@ -54,6 +54,11 @@ import Data.Semigroup
 
 import Language.Sexp.Located
 
+-- Setup code for doctest.
+-- $setup
+-- >>> :set -XOverloadedStrings
+-- >>> import Language.SexpGrammar (encodeWith)
+
 ----------------------------------------------------------------------
 
 ppBrief :: Sexp -> Text
@@ -137,8 +142,9 @@ endList = Flip $ PartialIso
 -- | Parenthesis list grammar. Runs a specified grammar on a
 -- sequence of S-exps in a parenthesized list.
 --
--- > let grammar = list (el symbol >>> el int) >>> pair
--- > in encodeWith grammar ("foo", 42) ≡ "(foo 42)"
+-- >>> let grammar = list (el symbol >>> el int) >>> pair
+-- >>> encodeWith grammar ("foo", 42)
+-- Right "(foo 42)"
 list :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 list g = beginParenList >>> Dive (g >>> endList)
 
@@ -146,8 +152,9 @@ list g = beginParenList >>> Dive (g >>> endList)
 -- | Bracket list grammar. Runs a specified grammar on a
 -- sequence of S-exps in a bracketed list.
 --
--- > let grammar = bracketList (rest int)
--- > in encodeWith grammar [2, 3, 5, 7, 11, 13] ≡ "[2 3 5 7 11 13]"
+-- >>> let grammar = bracketList (rest int)
+-- >>> encodeWith grammar [2, 3, 5, 7, 11, 13]
+-- Right "[2 3 5 7 11 13]"
 bracketList :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 bracketList g = beginBracketList >>> Dive (g >>> endList)
 
@@ -155,8 +162,9 @@ bracketList g = beginBracketList >>> Dive (g >>> endList)
 -- | Brace list grammar. Runs a specified grammar on a
 -- sequence of S-exps in a list enclosed in braces.
 --
--- > let grammar = braceList (props (key "x" real >>> key "y" real)) >>> pair
--- > in encodeWith grammar (3.1415, -1) ≡ "{:x 3.1415 :y -1}"
+-- >>> let grammar = braceList (props (key "x" real >>> key "y" real)) >>> pair
+-- >>> encodeWith grammar (3.1415, -1)
+-- Right "{:x 3.1415 :y -1}"
 braceList :: Grammar Position (List :- t) (List :- t') -> Grammar Position (Sexp :- t) t'
 braceList g = beginBraceList >>> Dive (g >>> endList)
 
@@ -181,8 +189,9 @@ el g = coerced (Flip cons >>> onTail g >>> Step)
 -- of remaining elements of a sequence and collect them. Expects zero
 -- or more elements in the sequence.
 --
--- > let grammar = list (el (sym "check-primes") >>> rest int)
--- > in encodeWith grammar [2, 3, 5, 7, 11, 13] ≡ "(check-primes 2 3 5 7 11 13)"
+-- >>> let grammar = list (el (sym "check-primes") >>> rest int)
+-- >>> encodeWith grammar [2, 3, 5, 7, 11, 13]
+-- Right "(check-primes 2 3 5 7 11 13)"
 rest
   :: (forall t. Grammar p (Sexp :- t) (a :- t))
   -> Grammar p (List :- t) (List :- [a] :- t)
@@ -230,10 +239,13 @@ endProperties = PartialIso
 -- combinators 'key', 'optKey', '(.:)', '(.:?)' or bulk extraction
 -- 'restKeys' combinator.
 --
--- > let grammar = list (
--- >       props (key "real" real >>> key "img" real) >>> onTail pair >>> el (sym "/")
--- >       props (key "real" real >>> key "img" real) >>> onTail pair) >>> pair
--- > in encodeWith grammar ((0, -1), (1, 0) ≡ "{:real 0 :img -1 / :real 1 :img 0}"
+-- >>> :{
+--  let grammar = braceList (
+--        props (key "real" real >>> key "img" real) >>> onTail pair >>> el (sym "/") >>>
+--        props (key "real" real >>> key "img" real) >>> onTail pair) >>> pair
+--  in encodeWith grammar ((0, -1), (1, 0))
+-- :}
+-- Right "{:real 0 :img -1 / :real 1 :img 0}"
 props
   :: Grammar p (PropertyList :- t) (PropertyList :- t')
   -> Grammar p (List :- t) (List :- t')
@@ -307,7 +319,8 @@ restKeys f =
 
 -- | Grammar matching integer number atoms to 'Integer' values.
 --
--- > encodeWith integer 2^100 ≡ "1267650600228229401496703205376"
+-- >>> encodeWith integer (2^100)
+-- Right "1267650600228229401496703205376"
 integer :: Grammar Position (Sexp :- t) (Integer :- t)
 integer = atom >>> partialOsi
   (\case
@@ -318,16 +331,19 @@ integer = atom >>> partialOsi
 
 -- | Grammar matching integer number atoms to 'Int' values.
 --
--- > encodeWith int (2^63)   ≡ "-9223372036854775808"
--- > encodeWith int (2^63-1) ≡  "9223372036854775807"
+-- >>> encodeWith int (2^63)
+-- Right "-9223372036854775808"
+--
+-- >>> encodeWith int (2^63-1)
+-- Right "9223372036854775807"
 int :: Grammar Position (Sexp :- t) (Int :- t)
 int = integer >>> iso fromIntegral fromIntegral
 
 
 -- | Grammar matching fractional number atoms to 'Scientific' values.
 --
--- > encodeWith real (3.141592653589793^3)
--- >   ≡ "31.006276680299813114880451174049119330924860257"
+-- >>> encodeWith real (3.141592653589793^3)
+-- Right "31.006276680299813114880451174049119330924860257"
 real :: Grammar Position (Sexp :- t) (Scientific :- t)
 real = atom >>> partialOsi
   (\case
@@ -338,13 +354,17 @@ real = atom >>> partialOsi
 
 -- | Grammar matching fractional number atoms to 'Double' values.
 --
--- > encodeWith double (3.141592653589793^3)
--- >   ≡ "31.006276680299816"
+-- >>> encodeWith double (3.141592653589793^3)
+-- Right "31.006276680299816"
 double :: Grammar Position (Sexp :- t) (Double :- t)
 double = real >>> iso toRealFloat fromFloatDigits
 
 
 -- | Grammar matching string literal atoms to 'Text' values.
+--
+-- >>> let grammar = list (el string >>> el int) >>> pair
+-- >>> encodeWith grammar ("some-string", 42)
+-- Right "(\"some-string\" 42)"
 string :: Grammar Position (Sexp :- t) (Text :- t)
 string = atom >>> partialOsi
   (\case
@@ -354,6 +374,9 @@ string = atom >>> partialOsi
 
 
 -- | Grammar matching symbol literal atoms to 'Text' values.
+--
+-- >>> encodeWith symbol "some-symbol"
+-- Right "some-symbol"
 symbol :: Grammar Position (Sexp :- t) (Text :- t)
 symbol = atom >>> partialOsi
   (\case
@@ -365,7 +388,8 @@ symbol = atom >>> partialOsi
 -- | Grammar matching symbol literal atoms starting with \':\' to
 -- 'Text' values without the colon char.
 --
--- > encodeWith keyword "username" ≡ ":username"
+-- >>> encodeWith keyword "username"
+-- Right ":username"
 keyword :: Grammar Position (Sexp :- t) (Text :- t)
 keyword = atom >>> partialOsi
   (\case
@@ -377,7 +401,9 @@ keyword = atom >>> partialOsi
 
 -- | Grammar matching symbol literal atoms to a specified symbol.
 --
--- > encodeWith (sym "username") () ≡ "username"
+-- >>> let grammar = list (el (sym "username") >>> el string)
+-- >>> encodeWith grammar "Julius Caesar"
+-- Right "(username \"Julius Caesar\")"
 sym :: Text -> Grammar Position (Sexp :- t) t
 sym s = atom >>> Flip (PartialIso
   (AtomSymbol s :-)
@@ -391,7 +417,9 @@ sym s = atom >>> Flip (PartialIso
 -- | Grammar matching symbol literal atoms to a specified symbol
 -- prepended with \':\'.
 --
--- > encodeWith (kwd "password") () ≡ ":password"
+-- >>> let grammar = list (el (kwd "password") >>> el int)
+-- >>> encodeWith grammar 42
+-- Right "(:password 42)"
 kwd :: Text -> Grammar Position (Sexp :- t) t
 kwd s =
   let k = TS.cons ':' s
