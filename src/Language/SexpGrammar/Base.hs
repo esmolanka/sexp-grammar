@@ -441,14 +441,16 @@ prefix m = locate >>> partialOsi
 -- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
 -- @Sexp@ under the hash prefix.
 --
--- > encodeWith (hashed symbol) "foo" ≡ "#foo"
+-- >>> encodeWith (hashed symbol) "foo"
+-- Right "#foo"
 hashed :: Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
 hashed g = prefix Hash >>> g
 
 -- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
 -- @Sexp@ under the quotation.
 --
--- > encodeWith (quoted symbol) "foo" ≡ "'foo"
+-- >>> encodeWith (quoted symbol) "foo"
+-- Right "'foo"
 quoted :: Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
 quoted g = prefix Quote >>> g
 
@@ -456,6 +458,7 @@ quoted g = prefix Quote >>> g
 -- | Grammar matching a prefixed S-expression, runs a sub-grammar on a
 -- @Sexp@ under the prefix.
 --
--- > encodeWith (prefixed Backtick symbol) "foo" ≡ "`foo"
+-- >>> encodeWith (prefixed Backtick symbol) "foo"
+-- Right "`foo"
 prefixed :: Prefix -> Grammar Position (Sexp :- t) (a :- t) -> Grammar Position (Sexp :- t) (a :- t)
 prefixed m g = prefix m >>> g
