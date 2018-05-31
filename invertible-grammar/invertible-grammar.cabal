@@ -4,7 +4,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Eugene Smolanka, Sergey Vinokurov
 maintainer:          Eugene Smolanka <esmolanka@gmail.com>
-homepage:            https://github.com/esmolanka/sexp-grammar
+homepage:            https://github.com/esmolanka/invertible-grammar
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
