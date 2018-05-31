@@ -6,7 +6,9 @@ module Data.InvertibleGrammar
 
 import Data.InvertibleGrammar.Base
   ( Grammar, (:-), forward, backward )
+
 import Data.InvertibleGrammar.Combinators
+
 import Data.InvertibleGrammar.Monad
   ( runGrammar
   , runGrammarDoc

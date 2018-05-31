@@ -36,7 +36,8 @@ import Data.Semigroup
 import Data.InvertibleGrammar.Monad
 import qualified Debug.Trace
 
--- | A pair of values.
+-- | \"Cons\" pair of a heterogenous list or a stack with potentially
+-- polymophic tail. E.g. @"first" :- 2 :- (3,4) :- t@
 --
 -- Isomorphic to a tuple with two elments, but is much more
 -- convenient for nested pairs.
@@ -52,29 +53,63 @@ instance Bifoldable (:-) where
 instance Bitraversable (:-) where
   bitraverse f g (a :- b) = (:-) <$> f a <*> g b
 
--- | Representation of an invertible grammar - a grammar that can
--- be executed either "forwards" and "backwards".
+-- | Representation of an invertible grammar -- a grammar that can be
+-- run either "forwards" and "backwards".
 --
--- For a grammar @Grammar p a b@, running it forwards will take
--- a value of type @a@ and possibly produce a value of type @b@. Running
--- it backwards will take a value of type @b@ and possibly produce an @a@.
+-- For a grammar @Grammar p a b@, running it forwards will take a
+-- value of type @a@ and possibly produce a value of type @b@. Running
+-- it backwards will take a value of type @b@ and possibly produce an
+-- @a@. If a value cannot be produced, an error message is generated.
 --
--- As a common example, running a 'Grammar' forwards corresponds to parsing
--- and running backwards corresponds to prettyprinting.
+-- As a common example, running a 'Grammar' forwards corresponds to
+-- parsing and running backwards corresponds to prettyprinting.
 --
--- That is, the grammar defines a partial isomorphism between two values.
+-- That is, the grammar defines a partial isomorphism between two
+-- values.
 data Grammar p a b where
+  -- | Total isomorphism grammar.
   Iso        :: (a -> b) -> (b -> a) -> Grammar p a b
+
+  -- | Partial isomorphism. Use 'Flip' to change the direction of
+  -- partiality.
   PartialIso :: (a -> b) -> (b -> Either Mismatch a) -> Grammar p a b
+
+  -- | Flip forward and backward passes of an underlying grammar.
   Flip       :: Grammar p a b -> Grammar p b a
+
+  -- | Grammar composition.
   (:.:)      :: Grammar p b c -> Grammar p a b -> Grammar p a c
+
+  -- | Grammar alternation. Left operand is tried first.
   (:<>:)     :: Grammar p a b -> Grammar p a b -> Grammar p a b
+
+  -- | Application of a grammar on 'Traversable' functor.
   Traverse   :: (Traversable f) => Grammar p a b -> Grammar p (f a) (f b)
+
+  -- | Applicaiton of a grammar on stack head
+  -- (first component of ':-').
   OnHead     :: Grammar p a b -> Grammar p (a :- t) (b :- t)
+
+  -- | Applicaiton of a grammar on stack tail
+  -- (second component of ':-').
   OnTail     :: Grammar p a b -> Grammar p (h :- a) (h :- b)
+
+  -- | Application of a grammar inside a context of annotation, used
+  -- for error messages.
   Annotate   :: Text -> Grammar p a b -> Grammar p a b
+
+  -- | Application of a grammar inside a context of a nested
+  -- structure, used for error messages. E.g. JSON arrays.
   Dive       :: Grammar p a b -> Grammar p a b
+
+  -- | Propagate logical position inside a nested
+  -- structure. E.g. after each successfully matched element of a JSON
+  -- array.
   Step       :: Grammar p a a
+
+  -- | Update the position of grammar monad from value on grammar's
+  -- input or output on forward or backward pass, respectively. Used
+  -- for error messages.
   Locate     :: Grammar p p p
 
 trace :: String -> a -> a
@@ -109,7 +144,9 @@ instance Semigroup (Grammar p a b) where
 
 -- | Run 'Grammar' forwards.
 --
--- A common example is parsing a complex type from a simpler one.
+-- For @Grammar p a b@, given a value of type @a@ tries to produce a
+-- value of type @b@, otherwise reports an error with position of type
+-- @p@.
 forward :: Grammar p a b -> a -> ContextError (Propagation p) (GrammarError p) b
 forward (Iso f _)        = return . f
 forward (PartialIso f _) = return . f
@@ -126,7 +163,9 @@ forward Locate           = \x -> doLocate x >> return x
 
 -- | Run 'Grammar' backwards.
 --
--- A common example is converting a complex type in terms a simpler one.
+-- For @Grammar p a b@, given a value of type @b@ tries to produce a
+-- value of type @a@, otherwise reports an error with position of type
+-- @p@.
 backward :: Grammar p a b -> b -> ContextError (Propagation p) (GrammarError p) a
 backward (Iso _ g)        = return . g
 backward (PartialIso _ g) = either doError return . g

@@ -99,6 +99,7 @@ instance Monoid Mismatch where
   mappend = (<>)
   {-# INLINE mappend #-}
 
+-- | Run a 'forward' or 'backward' pass of a 'Grammar'.
 runGrammar :: p -> ContextError (Propagation p) (GrammarError p) a -> Either (ErrorMessage p) a
 runGrammar initPos m =
   case runContextError m (initPropagation initPos) of
@@ -111,16 +112,21 @@ runGrammar initPos m =
     Right a ->
       Right a
 
+-- | Run a 'forward' or 'backward' pass of a 'Grammar', report errors
+-- as pretty printed 'Doc' message.
 runGrammarDoc :: (Pretty p) => p -> ContextError (Propagation p) (GrammarError p) a -> Either (Doc ann) a
 runGrammarDoc initPos m =
   left (ppError pretty) $
     runGrammar initPos m
 
+-- | Run a 'forward' or 'backward' pass of a 'Grammar', report errors
+-- as 'String' message.
 runGrammarString :: (Show p) => p -> ContextError (Propagation p) (GrammarError p) a -> Either String a
 runGrammarString initPos m =
   left (renderString . layoutSmart (LayoutOptions (AvailablePerLine 79 0.75)) . ppError (pretty . show)) $
     runGrammar initPos m
 
+-- | 'Grammar' run error messages type.
 data ErrorMessage p = ErrorMessage
   { emPosition :: p
   , emAnnotations :: [Text]

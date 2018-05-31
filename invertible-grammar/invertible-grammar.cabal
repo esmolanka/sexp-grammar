@@ -10,10 +10,11 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 synopsis:
-  Invertible grammar combinators
+  Invertible parsing combinators framework
 description:
-  Invertible grammar combinators for serializing and deserializing
-tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1
+  Grammar combinator framework to build invertible parsing libraries
+  for concrete syntax.
+tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
 
 source-repository head
   type: git
