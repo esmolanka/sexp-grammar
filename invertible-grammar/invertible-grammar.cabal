@@ -25,7 +25,6 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
   exposed-modules:
-    Control.Monad.ContextError
     Data.InvertibleGrammar
     Data.InvertibleGrammar.Base
     Data.InvertibleGrammar.Combinators
@@ -33,6 +32,7 @@ library
     Data.InvertibleGrammar.TH
 
   other-modules:
+    Control.Monad.ContextError
     Data.InvertibleGrammar.Monad
 
   build-depends:
