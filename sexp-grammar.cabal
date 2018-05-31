@@ -9,12 +9,16 @@ category:            Language
 build-type:          Simple
 extra-source-files:  README.md
                      examples/Expr.hs
+                     examples/ExprTH.hs
+                     examples/ExprTH2.hs
                      examples/Misc.hs
+                     examples/Lang.hs
 cabal-version:       >=1.10
 synopsis:
   Invertible grammar combinators for S-expressions
 description:
-  Serialisation to and deserialisation from S-expressions derived from a single grammar definition.
+  Serialisation to and deserialisation from S-expressions derived from
+  a single grammar definition.
 tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
 
 source-repository head
