@@ -86,7 +86,9 @@ exprGrammarTH = go
             rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
             onTail (
                swap >>>                          -- Swap:            prim :- args :- ()
-               push "dummy" (const True) >>>     -- Push "dummy":    "dummy" :- prim :- args :- ()
+               push "dummy"                      -- Push "dummy":    "dummy" :- prim :- args :- ()
+                 (const True)
+                 (const (expected "dummy")) >>>
                swap)                             -- Swap:            prim :- "dummy" :- args :- ()
            ))
 
@@ -110,7 +112,9 @@ exprGrammarGeneric = go
                   rest (go :: SexpG Expr) >>>          -- Push args:       args :- prim :- ()
                   onTail (
                      swap >>>                          -- Swap:            prim :- args :- ()
-                     push "dummy" (const True) >>>     -- Push "dummy":    "dummy" :- prim :- args :- ()
+                     push "dummy"                      -- Push "dummy":    "dummy" :- prim :- args :- ()
+                       (const True)
+                       (const (expected "dummy")) >>>
                      swap)                             -- Swap:            prim :- "dummy" :- args :- ()
                  ))
       $ End
