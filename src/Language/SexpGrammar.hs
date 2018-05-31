@@ -7,10 +7,6 @@
 Write your grammar once and get both parser and pretty-printer, for
 free.
 
-> {-# LANGUAGE DeriveGeneric     #-}
-> {-# LANGUAGE OverloadedStrings #-}
-> {-# LANGUAGE TypeOperators     #-}
->
 > import GHC.Generics
 > import Data.Text (Text)
 > import Language.SexpGrammar

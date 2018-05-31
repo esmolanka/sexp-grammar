@@ -41,12 +41,14 @@ before_install:
 
 # Get the list of packages from the stack.yaml file
 - PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
+- stack --no-terminal --stack-yaml $CONF install doctest
 
 install:
 - stack --no-terminal --stack-yaml $CONF build --only-dependencies
 
 script:
 - stack --no-terminal --stack-yaml $CONF test --bench --no-run-benchmarks --haddock --no-haddock-deps
+- stack --no-terminal --stack-yaml $CONF exec -- doctest src/Language/SexpGrammar/*.hs
 
 notifications:
   email: false
