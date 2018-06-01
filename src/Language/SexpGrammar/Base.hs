@@ -181,7 +181,7 @@ braceList g = beginBraceList >>> Dive (g >>> endList)
 --
 -- * @el symbol@ consumes a symbol and produces a 'Text' value
 --   corresponding to the symbol.
-el :: Grammar p (Sexp :- t) t' -> Grammar p (List :- t) (List :- t')
+el :: Grammar Position (Sexp :- t) t' -> Grammar Position (List :- t) (List :- t')
 el g = coerced (Flip cons >>> onTail g >>> Step)
 
 
@@ -193,8 +193,8 @@ el g = coerced (Flip cons >>> onTail g >>> Step)
 -- >>> encodeWith grammar [2, 3, 5, 7, 11, 13]
 -- Right "(check-primes 2 3 5 7 11 13)"
 rest
-  :: (forall t. Grammar p (Sexp :- t) (a :- t))
-  -> Grammar p (List :- t) (List :- [a] :- t)
+  :: (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> Grammar Position (List :- t) (List :- [a] :- t)
 rest g =
   iso coerce coerce >>>
   onHead (Traverse (sealed g >>> Step)) >>>
@@ -203,7 +203,7 @@ rest g =
 ----------------------------------------------------------------------
 
 beginProperties
-  :: Grammar p (List :- t) (List :- PropertyList :- t)
+  :: Grammar Position (List :- t) (List :- PropertyList :- t)
 beginProperties = Flip $ PartialIso
   (\(List rest :- PropertyList alist :- t) ->
       List (concatMap (\(k, v) -> [Atom (AtomSymbol (':' `TS.cons` k)), v]) alist ++ rest) :- t)
@@ -220,7 +220,7 @@ beginProperties = Flip $ PartialIso
 
 
 endProperties
-  :: Grammar p t (PropertyList :- t)
+  :: Grammar Position t (PropertyList :- t)
 endProperties = PartialIso
   (\t -> PropertyList [] :- t)
   (\(PropertyList lst :- t) ->
@@ -247,8 +247,8 @@ endProperties = PartialIso
 -- :}
 -- Right "{:real 0 :img -1 / :real 1 :img 0}"
 props
-  :: Grammar p (PropertyList :- t) (PropertyList :- t')
-  -> Grammar p (List :- t) (List :- t')
+  :: Grammar Position (PropertyList :- t) (PropertyList :- t')
+  -> Grammar Position (List :- t) (List :- t')
 props g = beginProperties >>> Dive (onTail (g >>> Flip endProperties))
 
 
@@ -259,8 +259,8 @@ props g = beginProperties >>> Dive (onTail (g >>> Flip endProperties))
 -- Note: performs linear lookup, /O(n)/
 key
   :: Text
-  -> (forall t. Grammar p (Sexp :- t) (a :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- a :- t)
+  -> (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> Grammar Position (PropertyList :- t) (PropertyList :- a :- t)
 key k g =
   coerced (
     Flip (insert k (expected $ ppKey k)) >>>
@@ -275,8 +275,8 @@ key k g =
 -- Note: performs linear lookup, /O(n)/
 optKey
   :: Text
-  -> (forall t. Grammar p (Sexp :- t) (a :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- Maybe a :- t)
+  -> (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> Grammar Position (PropertyList :- t) (PropertyList :- Maybe a :- t)
 optKey k g =
   coerced (Flip (insertMay k) >>>
     Step >>>
@@ -290,24 +290,24 @@ infix 3 .:?
 -- | Property by a key grammar. Infix version of 'key'.
 (.:)
   :: Text
-  -> (forall t. Grammar p (Sexp :- t) (a :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- a :- t)
+  -> (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> Grammar Position (PropertyList :- t) (PropertyList :- a :- t)
 (.:) = key
 
 
 -- | Optional property by a key grammar. Infix version of 'optKey'.
 (.:?)
   :: Text
-  -> (forall t. Grammar p (Sexp :- t) (a :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- Maybe a :- t)
+  -> (forall t. Grammar Position (Sexp :- t) (a :- t))
+  -> Grammar Position (PropertyList :- t) (PropertyList :- Maybe a :- t)
 (.:?) = optKey
 
 
 -- | Remaining properties grammar. Extracts all key-value pairs and
 -- applies a grammar on every element.
 restKeys
-  :: (forall t. Grammar p (Sexp :- Text :- t) (a :- t))
-  -> Grammar p (PropertyList :- t) (PropertyList :- [a] :- t)
+  :: (forall t. Grammar Position (Sexp :- Text :- t) (a :- t))
+  -> Grammar Position (PropertyList :- t) (PropertyList :- [a] :- t)
 restKeys f =
   iso coerce coerce >>>
   onHead (Traverse (sealed (Flip pair >>> f) >>> Step)) >>>
