@@ -1,10 +1,9 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE LambdaCase          #-}
 
 module Language.Sexp.Types
   ( Atom (..)
@@ -117,6 +116,7 @@ instance Eq1 SexpF where
       go _ _ = False
 
 instance NFData Atom
+
 instance NFData Position
 
 instance NFData (Fix SexpF) where
@@ -132,4 +132,3 @@ instance NFData (Fix SexpF) where
 
 instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
   rnf = rnf . stripLocation
-
