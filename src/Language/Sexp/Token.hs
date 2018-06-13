@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -8,11 +9,13 @@ module Language.Sexp.Token
   , unescape
   ) where
 
+import Data.Scientific
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
-import Data.Scientific
 import Data.Text.Prettyprint.Doc
-import Data.Semigroup
 
 import Language.Sexp.Types (Prefix(..))
 
