@@ -23,6 +23,8 @@ import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
+import qualified Language.Sexp.Located as Sexp
+
 import Language.SexpGrammar
 import qualified Language.SexpGrammar.TH as TH
 import qualified Language.SexpGrammar.Generic as G
@@ -120,8 +122,8 @@ exprGrammarGeneric = go
       $ End
 
 
-expr :: ByteString -> Expr
-expr = either error id . decodeWith exprGrammarTH "<string>"
+exprOf :: ByteString -> Expr
+exprOf = either error id . decodeWith exprGrammarTH "<string>"
 
 benchCases :: [(String, ByteString)]
 benchCases = map (\a -> ("expression, size " ++ show (B8.length a) ++ " bytes", a))
@@ -132,17 +134,39 @@ benchCases = map (\a -> ("expression, size " ++ show (B8.length a) ++ " bytes", 
     \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
     \:args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
     \:args (* 10 (+ 1 2)))))))"
+  , "(fibonacci :args (* (+ (cond :pred (+ 42 314) :false (invert (* (+ (cond :pred (+ 42 314) :false \
+    \(fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ foo bar)))) (cond :pred (invert (* (+ (cond :pred (+ 42 314) :false (invert (* \
+    \(+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ 1 2))))))) :true (factorial :args \
+    \(* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ 1 2))))))) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ 1 2))))))) :true (factorial :args \
+    \(* 10 (+ 1 2)))) (cond :pred (+ 42 28) :false (fibonacci :args 3) :true (factorial :args \
+    \(* 10 (+ 1 2))))) (+ (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ foo bar)))) (cond :pred (+ 42 314) :false (fibonacci :args 3) :true (factorial \
+    \:args (* 10 (+ 1 2)))))))"
   ]
 
 mkBenchmark :: String -> ByteString -> IO Benchmark
 mkBenchmark name str = do
-  expr <- evaluate $ force $ expr str
+  expr <- evaluate $ force $ exprOf str
   sexp <- evaluate $ force $ either error id (toSexp exprGrammarTH expr)
   return $ bgroup name
-    [ bench "gen"    $ nf (toSexp exprGrammarTH) expr
-    , bench "genG"   $ nf (toSexp exprGrammarGeneric) expr
-    , bench "parse"  $ nf (fromSexp exprGrammarTH) sexp
-    , bench "parseG" $ nf (fromSexp exprGrammarGeneric) sexp
+    [ bench "decode"     $ nf (Sexp.decode) str
+    , bench "encode"     $ nf (Sexp.encode) sexp
+    , bench "format"     $ nf (Sexp.format) sexp
+    , bench "toSexpTH"   $ nf (toSexp exprGrammarTH) expr
+    , bench "toSexpG"    $ nf (toSexp exprGrammarGeneric) expr
+    , bench "fromSexpTH" $ nf (fromSexp exprGrammarTH) sexp
+    , bench "fromSexpG"  $ nf (fromSexp exprGrammarGeneric) sexp
     ]
 
 main :: IO ()
