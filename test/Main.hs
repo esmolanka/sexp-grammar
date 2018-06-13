@@ -4,12 +4,15 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists       #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
 
@@ -20,17 +23,18 @@ import Control.Applicative
 #endif
 
 import Control.Category
+import Data.ByteString.Lazy.UTF8 (fromString)
+import Data.Char
 import Data.Scientific
 import Data.Semigroup
-import Data.ByteString.Lazy.UTF8 (fromString)
-import qualified Data.Text as TS
 import qualified Data.Set as S
+import qualified Data.Text as TS
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
 import GHC.Generics
 import Test.QuickCheck ()
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck as QC
-import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 import Language.Sexp.Located as Sexp
 import Language.Sexp () -- for Show instance
@@ -41,8 +45,55 @@ import Language.SexpGrammar as G
 import Language.SexpGrammar.Generic
 import Language.SexpGrammar.TH hiding (match)
 
+import Debug.Trace
+
 parseSexp' :: String -> Either String Sexp
 parseSexp' input = Sexp.decode (fromString input)
+
+instance Arbitrary Atom where
+  arbitrary = oneof
+    [ AtomNumber . fromFloatDigits <$> (arbitrary :: Gen Double)
+    , AtomNumber . fromIntegral <$> (arbitrary :: Gen Integer)
+    , AtomString . TS.pack <$> listOf
+        (oneof [ elements $ ['\n','\r','\t','"','\\', ' ']
+               , arbitrary `suchThat` (\c -> isAlphaNum c || isPunctuation c)
+               ])
+    , pure (AtomSymbol ":foo")
+    , pure (AtomSymbol "bar")
+    , pure (AtomSymbol "~qux")
+    , pure (AtomSymbol "символ")
+    , pure (AtomSymbol "@baz")
+    ]
+
+instance Arbitrary Prefix where
+  arbitrary = elements
+    [ Quote
+    , Backtick
+    , Comma
+    , CommaAt
+    , Hash
+    ]
+
+instance Arbitrary Sexp where
+  arbitrary =
+    frequency
+      [ (3, Atom <$> arbitrary)
+      , (1, ParenList <$> scale (`div` 2) (listOf arbitrary))
+      , (1, BracketList <$> scale (`div` 2) (listOf arbitrary))
+      , (1, BraceList <$> scale (`div` 2) (listOf arbitrary))
+      , (1, Modified <$> arbitrary <*> (arbitrary `suchThat` (\case {Symbol s -> not ("@" `TS.isPrefixOf` s); _other -> True})))
+      ]
+  shrink = \case
+    Atom a -> map Atom (shrink a)
+    ParenList [x] -> shrink x
+    ParenList xs -> map ParenList (shrinkList shrink xs)
+    BracketList [x] -> shrink x
+    BracketList xs -> map BracketList (shrinkList shrink xs)
+    BraceList [x] -> shrink x
+    BraceList xs -> map BraceList (shrinkList shrink xs)
+    Modified m s -> shrink s ++ s : Modified m (Symbol "foo") : map (Modified m) (shrink s)
+    other -> [other]
+
 
 fromSexp' :: SexpGrammar a -> Sexp.Sexp -> Either (ErrorMessage Position) a
 fromSexp' g = runGrammar Sexp.dummyPos . forward (G.sealed g)
@@ -168,6 +219,10 @@ personGenericIso = with
 allTests :: TestTree
 allTests = testGroup "All tests"
   [ lexerTests
+  , QC.testProperty "Format/decode invertibility"
+    (\a -> case Sexp.decode (Sexp.format a) of
+             Left _ -> trace "Cannot parse" False
+             Right b -> if toSimple a == toSimple b then True else trace ("Parsed " ++ show b) False)
   , grammarTests
   ]
 
@@ -227,6 +282,21 @@ lexerTests = testGroup "Sexp lexer/parser tests"
   , testCase "string with japanese characters" $
       parseSexp' "\"媯綩 づ竤バ り姥娩ぎょひ\""
       `sexpEq` Right (String "媯綩 づ竤バ り姥娩ぎょひ")
+  , testCase "string with newline" $
+      parseSexp' "\"foo\nbar\""
+      `sexpEq` Right (String "foo\nbar")
+  , testCase "string with \\n" $
+      parseSexp' "\"foo\\nbar\""
+      `sexpEq` Right (String "foo\nbar")
+  , testCase "string with \\t" $
+      parseSexp' "\"foo\\tbar\""
+      `sexpEq` Right (String "foo\tbar")
+  , testCase "string with \\\"" $
+      parseSexp' "\"foo\\\"bar\""
+      `sexpEq` Right (String "foo\"bar")
+  , testCase "string with \\\\" $
+      parseSexp' "\"foo\\\\bar\""
+      `sexpEq` Right (String "foo\\bar")
   , testCase "paren-list" $
       parseSexp' "(foo bar)"
       `sexpEq` Right (ParenList [Symbol "foo", Symbol "bar"])
@@ -241,7 +311,7 @@ lexerTests = testGroup "Sexp lexer/parser tests"
       `sexpEq` Right (Modified Quote (Symbol "foo"))
   , testCase "hashed" $
       parseSexp' "#foo"
-      `sexpEq` Right (Symbol "#foo")
+      `sexpEq` Right (Modified Hash (Symbol "foo"))
   , testCase "keyword" $
       parseSexp' ":foo"
       `sexpEq` Right (Symbol ":foo")
@@ -252,6 +322,7 @@ grammarTests :: TestTree
 grammarTests = testGroup "Grammar tests"
   [ baseTypeTests
   , listTests
+  , prefixTests
   , dictTests
   , revStackPrismTests
   , parseTests
@@ -385,7 +456,7 @@ prefixTests = testGroup "Prefix combinator tests"
   , testCase "hashed" $
     fromSexp'
       (hashed (bracketList (rest int)))
-      (Modified Quote (BracketList [Number 1, Number 2])) `otherEq`
+      (Modified Hash (BracketList [Number 1, Number 2])) `otherEq`
     Right [1, 2]
 
   , testCase "backticked" $

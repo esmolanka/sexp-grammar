@@ -11,21 +11,22 @@ module Language.Sexp.Pretty
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Functor.Foldable (para)
 import Data.Scientific
+import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
 import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
 
 import Language.Sexp.Types
-import Language.Sexp.Encode (escape)
+import Language.Sexp.Token (escape)
 
 instance Pretty Atom where
   pretty = \case
     AtomNumber a
       | isInteger a -> pretty $ formatScientific Fixed (Just 0) a
       | otherwise   -> pretty $ formatScientific Fixed Nothing $ a
-    AtomString a  -> dquotes (pretty (escape a))
+    AtomString a  -> dquotes (unsafeTextWithoutNewlines . TL.toStrict . escape . TL.fromStrict $ a)
     AtomSymbol a  -> pretty a
-
 
 ppList :: [(Fix SexpF, Doc ann)] -> Doc ann
 ppList ls = case ls of
