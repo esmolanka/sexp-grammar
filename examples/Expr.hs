@@ -78,5 +78,5 @@ test str g = either error id $ do
   sexp' <- toSexp g e
   return (e, B8.unpack (Sexp.format sexp'))
 
--- > test "(cond 1 (+ 42 10) (* 2 (* 2 2)))"
+-- > test "(cond :pred 1 :true (+ 42 10) :false (* 2 (* 2 2)))"
 -- (IfZero (Lit 1) (Add (Lit 42) (Lit 10)) (Mul (Lit 2) (Mul (Lit 2) (Lit 2))),"(cond 1 (+ 42 10) (* 2 (* 2 2)))")
