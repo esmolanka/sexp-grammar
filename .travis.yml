@@ -20,8 +20,11 @@ matrix:
   - env: CONF="stack-8.2.yaml"
     compiler: ": #stack ghc-8.2.2"
 
+  - env: CONF="stack-8.4.yaml"
+    compiler: ": #stack ghc-8.4.3"
+
   - env: CONF="stack.yaml"
-    compiler: ": #stack ghc-8.4.2"
+    compiler: ": #stack ghc-8.6.3"
 
 
 before_install:
