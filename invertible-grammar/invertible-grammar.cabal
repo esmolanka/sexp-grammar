@@ -36,7 +36,7 @@ library
     Data.InvertibleGrammar.Monad
 
   build-depends:
-      base              >=4.7   && <5.0
+      base              >=4.8   && <5.0
     , bifunctors        >=4.2   && <5.6
     , containers        >=0.5.5 && <0.7
     , mtl               >=2.1   && <2.3
