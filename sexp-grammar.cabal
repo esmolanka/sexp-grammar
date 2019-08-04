@@ -39,7 +39,6 @@ library
   other-modules:
     Language.Sexp.Encode
     Language.Sexp.Lexer
-    Language.Sexp.LexerInterface
     Language.Sexp.Parser
     Language.Sexp.Pretty
     Language.Sexp.Token

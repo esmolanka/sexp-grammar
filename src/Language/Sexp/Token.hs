@@ -30,7 +30,8 @@ data Token
   | TokNumber  { getNumber  :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
   | TokString  { getString  :: !Text }        -- "foo", "", "hello world"
   | TokSymbol  { getSymbol  :: !Text }        -- foo, bar
-  | TokUnknown { getUnknown :: !Char }        -- for unknown lexemes
+  | TokUnknown { getUnknown :: !Text }        -- for unknown lexemes
+  | TokEOF
     deriving (Show, Eq)
 
 instance Pretty Token where
@@ -44,7 +45,8 @@ instance Pretty Token where
   pretty (TokSymbol s)  = "symbol" <+> squotes (pretty s) <> squote
   pretty (TokNumber n)  = "number" <+> pretty (show n)
   pretty (TokString s)  = "string" <+> pretty (show s)
-  pretty (TokUnknown u) = "unrecognized" <+> pretty (show u)
+  pretty (TokUnknown u) = "unrecognized" <+> pretty u <> "..."
+  pretty TokEOF         = "end of file"
 
 
 newtype DText = DText (TL.Text -> TL.Text)

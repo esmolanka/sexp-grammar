@@ -25,8 +25,8 @@ import Language.Sexp.Lexer
 import Language.Sexp.Types
 }
 
-%name parseSexp_ Sexp
-%name parseSexps_ Sexps
+%name parseSexp_ Sexp_
+%name parseSexps_ Sexps_
 %error { parseError }
 %tokentype { LocatedBy Position Token }
 %monad { Either String }
@@ -43,10 +43,18 @@ import Language.Sexp.Types
   NUMBER         { _ :< (TokNumber _) }
   STRING         { _ :< (TokString _) }
 
+  EOF            { _ :< TokEOF        }
+
 %%
+
+Sexps_ :: { [Sexp] }
+  : Sexps EOF                             { $1 }
 
 Sexps :: { [Sexp] }
   : list(Sexp)                            { $1 }
+
+Sexp_ :: { Sexp }
+  : Sexp EOF                              { $1 }
 
 Sexp :: { Sexp }
   : Atom                                  { AtomF                       @@ $1 }
