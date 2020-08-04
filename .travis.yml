@@ -26,6 +26,9 @@ matrix:
   - env: CONF="stack-8.8.yaml"
     compiler: ": #stack ghc-8.8.3"
 
+  - env: CONF="stack-8.10.yaml"
+    compiler: ": #stack ghc-8.10.1"
+
 before_install:
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
