@@ -14,9 +14,6 @@ cache:
 
 matrix:
   include:
-  - env: CONF="stack-8.0.yaml"
-    compiler: ": #stack ghc-8.0.1"
-
   - env: CONF="stack-8.2.yaml"
     compiler: ": #stack ghc-8.2.2"
 
