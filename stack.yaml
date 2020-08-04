@@ -1,6 +1,6 @@
 resolver: lts-13.27
 packages:
-- '.'
+- 'sexp-grammar'
 - 'invertible-grammar'
 extra-deps:
 - 'profunctors-5.4'
