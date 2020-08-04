@@ -1,0 +1,4 @@
+resolver: lts-14.27
+packages:
+- 'sexp-grammar'
+- 'invertible-grammar'
