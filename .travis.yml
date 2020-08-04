@@ -50,7 +50,7 @@ install:
 
 script:
 - stack --no-terminal --stack-yaml $CONF test --bench --no-run-benchmarks --haddock --no-haddock-deps
-- stack --no-terminal --stack-yaml $CONF exec -- doctest src/Language/SexpGrammar/*.hs
+- stack --no-terminal --stack-yaml $CONF exec -- doctest sexp-grammar/src/Language/SexpGrammar/*.hs
 
 notifications:
   email: false
