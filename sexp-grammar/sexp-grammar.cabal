@@ -2,24 +2,19 @@ name:                sexp-grammar
 version:             2.1.0
 license:             BSD3
 license-file:        LICENSE
-author:              Eugene Smolanka, Sergey Vinokurov
-maintainer:          Eugene Smolanka <esmolanka@gmail.com>, Sergey Vinokurov <serg.foo@gmail.com>
+author:              Yevhen Smolanka, Sergey Vinokurov
+maintainer:          Yevhen Smolanka <ys@polymorphic.me>, Sergey Vinokurov <serg.foo@gmail.com>
 homepage:            https://github.com/esmolanka/sexp-grammar
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
-                     examples/Expr.hs
-                     examples/ExprTH.hs
-                     examples/ExprTH2.hs
-                     examples/Misc.hs
-                     examples/Lang.hs
 cabal-version:       >=1.10
 synopsis:
   Invertible grammar combinators for S-expressions
 description:
   Serialisation to and deserialisation from S-expressions derived from
   a single grammar definition.
-tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
+tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3, GHC == 8.6.5
 
 source-repository head
   type: git

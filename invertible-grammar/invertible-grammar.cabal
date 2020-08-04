@@ -2,8 +2,8 @@ name:                invertible-grammar
 version:             0.1.2
 license:             BSD3
 license-file:        LICENSE
-author:              Eugene Smolanka, Sergey Vinokurov
-maintainer:          Eugene Smolanka <esmolanka@gmail.com>
+author:              Yevhen Smolanka, Sergey Vinokurov
+maintainer:          Yevhen Smolanka <ys@polymorphic.me>, Sergey Vinokurov <serg.foo@gmail.com>
 homepage:            https://github.com/esmolanka/invertible-grammar
 category:            Language
 build-type:          Simple
@@ -14,11 +14,11 @@ synopsis:
 description:
   Grammar combinator framework to build invertible parsing libraries
   for concrete syntax.
-tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
+tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3, GHC == 8.6.5
 
 source-repository head
   type: git
-  location: https://github.com/esmolanka/invertible-grammar
+  location: https://github.com/esmolanka/sexp-grammar
 
 library
   hs-source-dirs:      src
