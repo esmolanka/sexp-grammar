@@ -1,0 +1,49 @@
+name:                invertible-grammar
+version:             0.1.2
+license:             BSD3
+license-file:        LICENSE
+author:              Eugene Smolanka, Sergey Vinokurov
+maintainer:          Eugene Smolanka <esmolanka@gmail.com>
+homepage:            https://github.com/esmolanka/invertible-grammar
+category:            Language
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+synopsis:
+  Invertible parsing combinators framework
+description:
+  Grammar combinator framework to build invertible parsing libraries
+  for concrete syntax.
+tested-with:   GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3
+
+source-repository head
+  type: git
+  location: https://github.com/esmolanka/invertible-grammar
+
+library
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fno-warn-name-shadowing -fno-warn-unused-do-bind
+  exposed-modules:
+    Data.InvertibleGrammar
+    Data.InvertibleGrammar.Base
+    Data.InvertibleGrammar.Combinators
+    Data.InvertibleGrammar.Generic
+    Data.InvertibleGrammar.TH
+
+  other-modules:
+    Control.Monad.ContextError
+    Data.InvertibleGrammar.Monad
+
+  build-depends:
+      base              >=4.8   && <5.0
+    , bifunctors        >=4.2   && <5.6
+    , containers        >=0.5.5 && <0.7
+    , mtl               >=2.1   && <2.3
+    , prettyprinter     >=1     && <1.7
+    , profunctors       >=4.4   && <5.6
+    , semigroups        >=0.16  && <0.20
+    , tagged            >=0.7   && <0.9
+    , template-haskell  >=2.9   && <2.17
+    , transformers      >=0.3   && <0.6
+    , text              >=1.2   && <1.3
