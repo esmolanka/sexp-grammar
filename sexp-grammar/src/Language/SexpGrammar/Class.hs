@@ -40,10 +40,15 @@ type SexpGrammar a = forall t. Grammar Position (Sexp :- t) (a :- t)
 class SexpIso a where
   sexpIso :: SexpGrammar a
 
+instance SexpIso () where
+  sexpIso = with $ \unit ->
+    sym "nil" >>> unit
+
 instance SexpIso Bool where
-  sexpIso =
-    (sym "true"  >>> push True  (==True)  (const $ expected "Bool")) <>
-    (sym "false" >>> push False (==False) (const $ expected "Bool"))
+  sexpIso = match
+    $ With (\false_ -> sym "false" >>> false_)
+    $ With (\true_ -> sym "true" >>> true_)
+    $ End
 
 instance SexpIso Int where
   sexpIso = int
@@ -62,8 +67,55 @@ instance SexpIso Text where
 
 instance (SexpIso a, SexpIso b) => SexpIso (a, b) where
   sexpIso =
-    list (el sexpIso >>> el (sym ".") >>> el sexpIso) >>>
-    pair
+    list (
+      el sexpIso >>>
+      el sexpIso) >>> pair
+
+instance (SexpIso a, SexpIso b, SexpIso c) => SexpIso (a, b, c) where
+  sexpIso = with $ \tuple3 ->
+    list (
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso) >>> tuple3
+
+instance (SexpIso a, SexpIso b, SexpIso c, SexpIso d) => SexpIso (a, b, c, d) where
+  sexpIso = with $ \tuple4 ->
+    list (
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso) >>> tuple4
+
+instance (SexpIso a, SexpIso b, SexpIso c, SexpIso d, SexpIso e) => SexpIso (a, b, c, d, e) where
+  sexpIso = with $ \tuple5 ->
+    list (
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso) >>> tuple5
+
+instance (SexpIso a, SexpIso b, SexpIso c, SexpIso d, SexpIso e, SexpIso f) => SexpIso (a, b, c, d, e, f) where
+  sexpIso = with $ \tuple6 ->
+    list (
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso) >>> tuple6
+
+instance (SexpIso a, SexpIso b, SexpIso c, SexpIso d, SexpIso e, SexpIso f, SexpIso g) =>
+         SexpIso (a, b, c, d, e, f, g) where
+  sexpIso = with $ \tuple7 ->
+    list (
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso >>>
+      el sexpIso) >>> tuple7
 
 instance (Ord k, SexpIso k, SexpIso v) => SexpIso (Map k v) where
   sexpIso = iso Map.fromList Map.toList . braceList (rest sexpIso)
