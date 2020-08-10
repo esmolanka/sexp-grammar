@@ -58,7 +58,14 @@ instance Arbitrary Atom where
         (oneof [ elements $ ['\n','\r','\t','"','\\', ' ']
                , arbitrary `suchThat` (\c -> isAlphaNum c || isPunctuation c)
                ])
+    , AtomSymbol . TS.pack <$>
+        listOf (arbitrary `suchThat` (\c -> isAlphaNum c || c `elem` ("#',`\\:@!$%&*/<=>?~_^.|+-" :: [Char])))
+          `suchThat` (\s -> not $ all isDigit (drop 1 s) || null s || all (`elem` ("#',`" :: [Char])) (take 1 s))
     , pure (AtomSymbol ":foo")
+    , pure (AtomSymbol "1e2")
+    , pure (AtomSymbol "-1e2")
+    , pure (AtomSymbol "1.0e-2")
+    , pure (AtomSymbol "+.0E-2")
     , pure (AtomSymbol "bar")
     , pure (AtomSymbol "~qux")
     , pure (AtomSymbol "символ")
@@ -255,27 +262,48 @@ lexerTests = testGroup "Sexp lexer/parser tests"
   , testCase "-123 is an integer number" $
       parseSexp' "-123"
       `sexpEq` Right (Number (- 123))
-  , testCase "+123.4e5 is a floating number" $
-      parseSexp' "+123.4e5"
-      `sexpEq` Right (Number (read "+123.4e5" :: Scientific))
+  , testCase "+123.45 is a floating number" $
+      parseSexp' "+123.45"
+      `sexpEq` Right (Number (read "123.45" :: Scientific))
+  , testCase "0_1 is a symbol" $
+      parseSexp' "0_1"
+      `sexpEq` Right (Symbol "0_1")
+  , testCase "1e2 is a symbol" $
+      parseSexp' "1e2"
+      `sexpEq` Right (Symbol "1e2")
+  , testCase "-1e2 is a symbol" $
+      parseSexp' "-1e2"
+      `sexpEq` Right (Symbol "-1e2")
   , testCase "comments" $
       parseSexp' ";; hello, world\n   123"
       `sexpEq` Right (Number 123)
   , testCase "cyrillic characters in comments" $
-      parseSexp' ";; привет!\n   123"
-      `sexpEq` Right (Number 123)
+      parseSexp' ";; Я в серці маю те, що не вмирає!\n   SS17"
+      `sexpEq` Right (Symbol "SS17")
   , testCase "unicode math in comments" $
-      parseSexp' ";; Γ ctx\n;; ----- Nat-formation\n;; Γ ⊦ Nat : Type\nfoobar"
+      parseSexp' ";; Γ σ ⊢ → ∘ ℕ ∑ ∏ ẽ ∀\nfoobar"
       `sexpEq` Right (Symbol "foobar")
-  , testCase "symbol" $
+  , testCase "hello-world is symbol" $
       parseSexp' "hello-world"
       `sexpEq` Right (Symbol "hello-world")
+  , testCase "\\forall is a symbol" $
+      parseSexp' "∀"
+      `sexpEq` Right (Symbol "∀")
+  , testCase "\\Bbb{N} is a symbol" $
+      parseSexp' "ℕ"
+      `sexpEq` Right (Symbol "ℕ")
   , testCase "whitespace and symbol" $
       parseSexp' "\t\n   hello-world\n"
       `sexpEq` Right (Symbol "hello-world")
-  , testCase "cyrillic symbol" $
+  , testCase "cyrillic characters symbol" $
       parseSexp' "символ"
       `sexpEq` Right (Symbol "символ")
+  , testCase "greek characters symbol" $
+      parseSexp' "αβγΠΣΩ"
+      `sexpEq` Right (Symbol "αβγΠΣΩ")
+  , testCase "special-characters \"\\:$%^&*,\" symbol" $
+      parseSexp' "\\:$%^&*,"
+      `sexpEq` Right (Symbol "\\:$%^&*,")
   , testCase "string with arabic characters" $
       parseSexp' "\"ي الخاطفة الجديدة، مع, بلديهم\""
       `sexpEq` Right (String "ي الخاطفة الجديدة، مع, بلديهم")

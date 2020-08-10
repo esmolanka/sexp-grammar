@@ -39,17 +39,16 @@ $digit      = 0-9
 $hex        = [0-9 A-F a-f]
 $alpha      = [a-z A-Z]
 
-@number     = [\-\+]? $digit+ ([\.]$digit+)? ([eE] [\-\+]? $digit+)?
+@number     = [\-\+]? $digit+ ([\.]$digit+)?
 
 @escape     = \\ [nrt\\\"]
 @string     = $allgraphic # [\"\\] | $whitespace | @escape
 
 $unicode    = $allgraphic # [\x20-\x80]
 
-$syminitial = [$alpha \:\@\!\$\%\&\*\/\<\=\>\?\~\_\^\.\|\+\- $unicode]
-$symsubseq  = [$syminitial $digit \#\'\`\,]
-@symescape  = \\ [$alpha $digit \(\)\[\]\{\}\\\|\;\'\`\"\#\.\,]
-@symbol     = ($syminitial | @symescape) ($symsubseq | @symescape)*
+$syminitial = [$alpha $digit \\\:\@\!\$\%\&\*\/\<\=\>\?\~\_\^\.\|\+\- $unicode]
+$symsubseq  = [$syminitial \#\'\`\,]
+@symbol     = $syminitial ($symsubseq)*
 
 :-
 
