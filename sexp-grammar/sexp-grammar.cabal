@@ -1,9 +1,9 @@
 name:                sexp-grammar
-version:             2.1.0
+version:             2.2.0
 license:             BSD3
 license-file:        LICENSE
 author:              Yevhen Smolanka, Sergey Vinokurov
-maintainer:          Yevhen Smolanka <ys@polymorphic.me>, Sergey Vinokurov <serg.foo@gmail.com>
+maintainer:          Yevhen Smolanka <ys@polymorphic.me>
 homepage:            https://github.com/esmolanka/sexp-grammar
 category:            Language
 build-type:          Simple
