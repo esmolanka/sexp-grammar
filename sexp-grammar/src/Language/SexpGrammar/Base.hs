@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE Trustworthy       #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Language.SexpGrammar.Base

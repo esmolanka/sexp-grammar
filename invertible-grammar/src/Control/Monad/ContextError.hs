@@ -4,6 +4,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE RankNTypes             #-}
+{-# LANGUAGE Safe                   #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 module Control.Monad.ContextError

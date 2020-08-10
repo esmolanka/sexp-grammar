@@ -1,3 +1,5 @@
+{-# LANGUAGE Safe #-}
+
 module Data.InvertibleGrammar
   ( -- * Base
     Grammar, (:-), forward, backward

@@ -1,3 +1,4 @@
+{-# LANGUAGE Safe #-}
 
 module Language.SexpGrammar.Generic
   ( -- * GHC.Generics helpers

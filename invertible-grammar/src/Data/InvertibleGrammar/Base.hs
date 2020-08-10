@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE Trustworthy           #-}
 {-# LANGUAGE TypeOperators         #-}
 
 module Data.InvertibleGrammar.Base

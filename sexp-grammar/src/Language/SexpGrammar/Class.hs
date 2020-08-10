@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE Trustworthy       #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Language.SexpGrammar.Class

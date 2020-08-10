@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Safe              #-}
 {-# LANGUAGE ViewPatterns      #-}
 
 module Data.InvertibleGrammar.Monad
