@@ -1,6 +1,6 @@
-resolver: lts-13.27
+resolver: lts-16.8
 packages:
 - 'sexp-grammar'
 - 'invertible-grammar'
 extra-deps:
-- 'profunctors-5.4'
+- 'prettyprinter-1.7.0@sha256:6a9569e21fa61163a7f066d23d701e23e917893e8f39733d6e617ec72787ae5f,6007'

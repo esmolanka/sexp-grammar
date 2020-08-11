@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP           #-}
 {-# LANGUAGE RankNTypes    #-}
 {-# LANGUAGE Safe          #-}
 {-# LANGUAGE TypeOperators #-}

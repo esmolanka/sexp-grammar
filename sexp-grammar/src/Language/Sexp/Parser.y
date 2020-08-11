@@ -1,5 +1,7 @@
 {
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures  #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing      #-}
@@ -18,7 +20,12 @@ import qualified Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Prettyprint.Doc
+
+#if MIN_VERSION_prettyprinter(1,7,0)
+import qualified Data.Text.Prettyprint.Doc.Render.String as Render
+#else
 import qualified Data.Text.Prettyprint.Doc.Render.ShowS as Render
+#endif
 
 import Language.Sexp.Token
 import Language.Sexp.Lexer
