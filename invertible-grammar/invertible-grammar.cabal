@@ -3,7 +3,7 @@ version:             0.1.3
 license:             BSD3
 license-file:        LICENSE
 author:              Yevhen Smolanka, Sergey Vinokurov
-maintainer:          Yevhen Smolanka <ys@polymorphic.me>, Sergey Vinokurov <serg.foo@gmail.com>
+maintainer:          Yevhen Smolanka <ys@polymorphic.me>
 homepage:            https://github.com/esmolanka/invertible-grammar
 category:            Language
 build-type:          Simple

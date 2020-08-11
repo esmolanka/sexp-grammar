@@ -1,5 +1,5 @@
 name:                sexp-grammar
-version:             2.2.0
+version:             2.2.1
 license:             BSD3
 license-file:        LICENSE
 author:              Yevhen Smolanka, Sergey Vinokurov
@@ -47,7 +47,7 @@ library
     , bytestring         >=0.10  && <0.11
     , containers         >=0.5.5 && <0.7
     , deepseq            >=1.0   && <2.0
-    , invertible-grammar >=0.1   && <0.2
+    , invertible-grammar >=0.1.3 && <0.2
     , prettyprinter      >=1     && <1.8
     , recursion-schemes  >=5.0   && <5.2
     , scientific         >=0.3.3 && <0.4
