@@ -22,10 +22,12 @@ module Language.Sexp.Types
 
 import Control.DeepSeq
 
+import Data.Bifunctor
+
+import Data.Fix (Fix (..))
 import Data.Functor.Classes
 import Data.Functor.Compose
-import Data.Functor.Foldable (cata, Fix (..))
-import Data.Bifunctor
+import Data.Functor.Foldable (cata)
 import Data.Scientific (Scientific)
 import Data.Text (Text)
 import Data.Text.Prettyprint.Doc (Pretty (..), colon, (<>))
@@ -119,16 +121,13 @@ instance NFData Atom
 
 instance NFData Position
 
-instance NFData (Fix SexpF) where
-  rnf = cata alg
-    where
-      alg :: SexpF () -> ()
-      alg = \case
-        AtomF a -> rnf a
-        ParenListF as -> rnf as
-        BracketListF as -> rnf as
-        BraceListF as -> rnf as
-        ModifiedF q a -> rnf q `seq` rnf a
+instance NFData1 SexpF where
+  liftRnf f = \case
+    AtomF a -> rnf a
+    ParenListF as -> liftRnf f as
+    BracketListF as -> liftRnf f as
+    BraceListF as -> liftRnf f as
+    ModifiedF q a -> rnf q `seq` f a
 
-instance NFData (Fix (Compose (LocatedBy Position) SexpF)) where
-  rnf = rnf . stripLocation
+instance NFData1 (Compose (LocatedBy Position) SexpF) where
+  liftRnf f = liftRnf f . extract . getCompose
