@@ -1,4 +1,4 @@
-{ compiler ? "ghc865" }:
+{ compiler ? "ghc884" }:
 
 let
   nixpkgs = import ./. { inherit compiler; };
