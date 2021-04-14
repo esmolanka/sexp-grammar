@@ -1,8 +1,8 @@
-{compiler ? "ghc865" }:
+{ compiler ? "ghc884" }:
 let
   nixpkgs = import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/19.09.tar.gz";
-    sha256 = "0mhqhq21y5vrr1f30qd2bvydv4bbbslvyzclhw0kdxmkgg3z4c92";
+    url = "https://github.com/NixOS/nixpkgs/archive/abfd29cace6fbfdc2a13dd4fc3b48db95973d05d.tar.gz";
+    sha256 = "0c3y8nz52r8yc0bw2ncv8hw3cj2740j91wf66pjfir9wl3gqhmnp";
   }) { inherit config; };
 
   mkRelative = root: path:
@@ -20,6 +20,7 @@ let
     nixpkgs.haskell.lib.overrideCabal
       (self.callCabal2nix name (srcFilter originalSource) {})
       (old: rec {
+        doCheck = true;
         doHaddock = false;
         doHoogle = false;
         enableLibraryProfiling = false;
