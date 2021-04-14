@@ -1,4 +1,4 @@
-{compiler ? "ghc884" }:
+{ compiler ? "ghc884" }:
 let
   nixpkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/abfd29cace6fbfdc2a13dd4fc3b48db95973d05d.tar.gz";
@@ -20,6 +20,7 @@ let
     nixpkgs.haskell.lib.overrideCabal
       (self.callCabal2nix name (srcFilter originalSource) {})
       (old: rec {
+        doCheck = true;
         doHaddock = false;
         doHoogle = false;
         enableLibraryProfiling = false;
