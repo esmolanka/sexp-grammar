@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/esmolanka/sexp-grammar.svg?branch=master)](https://travis-ci.org/esmolanka/sexp-grammar)
+[![Build](https://github.com/esmolanka/sexp-grammar/actions/workflows/build.yml/badge.svg)](https://github.com/esmolanka/sexp-grammar/actions/workflows/build.yml)
 
 sexp-grammar
 ============
