@@ -60,7 +60,7 @@ instance Arbitrary Atom where
                ])
     , AtomSymbol . TS.pack <$>
         listOf (arbitrary `suchThat` (\c -> isAlphaNum c || c `elem` ("#',`\\:@!$%&*/<=>?~_^.|+-" :: [Char])))
-          `suchThat` (\s -> not $ all isDigit (drop 1 s) || null s || all (`elem` ("#',`" :: [Char])) (take 1 s))
+          `suchThat` isValidSymbol
     , pure (AtomSymbol ":foo")
     , pure (AtomSymbol "1e2")
     , pure (AtomSymbol "-1e2")
@@ -71,6 +71,17 @@ instance Arbitrary Atom where
     , pure (AtomSymbol "символ")
     , pure (AtomSymbol "@baz")
     ]
+    where
+      isValidSymbol = \case
+        [] -> False
+        p : _ | p `elem` ("#',`" :: String) -> False
+        '+' : str -> not (isANumber str)
+        str -> not (isANumber str)
+
+      isANumber s =
+        case reads s of
+          [(_ :: Double, [])] -> True
+          _ -> False
 
 instance Arbitrary Prefix where
   arbitrary = elements
@@ -225,11 +236,8 @@ personGenericIso = with
 
 allTests :: TestTree
 allTests = testGroup "All tests"
-  [ lexerTests
-  , QC.testProperty "Format/decode invertibility"
-    (\a -> case Sexp.decode (Sexp.format a) of
-             Left _ -> trace "Cannot parse" False
-             Right b -> if toSimple a == toSimple b then True else trace ("Parsed " ++ show b) False)
+  [ lexerParserTests
+  , QC.testProperty "Format/decode invertibility" prop_decodeFormattedEq
   , grammarTests
   ]
 
@@ -251,8 +259,8 @@ otherEq a b = do
       Left err -> "Error message: " ++ show (pretty err)
       Right v  -> "Output: " ++ show v
 
-lexerTests :: TestTree
-lexerTests = testGroup "Sexp lexer/parser tests"
+lexerParserTests :: TestTree
+lexerParserTests = testGroup "Sexp lexer/parser tests"
   [ testCase "123 is an integer number" $
       parseSexp' "123"
       `sexpEq` Right (Number 123)
@@ -262,7 +270,7 @@ lexerTests = testGroup "Sexp lexer/parser tests"
   , testCase "-123 is an integer number" $
       parseSexp' "-123"
       `sexpEq` Right (Number (- 123))
-  , testCase "+123.45 is a floating number" $
+  , testCase "+123.45 is a floating point number" $
       parseSexp' "+123.45"
       `sexpEq` Right (Number (read "123.45" :: Scientific))
   , testCase "0_1 is a symbol" $
@@ -344,6 +352,16 @@ lexerTests = testGroup "Sexp lexer/parser tests"
       parseSexp' ":foo"
       `sexpEq` Right (Symbol ":foo")
   ]
+
+
+prop_decodeFormattedEq :: Sexp -> Bool
+prop_decodeFormattedEq a =
+  case Sexp.decode (Sexp.format a) of
+    Left _ -> trace "Cannot parse" False
+    Right b ->
+      let a' = toSimple a
+          b' = toSimple b
+      in if a' == b' then True else trace ("Mismatch: " ++ show a' ++ " /= " ++ show b') False
 
 
 grammarTests :: TestTree
