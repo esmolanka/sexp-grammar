@@ -30,7 +30,7 @@ import Data.Functor.Compose
 import Data.Functor.Foldable (cata)
 import Data.Scientific (Scientific)
 import Data.Text (Text)
-import Data.Text.Prettyprint.Doc (Pretty (..), colon, (<>))
+import Data.Text.Prettyprint.Doc (Pretty (..), colon)
 import GHC.Generics
 
 ----------------------------------------------------------------------

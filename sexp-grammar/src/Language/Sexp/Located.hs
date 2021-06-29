@@ -40,7 +40,6 @@ module Language.Sexp.Located
   ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString, unpack)
-import Data.Fix (Fix (..))
 import Data.Functor.Compose
 import Data.Scientific (Scientific)
 import Data.Text (Text)
