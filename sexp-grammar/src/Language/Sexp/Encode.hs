@@ -14,7 +14,12 @@ import qualified Data.Text.Encoding as T (encodeUtf8)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL (encodeUtf8)
 import Data.ByteString.Lazy.Char8 (ByteString)
+#if !MIN_VERSION_bytestring(0,11,0)
 import Data.ByteString.Lazy.Builder.ASCII
+#else
+import Data.ByteString.Builder
+#endif
+
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
