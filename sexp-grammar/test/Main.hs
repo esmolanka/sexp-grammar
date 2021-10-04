@@ -23,12 +23,13 @@ import Control.Applicative
 #endif
 
 import Control.Category
-import Data.ByteString.Lazy.UTF8 (fromString)
+import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Char
 import Data.Scientific
 import Data.Semigroup
 import qualified Data.Set as S
 import qualified Data.Text as TS
+import Data.Text.Encoding (encodeUtf8)
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
 import GHC.Generics
 import Test.QuickCheck ()
@@ -47,8 +48,8 @@ import Language.SexpGrammar.TH hiding (match)
 
 import Debug.Trace
 
-parseSexp' :: String -> Either String Sexp
-parseSexp' input = Sexp.decode (fromString input)
+parseSexp' :: TS.Text -> Either String Sexp
+parseSexp' input = Sexp.decode (B8.fromStrict (encodeUtf8 input))
 
 instance Arbitrary Atom where
   arbitrary = oneof
