@@ -1,6 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -13,9 +14,16 @@ import Data.Functor.Foldable (para)
 import Data.Scientific
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding (encodeUtf8)
+
+#if MIN_VERSION_prettyprinter(1,7,0)
+import Prettyprinter
+import Prettyprinter.Internal (unsafeTextWithoutNewlines)
+import qualified Prettyprinter.Render.Text as Render
+#else
 import Data.Text.Prettyprint.Doc
 import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
 import qualified Data.Text.Prettyprint.Doc.Render.Text as Render
+#endif
 
 import Language.Sexp.Types
 import Language.Sexp.Token (escape)

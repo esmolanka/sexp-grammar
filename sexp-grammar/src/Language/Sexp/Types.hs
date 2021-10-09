@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -30,7 +31,11 @@ import Data.Functor.Compose
 import Data.Functor.Foldable (cata)
 import Data.Scientific (Scientific)
 import Data.Text (Text)
+#if !MIN_VERSION_prettyprinter(1,7,0)
 import Data.Text.Prettyprint.Doc (Pretty (..), colon)
+#else
+import Prettyprinter (Pretty (..), colon)
+#endif
 import GHC.Generics
 
 ----------------------------------------------------------------------
@@ -64,6 +69,9 @@ instance Bifunctor LocatedBy where
 
 instance (Eq p) => Eq1 (LocatedBy p) where
   liftEq eq (p :< a) (q :< b) = p == q && a `eq` b
+
+instance NFData p => NFData1 (LocatedBy p) where
+  liftRnf f (p :< a) = rnf p `seq` f a
 
 location :: LocatedBy a e -> a
 location (a :< _) = a
@@ -129,5 +137,7 @@ instance NFData1 SexpF where
     BraceListF as -> liftRnf f as
     ModifiedF q a -> rnf q `seq` f a
 
+#if !MIN_VERSION_deepseq(1,4,3)
 instance NFData1 (Compose (LocatedBy Position) SexpF) where
-  liftRnf f = liftRnf f . extract . getCompose
+  liftRnf f (Compose (p :< a)) = rnf p `seq` liftRnf f a
+#endif

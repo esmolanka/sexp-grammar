@@ -30,7 +30,13 @@ import Data.Semigroup
 import qualified Data.Set as S
 import qualified Data.Text as TS
 import Data.Text.Encoding (encodeUtf8)
+
+#if MIN_VERSION_prettyprinter(1,7,0)
+import Prettyprinter (Pretty, pretty)
+#else
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
+#endif
+
 import GHC.Generics
 import Test.QuickCheck ()
 import Test.Tasty
