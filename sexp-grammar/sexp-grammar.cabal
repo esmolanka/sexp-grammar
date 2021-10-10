@@ -14,7 +14,7 @@ synopsis:
 description:
   Serialisation to and deserialisation from S-expressions derived from
   a single grammar definition.
-tested-with:   GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.3, GHC == 8.10.1
+tested-with:   GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.1
 
 source-repository head
   type: git
