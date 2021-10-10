@@ -7,6 +7,8 @@ jobs:
     name: "GHC ${{ matrix.versions.ghc }}; Cabal ${{ matrix.versions.cabal }}"
     runs-on: ubuntu-latest
     strategy:
+      fail-fast:
+        false
       matrix:
         versions:
           - ghc: '8.4.4'
