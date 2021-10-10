@@ -1,9 +1,10 @@
-name: "Build"
+name: "Build with Nix"
 on:
   pull_request:
   push:
 jobs:
-  tests:
+  build:
+    name: "Run nix-build"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2.3.4

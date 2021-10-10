@@ -1,0 +1,51 @@
+name: "Build with Cabal"
+on:
+  pull_request:
+  push:
+jobs:
+  build:
+    name: "GHC ${{ matrix.versions.ghc }}; Cabal ${{ matrix.versions.cabal }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast:
+        false
+      matrix:
+        versions:
+          - ghc: '8.4.4'
+            cabal: '2.4'
+          - ghc: '8.6.5'
+            cabal: '3.2'
+          - ghc: '8.8.4'
+            cabal: '3.2'
+          - ghc: '8.10.7'
+            cabal: '3.4'
+          - ghc: '9.0.1'
+            cabal: '3.4'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Haskell
+      uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.versions.ghc }}
+        cabal-version: ${{ matrix.versions.cabal }}
+
+    - uses: actions/cache@v1
+      name: Cache ~/.cabal/store
+      with:
+        path: ~/.cabal/store
+        key: ${{ runner.os }}-${{ matrix.versions.ghc }}-cabal
+
+    - name: Configure
+      run: |
+        cabal v2-configure \
+          --enable-tests \
+          --enable-benchmarks
+
+    - name: Build all
+      run: cabal v2-build all
+
+    - name: Test all
+      run: cabal v2-test all
