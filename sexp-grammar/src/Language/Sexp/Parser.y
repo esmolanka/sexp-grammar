@@ -16,6 +16,7 @@ module Language.Sexp.Parser
 
 import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe (catMaybes)
 import qualified Data.Scientific
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -45,10 +46,13 @@ import Language.Sexp.Types
   ']'            { _ :< TokRBracket   }
   '{'            { _ :< TokLBrace     }
   '}'            { _ :< TokRBrace     }
+
   PREFIX         { _ :< (TokPrefix _) }
   SYMBOL         { _ :< (TokSymbol _) }
   NUMBER         { _ :< (TokNumber _) }
   STRING         { _ :< (TokString _) }
+
+  COMMENT        { _ :< TokCommentIntro }
 
   EOF            { _ :< TokEOF        }
 
@@ -58,19 +62,23 @@ Sexps_ :: { [Sexp] }
   : Sexps EOF                             { $1 }
 
 Sexps :: { [Sexp] }
-  : list(Sexp)                            { $1 }
+  : list(MSexp)                           { catMaybes $1 }
 
 Sexp_ :: { Sexp }
   : Sexp EOF                              { $1 }
 
 Sexp :: { Sexp }
   : Atom                                  { AtomF                       @@ $1 }
-  | '(' list(Sexp) ')'                    { const (ParenListF $2)       @@ $1 }
-  | '[' list(Sexp) ']'                    { const (BracketListF $2)     @@ $1 }
-  | '{' list(Sexp) '}'                    { const (BraceListF $2)       @@ $1 }
+  | '(' Sexps ')'                         { const (ParenListF $2)       @@ $1 }
+  | '[' Sexps ']'                         { const (BracketListF $2)     @@ $1 }
+  | '{' Sexps '}'                         { const (BraceListF $2)       @@ $1 }
   | PREFIX Sexp                           { const (ModifiedF
                                                     (getPrefix (extract $1))
                                                     $2)                 @@ $1 }
+
+MSexp :: { Maybe Sexp }
+  : Sexp                                  { Just $1 }
+  | COMMENT Sexp                          { Nothing }
 
 Atom :: { LocatedBy Position Atom }
   : NUMBER                                { fmap (AtomNumber . getNumber) $1 }

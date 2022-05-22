@@ -31,6 +31,7 @@ data Token
   | TokRBracket        -- ]
   | TokLBrace          -- {
   | TokRBrace          -- }
+  | TokCommentIntro    -- #;
   | TokPrefix  { getPrefix  :: !Prefix }      -- e.g. a quote in '(foo bar)
   | TokNumber  { getNumber  :: !Scientific }  -- 42.0, -1.0, 3.14, -1e10
   | TokString  { getString  :: !Text }        -- "foo", "", "hello world"
@@ -40,18 +41,19 @@ data Token
     deriving (Show, Eq)
 
 instance Pretty Token where
-  pretty TokLParen      = "left paren '('"
-  pretty TokRParen      = "right paren ')'"
-  pretty TokLBracket    = "left bracket '['"
-  pretty TokRBracket    = "right bracket '['"
-  pretty TokLBrace      = "left brace '{'"
-  pretty TokRBrace      = "right brace '}'"
-  pretty (TokPrefix c)  = "modifier" <+> pretty (show c)
-  pretty (TokSymbol s)  = "symbol" <+> squotes (pretty s) <> squote
-  pretty (TokNumber n)  = "number" <+> pretty (show n)
-  pretty (TokString s)  = "string" <+> pretty (show s)
-  pretty (TokUnknown u) = "unrecognized" <+> pretty u <> "..."
-  pretty TokEOF         = "end of file"
+  pretty TokLParen       = "left paren '('"
+  pretty TokRParen       = "right paren ')'"
+  pretty TokLBracket     = "left bracket '['"
+  pretty TokRBracket     = "right bracket '['"
+  pretty TokLBrace       = "left brace '{'"
+  pretty TokRBrace       = "right brace '}'"
+  pretty TokCommentIntro = "datum comment"
+  pretty (TokPrefix c)   = "modifier" <+> pretty (show c)
+  pretty (TokSymbol s)   = "symbol" <+> squotes (pretty s) <> squote
+  pretty (TokNumber n)   = "number" <+> pretty (show n)
+  pretty (TokString s)   = "string" <+> pretty (show s)
+  pretty (TokUnknown u)  = "unrecognized" <+> pretty u <> "..."
+  pretty TokEOF          = "end of file"
 
 
 newtype DText = DText (TL.Text -> TL.Text)

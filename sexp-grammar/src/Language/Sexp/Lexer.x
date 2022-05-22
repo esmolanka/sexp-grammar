@@ -54,34 +54,26 @@ $symsubseq  = [$syminitial \#\'\`\,]
 
 $whitespace+       ;
 ";" .*             ;
+"#;" / $allgraphic { const TokCommentIntro }
 
-"("                { just TokLParen   }
-")"                { just TokRParen   }
-"["                { just TokLBracket }
-"]"                { just TokRBracket }
-"{"                { just TokLBrace   }
-"}"                { just TokRBrace   }
+"("                { const TokLParen   }
+")"                { const TokRParen   }
+"["                { const TokLBracket }
+"]"                { const TokRBracket }
+"{"                { const TokLBrace   }
+"}"                { const TokRBrace   }
 
-"'" / $allgraphic  { just (TokPrefix Quote)    }
-"`" / $allgraphic  { just (TokPrefix Backtick) }
-",@" / $allgraphic { just (TokPrefix CommaAt)  }
-"," / $allgraphic  { just (TokPrefix Comma)    }
-"#" / $allgraphic  { just (TokPrefix Hash)     }
+"'"  / $allgraphic { const (TokPrefix Quote)    }
+"`"  / $allgraphic { const (TokPrefix Backtick) }
+",@" / $allgraphic { const (TokPrefix CommaAt)  }
+","  / $allgraphic { const (TokPrefix Comma)    }
+"#"  / $allgraphic { const (TokPrefix Hash)     }
 
-@number            { TokNumber  `via` readNum    }
-@symbol            { TokSymbol  `via` decode     }
-\" @string* \"     { TokString  `via` readString }
+@number            { TokNumber . readNum }
+@symbol            { TokSymbol . decode }
+\" @string* \"     { TokString . readString }
 
 {
-
-----------------------------------------------------------------------
--- Actions
-
-just :: Token -> AlexAction
-just tok _ = tok
-
-via :: (a -> Token) -> (ByteString -> a) -> AlexAction
-via ftok f = ftok . f
 
 ----------------------------------------------------------------------
 -- Decoders
