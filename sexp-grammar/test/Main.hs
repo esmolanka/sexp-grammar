@@ -358,6 +358,9 @@ lexerParserTests = testGroup "Sexp lexer/parser tests"
   , testCase "keyword" $
       parseSexp' ":foo"
       `sexpEq` Right (Symbol ":foo")
+  , testCase "datum comment" $
+      parseSexp' "(three #;(not four) element list)"
+      `sexpEq` Right (ParenList [Symbol "three", Symbol "element", Symbol "list"])
   ]
 
 
