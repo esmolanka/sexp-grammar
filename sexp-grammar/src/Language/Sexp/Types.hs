@@ -115,6 +115,9 @@ data SexpF e
   | ModifiedF    !Prefix e
     deriving (Functor, Foldable, Traversable, Generic)
 
+instance Eq a => Eq (SexpF a) where
+  (==) = liftEq (==)
+
 instance Eq1 SexpF where
   liftEq eq = go
     where
