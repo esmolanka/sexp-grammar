@@ -15,14 +15,15 @@ module Control.Monad.ContextError
   , MonadContextError (..)
   ) where
 
-#if MIN_VERSION_mtl(2,2,0)
-import Control.Monad.Except
-#else
+#if !MIN_VERSION_mtl(2,2,0)
 import Control.Monad.Error
 #endif
 
 import Control.Applicative
+import Control.Monad (MonadPlus, mplus, mzero)
+import Control.Monad.Trans.Class (MonadTrans, lift)
 import Control.Monad.Trans.Cont as Cont (ContT, liftLocal)
+import Control.Monad.Trans.Except (ExceptT, mapExceptT)
 import Control.Monad.Trans.Identity (IdentityT, mapIdentityT)
 import Control.Monad.Trans.Maybe (MaybeT, mapMaybeT)
 import Control.Monad.Trans.Reader (ReaderT, mapReaderT)
@@ -113,8 +114,8 @@ instance MonadWriter w m => MonadWriter w (ContextErrorT c e m) where
   pass m = ContextErrorT $ \c err ret -> pass $ do
     res <- unContextErrorT m c (return . Left) (curry (return . Right))
     case res of
-      Right (c', (a, f)) -> liftM (\b -> (b, f)) $ ret c' a
-      Left e -> liftM (\b -> (b, id)) $ err e
+      Right (c', (a, f)) -> liftA (\b -> (b, f)) $ ret c' a
+      Left e -> liftA (\b -> (b, id)) $ err e
 
 instance MonadReader r m => MonadReader r (ContextErrorT c e m) where
   ask = lift ask
