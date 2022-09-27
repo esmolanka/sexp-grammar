@@ -1,7 +1,0 @@
-resolver: lts-7.18
-packages:
-- 'sexp-grammar'
-- 'invertible-grammar'
-extra-deps:
-- prettyprinter-1.0.1
-- recursion-schemes-5.0.2
