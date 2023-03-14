@@ -1,15 +1,14 @@
-{ compiler ? "ghc901" }:
-
+{ compiler ? "ghc925" }:
 let
-  nixpkgs = import ./. { inherit compiler; };
+  nixpkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/22.11.tar.gz";
+    sha256 = "11w3wn2yjhaa5pv20gbfbirvjq6i3m7pqrq2msf0g7cv44vijwgw";
+  }) { };
 in
 
-nixpkgs.haskellPackages.shellFor {
-  packages = p: with p; [
-    sexp-grammar
-    invertible-grammar
-  ];
+nixpkgs.mkShell {
   buildInputs = [
-    nixpkgs.haskellPackages.cabal-install
+    nixpkgs.haskell.packages.${compiler}.cabal-install
+    (nixpkgs.haskell.packages.${compiler}.ghcWithPackages (p: [ ]))
   ];
 }
