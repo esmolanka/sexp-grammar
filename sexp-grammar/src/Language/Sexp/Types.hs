@@ -134,6 +134,3 @@ instance NFData1 SexpF where
     BracketListF as -> liftRnf f as
     BraceListF as -> liftRnf f as
     ModifiedF q a -> rnf q `seq` f a
-
-instance NFData1 (Compose (LocatedBy Position) SexpF) where
-  liftRnf f (Compose (p :< a)) = rnf p `seq` liftRnf f a
