@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
@@ -49,9 +48,6 @@ import Data.Text (Text)
 import qualified Data.Text as TS
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
-#endif
 
 import Language.Sexp.Located
 

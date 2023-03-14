@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -31,12 +30,8 @@ import Data.Functor.Compose
 import Data.Functor.Foldable (cata)
 import Data.Scientific (Scientific)
 import Data.Text (Text)
-#if !MIN_VERSION_prettyprinter(1,7,0)
-import Data.Text.Prettyprint.Doc (Pretty (..), colon)
-#else
-import Prettyprinter (Pretty (..), colon)
-#endif
 import GHC.Generics
+import Prettyprinter (Pretty (..), colon)
 
 ----------------------------------------------------------------------
 -- Positions
@@ -140,7 +135,5 @@ instance NFData1 SexpF where
     BraceListF as -> liftRnf f as
     ModifiedF q a -> rnf q `seq` f a
 
-#if !MIN_VERSION_deepseq(1,4,3)
 instance NFData1 (Compose (LocatedBy Position) SexpF) where
   liftRnf f (Compose (p :< a)) = rnf p `seq` liftRnf f a
-#endif

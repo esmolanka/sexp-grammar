@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -18,10 +17,6 @@ module Main (main) where
 
 import Prelude hiding ((.), id)
 
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
-
 import Control.Category
 import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Char
@@ -31,11 +26,7 @@ import qualified Data.Set as S
 import qualified Data.Text as TS
 import Data.Text.Encoding (encodeUtf8)
 
-#if MIN_VERSION_prettyprinter(1,7,0)
 import Prettyprinter (Pretty, pretty)
-#else
-import Data.Text.Prettyprint.Doc (Pretty, pretty)
-#endif
 
 import GHC.Generics
 import Test.QuickCheck ()

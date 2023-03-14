@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE Trustworthy       #-}
+{-# LANGUAGE Safe              #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Language.SexpGrammar.Class
@@ -22,10 +21,6 @@ import Data.Set (Set)
 import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
-#endif
 
 import Language.Sexp.Located
 import Language.SexpGrammar.Base
