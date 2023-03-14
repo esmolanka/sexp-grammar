@@ -1,12 +1,8 @@
-{-# LANGUAGE CPP             #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Data.InvertibleGrammar.TH where
 
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
 import Data.Foldable (toList)
 import Data.InvertibleGrammar.Base
 import Data.Maybe
@@ -14,9 +10,6 @@ import Data.Text (pack)
 import Language.Haskell.TH as TH
 import Data.Set (Set)
 import qualified Data.Set as S
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup ((<>))
-#endif
 
 
 {- | Build a prism and the corresponding grammar that will match on the
@@ -44,19 +37,13 @@ import Data.Semigroup ((<>))
 
 grammarFor :: Name -> ExpQ
 grammarFor constructorName = do
-#if defined(__GLASGOW_HASKELL__)
-# if __GLASGOW_HASKELL__ <= 710
-  DataConI realConstructorName _typ parentName _fixity <- reify constructorName
-# else
   DataConI realConstructorName _typ parentName <- reify constructorName
-# endif
-#endif
   TyConI dataDef <- reify parentName
 
-  let Just (single, constructorInfo) = do
-        (single, allConstr) <- constructors dataDef
-        constr <- findConstructor realConstructorName allConstr
-        return (single, constr)
+  (single, constructorInfo) <- maybe (fail "Could not find the constructor") pure $ do
+     (single, allConstr) <- constructors dataDef
+     constr <- findConstructor realConstructorName allConstr
+     return (single, constr)
 
   let ts = fieldTypes constructorInfo
   vs <- mapM (const $ newName "x") ts
@@ -114,15 +101,8 @@ match tyName = do
 -- Utils
 
 constructors :: Dec -> Maybe (Bool, [Con])
-#if defined(__GLASGOW_HASKELL__)
-# if __GLASGOW_HASKELL__ <= 710
-constructors (DataD _ _ _ cs _)     = Just (length cs == 1, cs)
-constructors (NewtypeD _ _ _ c _)   = Just (True, [c])
-# else
 constructors (DataD _ _ _ _ cs _)   = Just (length cs == 1, cs)
 constructors (NewtypeD _ _ _ _ c _) = Just (True, [c])
-# endif
-#endif
 constructors _                      = Nothing
 
 findConstructor :: Name -> [Con] -> Maybe Con
@@ -137,10 +117,8 @@ constructorNames = \case
   RecC name _      -> S.singleton name
   InfixC _ name _  -> S.singleton name
   ForallC _ _ con' -> constructorNames con'
-#if MIN_VERSION_template_haskell(2, 11, 0)
   GadtC cs _ _     -> S.fromList cs
   RecGadtC cs _ _  -> S.fromList cs
-#endif
 
 fieldTypes :: Con -> [Type]
 fieldTypes = \case
@@ -148,10 +126,8 @@ fieldTypes = \case
   RecC _ fieldTypes     -> map extractType' fieldTypes
   InfixC (_,a) _b (_,b) -> [a, b]
   ForallC _ _ con'      -> fieldTypes con'
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
   GadtC _ fs _          -> map extractType fs
   RecGadtC _ fs _       -> map extractType' fs
-#endif
   where
     extractType (_, t) = t
     extractType' (_, _, t) = t

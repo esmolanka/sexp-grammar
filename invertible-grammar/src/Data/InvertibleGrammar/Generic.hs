@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
@@ -28,14 +27,13 @@ import Control.Category ((.))
 
 import Data.Functor.Identity
 import Data.InvertibleGrammar.Base
+import Data.Kind (Type)
 import Data.Monoid (First(..))
 import Data.Profunctor (Choice(..))
 import Data.Profunctor.Unsafe
 import Data.Tagged
 import Data.Text (pack)
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup ((<>))
-#endif
+
 
 import GHC.Generics
 
@@ -90,17 +88,17 @@ type family (:++) (as :: [k]) (bs :: [k]) :: [k] where
   (:++) (a ': as) bs = a ': (as :++ bs)
   (:++) '[] bs = bs
 
-type family Coll (f :: * -> *) (t :: *) :: [*] where
+type family Coll (f :: Type -> Type) (t :: Type) :: [Type] where
   Coll (f :+: g)  t = Coll f t :++ Coll g t
   Coll (M1 D c f) t = Coll f t
   Coll (M1 C c f) t = '[StackPrismLhs f t]
 
-type family Trav (t :: * -> *) (l :: [*]) :: [*] where
+type family Trav (t :: Type -> Type) (l :: [Type]) :: [Type] where
   Trav (f :+: g) lst = Trav g (Trav f lst)
   Trav (M1 D c f) lst = Trav f lst
   Trav (M1 C c f) (l ': ls) = ls
 
-class Match (f :: * -> *) bs t where
+class Match (f :: Type -> Type) bs t where
   match' :: PrismList f a
          -> Coproduct p s bs a t
          -> ( Grammar p s (a :- t)
@@ -165,9 +163,9 @@ type StackPrisms a = PrismList (Rep a) a
 -- > nil  :: StackPrism              t  ([a] :- t)
 -- > cons :: StackPrism (a :- [a] :- t) ([a] :- t)
 -- > PrismList (P nil :& P cons) = mkPrismList :: StackPrisms [a]
-data family PrismList (f :: * -> *) (a :: *)
+data family PrismList (f :: Type -> Type) (a :: Type)
 
-class MkPrismList (f :: * -> *) where
+class MkPrismList (f :: Type -> Type) where
   mkPrismList' :: (f p -> a) -> (a -> Maybe (f q)) -> PrismList f a
 
 data instance PrismList (M1 D c f) a = PrismList (PrismList f a)
@@ -208,9 +206,9 @@ instance MkStackPrism f => MkPrismList (M1 C c f) where
 
 -- Deriving types and conversions for single constructors
 
-type family StackPrismLhs (f :: * -> *) (t :: *) :: *
+type family StackPrismLhs (f :: Type -> Type) (t :: Type) :: Type
 
-class MkStackPrism (f :: * -> *) where
+class MkStackPrism (f :: Type -> Type) where
   mkR :: forall p t. StackPrismLhs f t -> (f p :- t)
   mkL :: forall p t. (f p :- t) -> StackPrismLhs f t
 

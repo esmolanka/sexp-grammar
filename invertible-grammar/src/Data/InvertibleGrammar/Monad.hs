@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -34,30 +33,12 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import GHC.Generics
 
-#if MIN_VERSION_prettyprinter(1,7,0)
 import Prettyprinter
   ( Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate
   , comma, colon, (<+>), layoutSmart, PageWidth(..), LayoutOptions(..)
   )
-#else
-import Data.Text.Prettyprint.Doc
-  ( Doc, Pretty, pretty, vsep, hsep, line, indent, fillSep, punctuate
-  , comma, colon, (<+>), layoutSmart, PageWidth(..), LayoutOptions(..)
-  )
-#endif
 
-#if MIN_VERSION_prettyprinter(1,7,0)
 import Prettyprinter.Render.String
-#elif MIN_VERSION_prettyprinter(1,2,0)
-import Data.Text.Prettyprint.Doc.Render.String
-#else
-import Data.Text.Prettyprint.Doc (SimpleDocStream)
-import Data.Text.Prettyprint.Doc.Render.ShowS
-
-renderString :: SimpleDocStream ann -> String
-renderString stream = renderShowS stream ""
-#endif
-
 
 initPropagation :: p -> Propagation p
 initPropagation = Propagation [0] []

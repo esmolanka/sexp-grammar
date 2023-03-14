@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}
@@ -18,22 +17,12 @@ module Data.InvertibleGrammar.Base
   ) where
 
 import Prelude hiding ((.), id)
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
 import Control.Category
 import Control.Monad
 import Data.Text (Text)
 import Data.Bifunctor
 import Data.Bifoldable
 import Data.Bitraversable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Traversable
-import Data.Foldable
-#endif
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
-#endif
 import Data.InvertibleGrammar.Monad
 import qualified Debug.Trace
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE DeriveFunctor          #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -14,10 +13,6 @@ module Control.Monad.ContextError
   , runContextError
   , MonadContextError (..)
   ) where
-
-#if !MIN_VERSION_mtl(2,2,0)
-import Control.Monad.Error
-#endif
 
 import Control.Applicative
 import Control.Monad (MonadPlus, mplus, mzero)
@@ -39,9 +34,6 @@ import Control.Monad.Reader (MonadReader (..))
 import Control.Monad.Writer (MonadWriter (..))
 
 import Data.Functor.Identity
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
-#endif
 
 ----------------------------------------------------------------------
 -- Monad
@@ -78,9 +70,6 @@ instance (Semigroup e) => Alternative (ContextErrorT c e m) where
   {-# INLINE (<|>) #-}
 
 instance Monad (ContextErrorT c e m) where
-  return a = ContextErrorT $ \c _ ret -> ret c a
-  {-# INLINE return #-}
-
   ma >>= fb =
     ContextErrorT $ \c err ret ->
       unContextErrorT ma c err $ \c' a ->
@@ -147,25 +136,12 @@ instance MonadContextError c e m =>
     localContext = Cont.liftLocal askContext localContext
     modifyContext = lift . modifyContext
 
-#if MIN_VERSION_mtl(2, 2, 0)
-
 instance MonadContextError c e m =>
          MonadContextError c e (ExceptT e m) where
     throwInContext = lift . throwInContext
     askContext = lift askContext
     localContext = mapExceptT . localContext
     modifyContext = lift . modifyContext
-
-#else
-
-instance (Error e', MonadContextError c e m) =>
-         MonadContextError c e (ErrorT e' m) where
-    throwInContext = lift . throwInContext
-    askContext = lift askContext
-    localContext = mapErrorT . localContext
-    modifyContext = lift . modifyContext
-
-#endif
 
 instance MonadContextError c e m =>
          MonadContextError c e (IdentityT m) where

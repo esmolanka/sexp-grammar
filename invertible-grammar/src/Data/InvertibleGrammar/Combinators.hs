@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
@@ -33,10 +32,6 @@ import Data.Maybe
 import Data.Void
 import Data.Text (Text)
 import Data.InvertibleGrammar.Base
-
-#if !MIN_VERSION_base(4,11,0)
-import Data.Semigroup
-#endif
 
 -- | Isomorphism on the stack head.
 iso :: (a -> b) -> (b -> a) -> Grammar p (a :- t) (b :- t)
