@@ -65,6 +65,8 @@ instance Bifunctor LocatedBy where
 instance (Eq p) => Eq1 (LocatedBy p) where
   liftEq eq (p :< a) (q :< b) = p == q && a `eq` b
 
+instance (NFData p, NFData e) => NFData (LocatedBy p e)
+
 instance NFData p => NFData1 (LocatedBy p) where
   liftRnf f (p :< a) = rnf p `seq` f a
 
@@ -126,6 +128,8 @@ instance Eq1 SexpF where
 instance NFData Atom
 
 instance NFData Position
+
+instance NFData e => NFData (SexpF e)
 
 instance NFData1 SexpF where
   liftRnf f = \case
