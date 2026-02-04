@@ -39,7 +39,7 @@ library
   build-depends:
       base              >=4.11  && <5.0
     , bifunctors        >=4.2   && <6.0
-    , containers        >=0.5.5 && <0.8
+    , containers        >=0.5.5 && <0.9
     , mtl               >=2.2   && <2.4
     , prettyprinter     >=1.7   && <2.0
     , profunctors       >=4.4   && <5.7
